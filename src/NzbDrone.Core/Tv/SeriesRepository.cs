@@ -78,7 +78,7 @@ namespace NzbDrone.Core.Tv
 
             // The series has editions. Callers that only know the TVDB ID (metadata refresh, API lookups,
             // release parsing) get the main edition, editions are resolved from the file or by the user.
-            return series.FirstOrDefault(s => SeriesEditions.IsMainEdition(s.EditionName)) ?? series.First();
+            return GetMainEdition(series);
         }
 
         public List<Series> FindAllByTvdbId(int tvdbId)
@@ -147,6 +147,11 @@ namespace NzbDrone.Core.Tv
             }
         }
 
+        private static Series GetMainEdition(List<Series> series)
+        {
+            return series.FirstOrDefault(s => SeriesEditions.IsMainEdition(s.EditionName)) ?? series.First();
+        }
+
         private Series ReturnSingleSeriesOrThrow(List<Series> series)
         {
             if (series.Count == 0)
@@ -159,6 +164,14 @@ namespace NzbDrone.Core.Tv
                 return series.First();
             }
 
+            // Editions of one series share their title, so matching by title finds all of them. That is
+            // not the ambiguity this throws for, the main edition is the one release parsing wants.
+            if (series.Select(s => s.TvdbId).Distinct().Count() == 1)
+            {
+                return GetMainEdition(series);
+            }
+
+            // Separate series that happen to share a title stay ambiguous, the user has to pick one.
             throw new MultipleSeriesFoundException(series, "Expected one series, but found {0}. Matching series: {1}", series.Count, string.Join(", ", series));
         }
 

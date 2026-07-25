@@ -10,6 +10,7 @@ import SeriesGenres from 'Series/SeriesGenres';
 import SeriesPoster from 'Series/SeriesPoster';
 import translate from 'Utilities/String/translate';
 import AddNewSeriesModal from './AddNewSeriesModal';
+import SelectSeriesEditionModal from './SelectSeriesEditionModal';
 import styles from './AddNewSeriesSearchResult.css';
 
 class AddNewSeriesSearchResult extends Component {
@@ -21,25 +22,39 @@ class AddNewSeriesSearchResult extends Component {
     super(props, context);
 
     this.state = {
-      isNewAddSeriesModalOpen: false
+      isNewAddSeriesModalOpen: false,
+      isSelectEditionModalOpen: false,
+      isAddingEdition: false
     };
-  }
-
-  componentDidUpdate(prevProps) {
-    if (!prevProps.isExistingSeries && this.props.isExistingSeries) {
-      this.onAddSeriesModalClose();
-    }
   }
 
   //
   // Listeners
 
+  // An existing series can have editions, so go through a picker instead of straight to the series.
   onPress = () => {
-    this.setState({ isNewAddSeriesModalOpen: true });
+    if (this.props.isExistingSeries) {
+      this.setState({ isSelectEditionModalOpen: true });
+      return;
+    }
+
+    this.setState({ isNewAddSeriesModalOpen: true, isAddingEdition: false });
+  };
+
+  onAddEditionPress = () => {
+    this.setState({
+      isSelectEditionModalOpen: false,
+      isNewAddSeriesModalOpen: true,
+      isAddingEdition: true
+    });
+  };
+
+  onSelectEditionModalClose = () => {
+    this.setState({ isSelectEditionModalOpen: false });
   };
 
   onAddSeriesModalClose = () => {
-    this.setState({ isNewAddSeriesModalOpen: false });
+    this.setState({ isNewAddSeriesModalOpen: false, isAddingEdition: false });
   };
 
   onTVDBLinkPress = (event) => {
@@ -53,7 +68,6 @@ class AddNewSeriesSearchResult extends Component {
     const {
       tvdbId,
       title,
-      titleSlug,
       year,
       network,
       originalLanguage,
@@ -66,16 +80,19 @@ class AddNewSeriesSearchResult extends Component {
       seriesType,
       images,
       isExistingSeries,
+      editions,
       isSmallScreen
     } = this.props;
 
     const seasonCount = statistics.seasonCount;
 
     const {
-      isNewAddSeriesModalOpen
+      isNewAddSeriesModalOpen,
+      isSelectEditionModalOpen,
+      isAddingEdition
     } = this.state;
 
-    const linkProps = isExistingSeries ? { to: `/series/${titleSlug}` } : { onPress: this.onPress };
+    const linkProps = { onPress: this.onPress };
     let seasons = translate('OneSeason');
 
     if (seasonCount > 1) {
@@ -234,8 +251,16 @@ class AddNewSeriesSearchResult extends Component {
           </div>
         </div>
 
+        <SelectSeriesEditionModal
+          isOpen={isSelectEditionModalOpen}
+          title={title}
+          editions={editions}
+          onAddEditionPress={this.onAddEditionPress}
+          onModalClose={this.onSelectEditionModalClose}
+        />
+
         <AddNewSeriesModal
-          isOpen={isNewAddSeriesModalOpen && !isExistingSeries}
+          isOpen={isNewAddSeriesModalOpen && (!isExistingSeries || isAddingEdition)}
           tvdbId={tvdbId}
           title={title}
           year={year}
@@ -243,6 +268,7 @@ class AddNewSeriesSearchResult extends Component {
           folder={folder}
           initialSeriesType={seriesType}
           images={images}
+          isAddingEdition={isAddingEdition}
           onModalClose={this.onAddSeriesModalClose}
         />
       </div>
@@ -266,11 +292,13 @@ AddNewSeriesSearchResult.propTypes = {
   seriesType: PropTypes.string.isRequired,
   images: PropTypes.arrayOf(PropTypes.object).isRequired,
   isExistingSeries: PropTypes.bool.isRequired,
+  editions: PropTypes.arrayOf(PropTypes.object).isRequired,
   isSmallScreen: PropTypes.bool.isRequired
 };
 
 AddNewSeriesSearchResult.defaultProps = {
-  genres: []
+  genres: [],
+  editions: []
 };
 
 export default AddNewSeriesSearchResult;
