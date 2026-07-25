@@ -1,0 +1,84 @@
+name: Docker
+
+# Sonarr does not publish an image — the well known ones (linuxserver, hotio) are built by third
+# parties from the release tarball, so there is nothing upstream to reuse. This publishes the fork
+# to ghcr.io using the artifacts the normal build already produces, rather than building again.
+on:
+  workflow_run:
+    workflows: ["Build"]
+    types: [completed]
+    branches:
+      - feature/series-editions-v4
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FRAMEWORK: net6.0
+  # Alpine, so the musl build rather than the glibc one.
+  RUNTIME: linux-musl-x64
+
+jobs:
+  docker:
+    # A red build should not produce an image.
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      actions: read
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      # The Build workflow publishes the packages for every Linux runtime as build_linux, and the UI
+      # separately as build_ui because the backend job runs without --frontend.
+      - name: Download package
+        uses: actions/download-artifact@v4
+        with:
+          name: build_linux
+          path: _artifacts
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id || github.run_id }}
+
+      - name: Download UI
+        uses: actions/download-artifact@v4
+        with:
+          name: build_ui
+          path: _artifacts/${{ env.RUNTIME }}/${{ env.FRAMEWORK }}/Sonarr/UI
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id || github.run_id }}
+
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/sonarr
+          tags: |
+            type=raw,value=editions
+            type=sha,format=long
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          build-args: |
+            RUNTIME=${{ env.RUNTIME }}
+            FRAMEWORK=${{ env.FRAMEWORK }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      # arm64 would be a matrix over linux-x64 / linux-arm64 pushing per-arch tags joined by
+      # `docker buildx imagetools create`. build_linux already contains both, so it is only the
+      # publish side that needs the work.
