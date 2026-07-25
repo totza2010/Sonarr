@@ -5,6 +5,8 @@ on:
     branches:
       - develop
       - main
+      # This fork's line, so the Docker workflow has a build to publish.
+      - feature/series-editions-v4
     paths-ignore:
       - "src/Sonarr.Api.*/openapi.json"
   pull_request:
