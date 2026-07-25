@@ -89,7 +89,10 @@ namespace NzbDrone.Core.Tv
 
             series.Title = seriesInfo.Title;
             series.Year = seriesInfo.Year;
-            series.TitleSlug = seriesInfo.TitleSlug;
+
+            // Editions share their metadata with the main edition, but not their slug, it has to stay unique.
+            series.TitleSlug = SeriesEditions.ApplyEditionToSlug(seriesInfo.TitleSlug, series.EditionName);
+
             series.TvRageId = seriesInfo.TvRageId;
             series.TvMazeId = seriesInfo.TvMazeId;
             series.TmdbId = seriesInfo.TmdbId;

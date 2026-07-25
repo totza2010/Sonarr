@@ -13,10 +13,13 @@ namespace NzbDrone.Core.Tv
         Series FindByTitle(string cleanTitle, int year);
         List<Series> FindByTitleInexact(string cleanTitle);
         Series FindByTvdbId(int tvdbId);
+        List<Series> FindAllByTvdbId(int tvdbId);
+        Series FindByTvdbIdAndEdition(int tvdbId, string editionName);
         Series FindByTvRageId(int tvRageId);
         Series FindByImdbId(string imdbId);
         Series FindByPath(string path);
         List<int> AllSeriesTvdbIds();
+        Dictionary<int, List<string>> AllSeriesEditions();
         Dictionary<int, string> AllSeriesPaths();
         Dictionary<int, List<int>> AllSeriesTags();
     }
@@ -66,7 +69,28 @@ namespace NzbDrone.Core.Tv
 
         public Series FindByTvdbId(int tvdbId)
         {
-            return Query(s => s.TvdbId == tvdbId).SingleOrDefault();
+            var series = Query(s => s.TvdbId == tvdbId).ToList();
+
+            if (series.Count <= 1)
+            {
+                return series.FirstOrDefault();
+            }
+
+            // The series has editions. Callers that only know the TVDB ID (metadata refresh, API lookups,
+            // release parsing) get the main edition, editions are resolved from the file or by the user.
+            return series.FirstOrDefault(s => SeriesEditions.IsMainEdition(s.EditionName)) ?? series.First();
+        }
+
+        public List<Series> FindAllByTvdbId(int tvdbId)
+        {
+            return Query(s => s.TvdbId == tvdbId).ToList();
+        }
+
+        public Series FindByTvdbIdAndEdition(int tvdbId, string editionName)
+        {
+            var normalized = SeriesEditions.NormalizeEditionName(editionName);
+
+            return Query(s => s.TvdbId == tvdbId && s.EditionName == normalized).FirstOrDefault();
         }
 
         public Series FindByTvRageId(int tvRageId)
@@ -90,6 +114,18 @@ namespace NzbDrone.Core.Tv
             using (var conn = _database.OpenConnection())
             {
                 return conn.Query<int>("SELECT \"TvdbId\" FROM \"Series\"").ToList();
+            }
+        }
+
+        public Dictionary<int, List<string>> AllSeriesEditions()
+        {
+            using (var conn = _database.OpenConnection())
+            {
+                var strSql = "SELECT \"TvdbId\", \"EditionName\" FROM \"Series\"";
+
+                return conn.Query<SeriesEditionKey>(strSql)
+                    .GroupBy(x => x.TvdbId)
+                    .ToDictionary(g => g.Key, g => g.Select(x => SeriesEditions.NormalizeEditionName(x.EditionName)).ToList());
             }
         }
 
@@ -124,6 +160,12 @@ namespace NzbDrone.Core.Tv
             }
 
             throw new MultipleSeriesFoundException(series, "Expected one series, but found {0}. Matching series: {1}", series.Count, string.Join(", ", series));
+        }
+
+        public class SeriesEditionKey
+        {
+            public int TvdbId { get; set; }
+            public string EditionName { get; set; }
         }
     }
 }
