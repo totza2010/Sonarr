@@ -12,9 +12,10 @@ update method. From hotio specifically: `libintl` alongside the other two, `Pack
 as. Their s6-overlay base image is not used, but `PUID`/`PGID` are: every Sonarr compose file already
 sets them, so a small entrypoint does the same job with `su-exec`.
 
-`.github/workflows/docker.yml` waits for the Build workflow, reuses the artifacts it already
-produced rather than building again, and publishes to `ghcr.io/<owner>/sonarr`. A failed build does
-not produce an image.
+The image is published by a `docker` job in `.github/workflows/build.yml`, which reuses the
+artifacts that workflow already produces rather than building a second time. It hangs off the
+`backend` and `frontend` jobs alone: the integration tests reach external services and fail on a
+fork, so gating on the whole workflow would mean no image ever gets published.
 
 ## What the image is
 
