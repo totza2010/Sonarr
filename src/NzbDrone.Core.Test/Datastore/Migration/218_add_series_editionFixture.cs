@@ -1,9 +1,10 @@
 using System.Linq;
 using FluentAssertions;
 using NUnit.Framework;
-using NzbDrone.Core.Datastore;
+using NzbDrone.Common.Extensions;
 using NzbDrone.Core.Datastore.Migration;
 using NzbDrone.Core.Test.Framework;
+using NzbDrone.Test.Common.Datastore;
 
 namespace NzbDrone.Core.Test.Datastore.Migration
 {
@@ -96,7 +97,9 @@ namespace NzbDrone.Core.Test.Datastore.Migration
             index.Should().Contain("TvdbId");
         }
 
-        private bool IsPostgres => Db.DatabaseType == DatabaseType.PostgreSQL;
+        // MigrationTest never populates DbTest.Db, so the database type is read the same way the test
+        // framework decides it: the presence of a Postgres host in the test options.
+        private static bool IsPostgres => PostgresDatabase.GetTestOptions().Host.IsNotNullOrWhiteSpace();
     }
 
     public class Series218
