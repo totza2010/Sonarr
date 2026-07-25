@@ -147,6 +147,10 @@ namespace NzbDrone.Core.Tv
                     .ToList()
                     .OrderBy(s => s.position)
                     .ThenByDescending(s => s.length)
+
+                    // Editions of one series match equally well, the main edition is the one that
+                    // release parsing wants. Without this the winner is whatever order the db returns.
+                    .ThenBy(s => SeriesEditions.IsMainEdition(s.series.EditionName) ? 0 : 1)
                     .ToList();
 
             // get the leftmost series that is the longest

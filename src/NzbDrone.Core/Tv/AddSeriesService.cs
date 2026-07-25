@@ -77,13 +77,13 @@ namespace NzbDrone.Core.Tv
                     series = SetPropertiesAndValidate(series);
                     series.Added = added;
                     if (existingSeriesEditions.TryGetValue(series.TvdbId, out var existingEditions) &&
-                        existingEditions.Contains(series.EditionName))
+                        existingEditions.Any(e => SeriesEditions.SameEdition(e, series.EditionName)))
                     {
                         _logger.Debug("TVDB ID {0} was not added due to validation failure: Series {1} already exists in database", s.TvdbId, s);
                         continue;
                     }
 
-                    if (seriesToAdd.Any(f => f.TvdbId == series.TvdbId && f.EditionName == series.EditionName))
+                    if (seriesToAdd.Any(f => f.TvdbId == series.TvdbId && SeriesEditions.SameEdition(f.EditionName, series.EditionName)))
                     {
                         _logger.Trace("TVDB ID {0} was already added from another import list, not adding series {1} again", s.TvdbId, s);
                         continue;
@@ -142,7 +142,9 @@ namespace NzbDrone.Core.Tv
 
         private Series SetPropertiesAndValidate(Series newSeries)
         {
-            newSeries.EditionName = SeriesEditions.NormalizeEditionName(newSeries.EditionName);
+            // Store the name that the folder will actually carry, so the edition shown in the UI, the
+            // folder on disk and the label Plex reads cannot drift apart.
+            newSeries.EditionName = FileNameBuilder.CleanFileName(SeriesEditions.NormalizeEditionName(newSeries.EditionName));
 
             if (string.IsNullOrWhiteSpace(newSeries.Path))
             {

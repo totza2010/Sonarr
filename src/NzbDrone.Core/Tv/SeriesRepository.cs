@@ -95,12 +95,14 @@ namespace NzbDrone.Core.Tv
 
         public Series FindByTvRageId(int tvRageId)
         {
-            return Query(s => s.TvRageId == tvRageId).SingleOrDefault();
+            // Every edition carries the ids of the series it is an edition of, so this can match more
+            // than one series without them being different series.
+            return ReturnMainEditionOrSingle(Query(s => s.TvRageId == tvRageId).ToList());
         }
 
         public Series FindByImdbId(string imdbId)
         {
-            return Query(s => s.ImdbId == imdbId).SingleOrDefault();
+            return ReturnMainEditionOrSingle(Query(s => s.ImdbId == imdbId).ToList());
         }
 
         public Series FindByPath(string path)
@@ -150,6 +152,23 @@ namespace NzbDrone.Core.Tv
         private static Series GetMainEdition(List<Series> series)
         {
             return series.FirstOrDefault(s => SeriesEditions.IsMainEdition(s.EditionName)) ?? series.First();
+        }
+
+        // Lookups by an id the metadata source owns can hit every edition of a series, since they all
+        // carry the same ids. Anything else matching more than once is a real ambiguity.
+        private static Series ReturnMainEditionOrSingle(List<Series> series)
+        {
+            if (series.Count <= 1)
+            {
+                return series.FirstOrDefault();
+            }
+
+            if (series.Select(s => s.TvdbId).Distinct().Count() == 1)
+            {
+                return GetMainEdition(series);
+            }
+
+            return series.SingleOrDefault();
         }
 
         private Series ReturnSingleSeriesOrThrow(List<Series> series)

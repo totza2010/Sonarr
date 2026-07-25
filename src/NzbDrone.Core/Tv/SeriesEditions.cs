@@ -1,3 +1,4 @@
+using System;
 using NzbDrone.Common.Extensions;
 
 namespace NzbDrone.Core.Tv
@@ -28,6 +29,16 @@ namespace NzbDrone.Core.Tv
         public static bool IsMainEdition(string editionName)
         {
             return editionName.IsNullOrWhiteSpace();
+        }
+
+        /// <summary>
+        /// Two editions of a series cannot differ by case alone: they would be one folder on Windows
+        /// and two labels in Plex.
+        /// </summary>
+        public static bool SameEdition(string editionName, string otherEditionName)
+        {
+            return NormalizeEditionName(editionName)
+                .Equals(NormalizeEditionName(otherEditionName), StringComparison.InvariantCultureIgnoreCase);
         }
 
         /// <summary>

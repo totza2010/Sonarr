@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using FluentValidation.Validators;
 using NzbDrone.Core.Tv;
 
@@ -28,7 +29,7 @@ namespace NzbDrone.Core.Validation.Paths
             var editionName = SeriesEditions.NormalizeEditionName((context.InstanceToValidate as ISeriesEditionIdentity)?.EditionName);
 
             return !_seriesService.AllSeriesEditions().TryGetValue(tvdbId, out var existingEditions) ||
-                   !existingEditions.Contains(editionName);
+                   !existingEditions.Any(e => SeriesEditions.SameEdition(e, editionName));
         }
     }
 }
