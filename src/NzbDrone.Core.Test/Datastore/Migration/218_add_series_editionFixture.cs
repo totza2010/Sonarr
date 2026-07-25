@@ -1,6 +1,7 @@
 using System.Linq;
 using FluentAssertions;
 using NUnit.Framework;
+using NzbDrone.Core.Datastore;
 using NzbDrone.Core.Datastore.Migration;
 using NzbDrone.Core.Test.Framework;
 
@@ -50,8 +51,9 @@ namespace NzbDrone.Core.Test.Datastore.Migration
         {
             var db = WithMigrationTestDb();
 
-            var index = db.QueryScalar<string>(
-                "SELECT \"sql\" FROM \"sqlite_master\" WHERE \"type\" = 'index' AND \"name\" = 'IX_Series_TvdbId'");
+            var index = IsPostgres
+                ? db.QueryScalar<string>("SELECT \"indexdef\" FROM \"pg_indexes\" WHERE \"tablename\" = 'Series' AND \"indexname\" = 'IX_Series_TvdbId'")
+                : db.QueryScalar<string>("SELECT \"sql\" FROM \"sqlite_master\" WHERE \"type\" = 'index' AND \"name\" = 'IX_Series_TvdbId'");
 
             index.Should().BeNull();
         }
@@ -59,12 +61,25 @@ namespace NzbDrone.Core.Test.Datastore.Migration
         [Test]
         public void should_drop_the_unique_constraint_declared_on_the_column()
         {
+            // TvdbId was declared UNIQUE when the table was created, so dropping the index alone leaves
+            // the constraint behind. SQLite rebuilds the table, Postgres drops the generated constraint.
             var db = WithMigrationTestDb();
 
-            var table = db.QueryScalar<string>(
-                "SELECT \"sql\" FROM \"sqlite_master\" WHERE \"type\" = 'table' AND \"name\" = 'Series'");
+            if (IsPostgres)
+            {
+                db.QueryScalar<int>(
+                    @"SELECT COUNT(*) FROM pg_constraint con
+                      JOIN pg_class rel ON rel.oid = con.conrelid
+                      WHERE rel.relname = 'Series'
+                        AND con.contype = 'u'
+                        AND con.conkey = ARRAY[(SELECT attnum FROM pg_attribute WHERE attrelid = rel.oid AND attname = 'TvdbId')]")
+                    .Should().Be(0);
 
-            table.Should().NotContain("\"TvdbId\" INTEGER NOT NULL UNIQUE");
+                return;
+            }
+
+            db.QueryScalar<string>("SELECT \"sql\" FROM \"sqlite_master\" WHERE \"type\" = 'table' AND \"name\" = 'Series'")
+                .Should().NotContain("\"TvdbId\" INTEGER NOT NULL UNIQUE");
         }
 
         [Test]
@@ -72,13 +87,16 @@ namespace NzbDrone.Core.Test.Datastore.Migration
         {
             var db = WithMigrationTestDb();
 
-            var index = db.QueryScalar<string>(
-                "SELECT \"sql\" FROM \"sqlite_master\" WHERE \"type\" = 'index' AND \"tbl_name\" = 'Series' AND \"sql\" LIKE '%EditionName%'");
+            var index = IsPostgres
+                ? db.QueryScalar<string>("SELECT \"indexdef\" FROM \"pg_indexes\" WHERE \"tablename\" = 'Series' AND \"indexdef\" LIKE '%EditionName%'")
+                : db.QueryScalar<string>("SELECT \"sql\" FROM \"sqlite_master\" WHERE \"type\" = 'index' AND \"tbl_name\" = 'Series' AND \"sql\" LIKE '%EditionName%'");
 
             index.Should().NotBeNull();
             index.Should().Contain("UNIQUE");
             index.Should().Contain("TvdbId");
         }
+
+        private bool IsPostgres => Db.DatabaseType == DatabaseType.PostgreSQL;
     }
 
     public class Series218
