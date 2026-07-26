@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using NLog;
 using NzbDrone.Common;
 using NzbDrone.Common.Extensions;
@@ -17,14 +18,17 @@ namespace NzbDrone.Core.MediaFiles
     {
         private readonly IMediaFileService _mediaFileService;
         private readonly IEpisodeService _episodeService;
+        private readonly IEpisodeFileLinkService _episodeFileLinkService;
         private readonly Logger _logger;
 
         public MediaFileTableCleanupService(IMediaFileService mediaFileService,
                                             IEpisodeService episodeService,
+                                            IEpisodeFileLinkService episodeFileLinkService,
                                             Logger logger)
         {
             _mediaFileService = mediaFileService;
             _episodeService = episodeService;
+            _episodeFileLinkService = episodeFileLinkService;
             _logger = logger;
         }
 
@@ -34,6 +38,10 @@ namespace NzbDrone.Core.MediaFiles
             var episodes = _episodeService.GetEpisodeBySeries(series.Id);
 
             var filesOnDiskKeys = new HashSet<string>(filesOnDisk, PathEqualityComparer.Instance);
+
+            // Extra parts and versions are owned by an episode without being the file it points at, so
+            // they would otherwise look unassigned and be removed on every disk scan.
+            var linkedFileIds = _episodeFileLinkService.GetLinkedFileIds(episodes.Select(e => e.Id).ToList()).ToHashSet();
 
             foreach (var seriesFile in seriesFiles)
             {
@@ -49,7 +57,7 @@ namespace NzbDrone.Core.MediaFiles
                         continue;
                     }
 
-                    if (episodes.None(e => e.EpisodeFileId == episodeFile.Id))
+                    if (episodes.None(e => e.EpisodeFileId == episodeFile.Id) && !linkedFileIds.Contains(episodeFile.Id))
                     {
                         _logger.Debug("File [{0}] is not assigned to any episodes, removing from db", episodeFilePath);
                         _mediaFileService.Delete(episodeFile, DeleteMediaFileReason.NoLinkedEpisodes);

@@ -30,6 +30,11 @@ namespace NzbDrone.Core.MediaFiles
         public List<Language> Languages { get; set; }
         public ReleaseType ReleaseType { get; set; }
 
+        // 0 and empty mean this file is the whole episode on its own. A part number says the episode is
+        // split across files; a version name says this is one of several versions of it.
+        public int PartNumber { get; set; }
+        public string VersionName { get; set; }
+
         public override string ToString()
         {
             return string.Format("[{0}] {1}", Id, RelativePath);

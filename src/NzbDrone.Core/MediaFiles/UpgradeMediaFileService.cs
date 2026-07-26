@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Linq;
 using NLog;
@@ -18,31 +19,62 @@ namespace NzbDrone.Core.MediaFiles
         private readonly IRecycleBinProvider _recycleBinProvider;
         private readonly IMediaFileService _mediaFileService;
         private readonly IMoveEpisodeFiles _episodeFileMover;
+        private readonly IEpisodeFileLinkService _episodeFileLinkService;
         private readonly IDiskProvider _diskProvider;
         private readonly Logger _logger;
 
         public UpgradeMediaFileService(IRecycleBinProvider recycleBinProvider,
                                        IMediaFileService mediaFileService,
                                        IMoveEpisodeFiles episodeFileMover,
+                                       IEpisodeFileLinkService episodeFileLinkService,
                                        IDiskProvider diskProvider,
                                        Logger logger)
         {
             _recycleBinProvider = recycleBinProvider;
             _mediaFileService = mediaFileService;
             _episodeFileMover = episodeFileMover;
+            _episodeFileLinkService = episodeFileLinkService;
             _diskProvider = diskProvider;
             _logger = logger;
+        }
+
+        // Two files sit alongside each other when they are different parts of one episode, or different
+        // versions of it. Same part or same version means this one takes the other's place.
+        private static bool IsSeparateFileFor(EpisodeFile existing, LocalEpisode localEpisode)
+        {
+            if (localEpisode.PartNumber > 0)
+            {
+                return existing.PartNumber != localEpisode.PartNumber;
+            }
+
+            if (localEpisode.VersionName.IsNotNullOrWhiteSpace())
+            {
+                return !localEpisode.VersionName.Equals(existing.VersionName, StringComparison.InvariantCultureIgnoreCase);
+            }
+
+            // An ordinary import replaces whatever is there, including files that carry a part or a
+            // version: nothing was said about which one it is, so it is not an addition.
+            return false;
         }
 
         public EpisodeFileMoveResult UpgradeEpisodeFile(EpisodeFile episodeFile, LocalEpisode localEpisode, bool copyOnly = false)
         {
             var moveFileResult = new EpisodeFileMoveResult();
-            var existingFiles = localEpisode.Episodes
-                                            .Where(e => e.EpisodeFileId > 0)
-                                            .Select(e => e.EpisodeFile.Value)
-                                            .Where(e => e != null)
-                                            .GroupBy(e => e.Id)
-                                            .ToList();
+            var episodeIds = localEpisode.Episodes.Select(e => e.Id).ToList();
+
+            var currentFiles = localEpisode.Episodes
+                                           .Where(e => e.EpisodeFileId > 0)
+                                           .Select(e => e.EpisodeFile.Value)
+                                           .Where(e => e != null)
+                                           .Concat(_mediaFileService.Get(_episodeFileLinkService.GetLinkedFileIds(episodeIds)))
+                                           .ToList();
+
+            // A file that holds a different part of the episode, or a different version of it, is not
+            // what this file replaces — both belong to the episode and both stay.
+            var existingFiles = currentFiles
+                                .Where(e => !IsSeparateFileFor(e, localEpisode))
+                                .GroupBy(e => e.Id)
+                                .ToList();
 
             var rootFolder = _diskProvider.GetParentFolder(localEpisode.Series.Path);
 

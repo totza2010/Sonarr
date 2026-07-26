@@ -33,6 +33,13 @@ namespace NzbDrone.Core.Parser.Model
         public List<Language> Languages { get; set; }
         public IndexerFlags IndexerFlags { get; set; }
         public ReleaseType ReleaseType { get; set; }
+
+        // Set by manual import when the user says this file is one part of an episode, or one version
+        // of it, rather than a replacement for what is already there.
+        public int PartNumber { get; set; }
+        public string VersionName { get; set; }
+
+        public bool IsAdditionalFile => PartNumber > 0 || VersionName.IsNotNullOrWhiteSpace();
         public MediaInfoModel MediaInfo { get; set; }
         public bool ExistingFile { get; set; }
         public bool SceneSource { get; set; }
