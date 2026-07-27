@@ -65,7 +65,7 @@ is one Plex library, and holds the main edition plus any editions of the same se
 ```yaml
 services:
   sonarr-hd:
-    image: ghcr.io/OWNER/sonarr:feature-series-editions-v4
+    image: ghcr.io/OWNER/sonarr:feature-episode-multi-part-v4
     container_name: sonarr-hd
     environment:
       - PUID=1000
@@ -82,7 +82,7 @@ services:
     restart: unless-stopped
 
   sonarr-4k:
-    image: ghcr.io/OWNER/sonarr:feature-series-editions-v4
+    image: ghcr.io/OWNER/sonarr:feature-episode-multi-part-v4
     container_name: sonarr-4k
     environment:
       - PUID=1000
