@@ -4,6 +4,12 @@
   word-break: break-all;
 }
 
+.partNumber {
+  composes: cell from '~Components/Table/Cells/TableRowCell.css';
+
+  width: 70px;
+}
+
 .quality,
 .languages {
   composes: cell from '~Components/Table/Cells/TableRowCell.css';

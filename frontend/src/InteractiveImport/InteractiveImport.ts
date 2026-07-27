@@ -17,6 +17,7 @@ export interface InteractiveImportCommandOptions {
   languages: Language[];
   indexerFlags: number;
   releaseType: ReleaseType;
+  partNumber?: number;
   downloadId?: string;
   episodeFileId?: number;
 }
@@ -37,6 +38,9 @@ interface InteractiveImport extends ModelBase {
   customFormats: CustomFormat[];
   indexerFlags: number;
   releaseType: ReleaseType;
+  // Which part of the episode this file is. 0 means the file is the whole episode, and importing it
+  // replaces whatever the episode already has; anything else is kept alongside the other parts.
+  partNumber: number;
   rejections: Rejection[];
   episodeFileId?: number;
 }

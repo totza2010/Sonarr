@@ -178,7 +178,7 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport
                         }
                     }
 
-                    episodeFile = _mediaFileService.Add(episodeFile);
+                    episodeFile = _mediaFileService.Add(episodeFile, localEpisode.IsAdditionalFile);
 
                     // Adding the file leaves Episodes.EpisodeFileId pointing at the file the episode
                     // already had, so the extra one is recorded here instead.

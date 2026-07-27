@@ -29,6 +29,8 @@ interface EpisodeFileRowProps
     | 'customFormatScore'
     | 'qualityCutoffNotMet'
     | 'mediaInfo'
+    | 'partNumber'
+    | 'versionName'
   > {
   columns: Column[];
   onDeleteEpisodeFile(): void;
@@ -44,6 +46,8 @@ function EpisodeFileRow(props: EpisodeFileRowProps) {
     customFormatScore,
     qualityCutoffNotMet,
     mediaInfo,
+    partNumber,
+    versionName,
     columns,
     onDeleteEpisodeFile,
   } = props;
@@ -69,6 +73,15 @@ function EpisodeFileRow(props: EpisodeFileRowProps) {
 
         if (name === 'path') {
           return <TableRowCell key={name}>{path}</TableRowCell>;
+        }
+
+        if (name === 'partNumber') {
+          return (
+            <TableRowCell key={name}>
+              {partNumber ? `${partNumber}` : null}
+              {versionName ? ` ${versionName}` : null}
+            </TableRowCell>
+          );
         }
 
         if (name === 'size') {

@@ -41,7 +41,8 @@ namespace NzbDrone.Core.MediaFiles
 
             // Extra parts and versions are owned by an episode without being the file it points at, so
             // they would otherwise look unassigned and be removed on every disk scan.
-            var linkedFileIds = _episodeFileLinkService.GetLinkedFileIds(episodes.Select(e => e.Id).ToList()).ToHashSet();
+            var linkedFileIds = (_episodeFileLinkService.GetLinkedFileIds(episodes.Select(e => e.Id).ToList())
+                                 ?? new List<int>()).ToHashSet();
 
             foreach (var seriesFile in seriesFiles)
             {
@@ -78,6 +79,11 @@ namespace NzbDrone.Core.MediaFiles
                     _logger.Error(ex, "Unable to cleanup EpisodeFile in DB: {0}", episodeFile.Id);
                 }
             }
+
+            // A link can outlive the file it points at if the file went away without the delete event being
+            // handled. Left behind it makes an episode claim a file that no longer exists.
+            _episodeFileLinkService.RemoveLinksToMissingFiles(episodes.Select(e => e.Id).ToList(),
+                                                             _mediaFileService.GetFilesBySeries(series.Id).Select(f => f.Id).ToList());
 
             foreach (var e in episodes)
             {

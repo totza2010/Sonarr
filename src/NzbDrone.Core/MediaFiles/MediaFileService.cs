@@ -12,7 +12,7 @@ namespace NzbDrone.Core.MediaFiles
 {
     public interface IMediaFileService
     {
-        EpisodeFile Add(EpisodeFile episodeFile);
+        EpisodeFile Add(EpisodeFile episodeFile, bool isAdditionalFile);
         void Update(EpisodeFile episodeFile);
         void Update(List<EpisodeFile> episodeFiles);
         void Delete(EpisodeFile episodeFile, DeleteMediaFileReason reason);
@@ -39,10 +39,10 @@ namespace NzbDrone.Core.MediaFiles
             _logger = logger;
         }
 
-        public EpisodeFile Add(EpisodeFile episodeFile)
+        public EpisodeFile Add(EpisodeFile episodeFile, bool isAdditionalFile)
         {
             var addedFile = _mediaFileRepository.Insert(episodeFile);
-            _eventAggregator.PublishEvent(new EpisodeFileAddedEvent(addedFile));
+            _eventAggregator.PublishEvent(new EpisodeFileAddedEvent(addedFile, isAdditionalFile));
             return addedFile;
         }
 

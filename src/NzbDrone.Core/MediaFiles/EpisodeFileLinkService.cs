@@ -13,6 +13,9 @@ namespace NzbDrone.Core.MediaFiles
     {
         void Link(int episodeId, int episodeFileId);
         List<int> GetLinkedFileIds(List<int> episodeIds);
+        Dictionary<int, List<int>> GetEpisodeIdsByFileIds(List<int> episodeFileIds);
+        List<int> GetLinkedEpisodeIds(int episodeFileId);
+        void RemoveLinksToMissingFiles(List<int> episodeIds, List<int> existingFileIds);
         bool IsLinked(int episodeFileId);
     }
 
@@ -64,6 +67,42 @@ namespace NzbDrone.Core.MediaFiles
             }
 
             return _repository.GetByEpisodeIds(episodeIds).Select(l => l.EpisodeFileId).Distinct().ToList();
+        }
+
+        /// <summary>
+        /// The reverse of <see cref="GetLinkedFileIds"/>: which episodes each extra file belongs to. Only
+        /// files that are an additional part or version appear here, so a file the caller passes in may be
+        /// missing from the result entirely.
+        /// </summary>
+        public Dictionary<int, List<int>> GetEpisodeIdsByFileIds(List<int> episodeFileIds)
+        {
+            if (episodeFileIds.Empty())
+            {
+                return new Dictionary<int, List<int>>();
+            }
+
+            return _repository.GetByEpisodeFileIds(episodeFileIds)
+                .GroupBy(l => l.EpisodeFileId)
+                .ToDictionary(g => g.Key, g => g.Select(l => l.EpisodeId).Distinct().ToList());
+        }
+
+        public List<int> GetLinkedEpisodeIds(int episodeFileId)
+        {
+            return _repository.GetByEpisodeFileIds(new List<int> { episodeFileId })
+                .Select(l => l.EpisodeId)
+                .Distinct()
+                .ToList();
+        }
+
+        public void RemoveLinksToMissingFiles(List<int> episodeIds, List<int> existingFileIds)
+        {
+            var missing = GetLinkedFileIds(episodeIds).Except(existingFileIds).ToList();
+
+            if (missing.Any())
+            {
+                _logger.Debug("Removing {0} links pointing at files that no longer exist", missing.Count);
+                _repository.DeleteByEpisodeFileIds(missing);
+            }
         }
 
         public bool IsLinked(int episodeFileId)

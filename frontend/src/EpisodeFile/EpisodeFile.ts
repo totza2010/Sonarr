@@ -20,6 +20,10 @@ export interface EpisodeFile extends ModelBase {
   customFormatScore: number;
   indexerFlags: number;
   releaseType: ReleaseType;
+  // Which part of the episode this file is, and which version of it. Both are absent when the file is
+  // the whole episode.
+  partNumber?: number;
+  versionName?: string;
   mediaInfo: MediaInfo;
   qualityCutoffNotMet: boolean;
 }

@@ -627,6 +627,16 @@ namespace NzbDrone.Core.Organizer
             tokenHandlers["{Original Filename}"] = m => GetOriginalFileName(episodeFile, useCurrentFilenameAsFallback);
             tokenHandlers["{Release Group}"] = m => episodeFile.ReleaseGroup.IsNullOrWhiteSpace() ? m.DefaultValue("Sonarr") : Truncate(episodeFile.ReleaseGroup, m.CustomFormat);
             tokenHandlers["{Release Hash}"] = m => episodeFile.ReleaseHash ?? string.Empty;
+
+            // Empty for a file that is the whole episode, so the same naming format serves both. Plex
+            // stacks parts on a "-pt1" style suffix, which is what the default format below produces.
+            tokenHandlers["{Part}"] = m => episodeFile.PartNumber > 0
+                ? m.CustomFormat != null
+                    ? episodeFile.PartNumber.ToString(m.CustomFormat)
+                    : $"pt{episodeFile.PartNumber}"
+                : string.Empty;
+
+            tokenHandlers["{Version}"] = m => episodeFile.VersionName ?? string.Empty;
         }
 
         private void AddQualityTokens(Dictionary<string, Func<TokenMatch, string>> tokenHandlers, Series series, EpisodeFile episodeFile)

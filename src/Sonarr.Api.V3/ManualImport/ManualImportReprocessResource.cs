@@ -23,6 +23,10 @@ namespace Sonarr.Api.V3.ManualImport
         public int CustomFormatScore { get; set; }
         public int IndexerFlags { get; set; }
         public ReleaseType ReleaseType { get; set; }
+
+        // Round-tripped untouched: reprocessing recomputes rejections, and which part of an episode a
+        // file is has no bearing on those. Carried so a reprocess does not discard what the user set.
+        public int PartNumber { get; set; }
         public IEnumerable<ImportRejectionResource> Rejections { get; set; }
     }
 }

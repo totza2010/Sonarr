@@ -653,6 +653,8 @@
   "EpisodeMissingFromDisk": "Episode missing from disk",
   "EpisodeNaming": "Episode Naming",
   "EpisodeNumbers": "Episode Number(s)",
+  "EpisodePart": "Part",
+  "EpisodePartPlaceholder": "—",
   "EpisodeProgress": "Episode Progress",
   "EpisodeRequested": "Episode Requested",
   "EpisodeSearchResultsLoadError": "Unable to load results for this episode search. Try again later",

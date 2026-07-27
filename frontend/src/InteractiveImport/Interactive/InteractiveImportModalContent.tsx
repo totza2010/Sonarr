@@ -137,6 +137,12 @@ const COLUMNS = [
     isVisible: true,
   },
   {
+    name: 'partNumber',
+    label: () => translate('EpisodePart'),
+    isSortable: true,
+    isVisible: true,
+  },
+  {
     name: 'customFormats',
     label: React.createElement(Icon, {
       name: icons.INTERACTIVE,
@@ -524,6 +530,7 @@ function InteractiveImportModalContent(
           indexerFlags,
           episodeFileId,
           releaseType,
+          partNumber,
         } = item;
 
         if (!series) {
@@ -590,6 +597,7 @@ function InteractiveImportModalContent(
           languages,
           indexerFlags,
           releaseType,
+          partNumber,
           downloadId,
           episodeFileId,
         });

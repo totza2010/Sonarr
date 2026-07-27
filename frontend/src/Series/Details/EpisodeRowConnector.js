@@ -1,5 +1,6 @@
 import { connect } from 'react-redux';
 import { createSelector } from 'reselect';
+import createAdditionalEpisodeFilesSelector from 'Store/Selectors/createAdditionalEpisodeFilesSelector';
 import createEpisodeFileSelector from 'Store/Selectors/createEpisodeFileSelector';
 import createSeriesSelector from 'Store/Selectors/createSeriesSelector';
 import EpisodeRow from './EpisodeRow';
@@ -8,8 +9,10 @@ function createMapStateToProps() {
   return createSelector(
     createSeriesSelector(),
     createEpisodeFileSelector(),
-    (series = {}, episodeFile) => {
+    createAdditionalEpisodeFilesSelector(),
+    (series = {}, episodeFile, additionalEpisodeFiles) => {
       return {
+        additionalEpisodeFiles,
         useSceneNumbering: series.useSceneNumbering,
         seriesMonitored: series.monitored,
         seriesType: series.seriesType,

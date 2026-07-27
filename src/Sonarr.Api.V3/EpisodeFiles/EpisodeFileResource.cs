@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using NzbDrone.Common.Extensions;
 using NzbDrone.Core.CustomFormats;
 using NzbDrone.Core.DecisionEngine.Specifications;
 using NzbDrone.Core.Languages;
@@ -28,6 +29,11 @@ namespace Sonarr.Api.V3.EpisodeFiles
         public int CustomFormatScore { get; set; }
         public int? IndexerFlags { get; set; }
         public ReleaseType? ReleaseType { get; set; }
+
+        // Null unless this file is an extra part or version, so a file that is the whole episode serialises
+        // exactly as it did before the feature existed.
+        public int? PartNumber { get; set; }
+        public string VersionName { get; set; }
         public MediaInfoResource MediaInfo { get; set; }
 
         public bool QualityCutoffNotMet { get; set; }
@@ -66,6 +72,8 @@ namespace Sonarr.Api.V3.EpisodeFiles
                 CustomFormatScore = customFormatScore,
                 IndexerFlags = (int)model.IndexerFlags,
                 ReleaseType = model.ReleaseType,
+                PartNumber = model.PartNumber > 0 ? model.PartNumber : null,
+                VersionName = model.VersionName.IsNullOrWhiteSpace() ? null : model.VersionName,
             };
         }
     }

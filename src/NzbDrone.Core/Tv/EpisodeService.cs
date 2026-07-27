@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using NLog;
 using NzbDrone.Common.Cache;
-using NzbDrone.Common.Extensions;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Datastore;
 using NzbDrone.Core.MediaFiles;
@@ -289,9 +288,9 @@ namespace NzbDrone.Core.Tv
                 // The episode already has a file that this one did not replace, and this file says which
                 // part or version of the episode it is. The primary pointer stays where it is —
                 // ImportApprovedEpisodes records the extra file against the episode.
-                if (episode.EpisodeFileId > 0 &&
-                    episode.EpisodeFileId != message.EpisodeFile.Id &&
-                    (message.EpisodeFile.PartNumber > 0 || message.EpisodeFile.VersionName.IsNotNullOrWhiteSpace()))
+                if (message.IsAdditionalFile &&
+                    episode.EpisodeFileId > 0 &&
+                    episode.EpisodeFileId != message.EpisodeFile.Id)
                 {
                     _logger.Debug("Keeping [{0}] as an additional file for [{1}]", message.EpisodeFile.RelativePath, episode);
 

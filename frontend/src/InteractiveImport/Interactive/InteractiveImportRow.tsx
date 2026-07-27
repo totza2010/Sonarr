@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDispatch } from 'react-redux';
+import NumberInput from 'Components/Form/NumberInput';
 import Icon from 'Components/Icon';
 import LoadingIndicator from 'Components/Loading/LoadingIndicator';
 import TableRowCell from 'Components/Table/Cells/TableRowCell';
@@ -33,6 +34,7 @@ import {
   updateInteractiveImportItem,
 } from 'Store/Actions/interactiveImportActions';
 import CustomFormat from 'typings/CustomFormat';
+import { FileInputChanged, InputChanged } from 'typings/inputs';
 import { SelectStateInputProps } from 'typings/props';
 import Rejection from 'typings/Rejection';
 import formatBytes from 'Utilities/Number/formatBytes';
@@ -67,6 +69,7 @@ interface InteractiveImportRowProps {
   languages?: Language[];
   size: number;
   releaseType: ReleaseType;
+  partNumber: number;
   customFormats?: CustomFormat[];
   customFormatScore?: number;
   indexerFlags: number;
@@ -93,6 +96,7 @@ function InteractiveImportRow(props: InteractiveImportRowProps) {
     releaseGroup,
     size,
     releaseType,
+    partNumber,
     customFormats = [],
     customFormatScore,
     indexerFlags,
@@ -323,6 +327,21 @@ function InteractiveImportRow(props: InteractiveImportRowProps) {
     [id, dispatch, setSelectModalOpen, selectRowAfterChange]
   );
 
+  // A part number says this file is one part of the episode rather than the whole of it, so importing
+  // it keeps the other parts instead of replacing them. It changes nothing about acceptance, so there
+  // is no need to reprocess the row.
+  const onPartNumberChange = useCallback(
+    ({ value }: FileInputChanged | InputChanged<number | null>) => {
+      dispatch(
+        updateInteractiveImportItem({
+          id,
+          partNumber: Number(value) || 0,
+        })
+      );
+    },
+    [id, dispatch]
+  );
+
   const onSelectReleaseTypePress = useCallback(() => {
     setSelectModalOpen('releaseType');
   }, [setSelectModalOpen]);
@@ -496,6 +515,16 @@ function InteractiveImportRow(props: InteractiveImportRowProps) {
       >
         {getReleaseTypeName(releaseType)}
       </TableRowCellButton>
+
+      <TableRowCell className={styles.partNumber}>
+        <NumberInput
+          name={`partNumber-${id}`}
+          value={partNumber || null}
+          min={0}
+          placeholder={translate('EpisodePartPlaceholder')}
+          onChange={onPartNumberChange}
+        />
+      </TableRowCell>
 
       <TableRowCell>
         {customFormats?.length ? (

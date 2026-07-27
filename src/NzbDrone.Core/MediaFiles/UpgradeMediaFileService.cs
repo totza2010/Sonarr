@@ -66,8 +66,19 @@ namespace NzbDrone.Core.MediaFiles
                                            .Where(e => e.EpisodeFileId > 0)
                                            .Select(e => e.EpisodeFile.Value)
                                            .Where(e => e != null)
-                                           .Concat(_mediaFileService.Get(_episodeFileLinkService.GetLinkedFileIds(episodeIds)))
                                            .ToList();
+
+            // Files the episode owns beyond the one it points at, so a third part does not delete the
+            // second. Only worth a lookup when this import is itself a part or a version.
+            if (localEpisode.IsAdditionalFile)
+            {
+                var linkedIds = _episodeFileLinkService.GetLinkedFileIds(episodeIds);
+
+                if (linkedIds?.Any() == true)
+                {
+                    currentFiles.AddRange(_mediaFileService.Get(linkedIds).Where(f => f != null));
+                }
+            }
 
             // A file that holds a different part of the episode, or a different version of it, is not
             // what this file replaces — both belong to the episode and both stay.
