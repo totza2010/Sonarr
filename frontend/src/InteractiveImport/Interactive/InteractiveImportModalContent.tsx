@@ -75,7 +75,8 @@ type SelectType =
   | 'quality'
   | 'language'
   | 'indexerFlags'
-  | 'releaseType';
+  | 'releaseType'
+  | 'parts';
 
 type FilterExistingFiles = 'all' | 'new';
 
@@ -327,6 +328,28 @@ function InteractiveImportModalContent(
     return getSelectedIds(selectedState);
   }, [selectedState]);
 
+  // Rows whose episodes were worked out from the file name can land on the same episode more than
+  // once, which is what a split episode looks like before anyone says so. Grouped here so the action
+  // can be offered only when there is something to act on.
+  const partGroups = useMemo(() => {
+    const groups = new Map<string, number[]>();
+
+    items.forEach((item) => {
+      if (!selectedIds.includes(item.id) || !item.episodes?.length) {
+        return;
+      }
+
+      const key = item.episodes
+        .map((episode) => episode.id)
+        .sort((a, b) => a - b)
+        .join(',');
+
+      groups.set(key, [...(groups.get(key) ?? []), item.id]);
+    });
+
+    return [...groups.values()].filter((ids) => ids.length > 1);
+  }, [items, selectedIds]);
+
   const bulkSelectOptions = useMemo(() => {
     const { seasonSelectDisabled, episodeSelectDisabled } = items.reduce(
       (acc, item) => {
@@ -389,6 +412,13 @@ function InteractiveImportModalContent(
       },
     ];
 
+    if (partGroups.length) {
+      options.push({
+        key: 'parts',
+        value: translate('MarkAsParts'),
+      });
+    }
+
     if (allowSeriesChange) {
       options.splice(1, 0, {
         key: 'series',
@@ -397,7 +427,7 @@ function InteractiveImportModalContent(
     }
 
     return options;
-  }, [allowSeriesChange, items, selectedIds]);
+  }, [allowSeriesChange, items, selectedIds, partGroups]);
 
   useEffect(
     () => {
@@ -684,9 +714,24 @@ function InteractiveImportModalContent(
     ({ value }: { value: SelectType }) => void
   >(
     ({ value }) => {
-      setSelectModalOpen(value);
+      if (value !== 'parts') {
+        setSelectModalOpen(value);
+        return;
+      }
+
+      partGroups.forEach((ids) => {
+        ids.forEach((id, index) => {
+          dispatch(
+            updateInteractiveImportItem({
+              id,
+              multipleType: 'part',
+              multipleNumber: index + 1,
+            })
+          );
+        });
+      });
     },
-    [setSelectModalOpen]
+    [partGroups, setSelectModalOpen, dispatch]
   );
 
   const onSelectModalClose = useCallback(() => {
@@ -731,12 +776,17 @@ function InteractiveImportModalContent(
   const onEpisodesSelect = useCallback(
     (selectedEpisodes: SelectedEpisode[]) => {
       selectedEpisodes.forEach((selectedEpisode) => {
-        const { id, episodes } = selectedEpisode;
+        const { id, episodes, multipleType, multipleNumber } = selectedEpisode;
 
         dispatch(
           updateInteractiveImportItem({
             id,
             episodes,
+            // Only carried by the parts flow, which says 'none' for the episodes it decided are not
+            // split. The ordinary path sends neither and leaves whatever each row holds alone.
+            ...(multipleType
+              ? { multipleType, multipleNumber: multipleNumber ?? 0 }
+              : {}),
           })
         );
       });
