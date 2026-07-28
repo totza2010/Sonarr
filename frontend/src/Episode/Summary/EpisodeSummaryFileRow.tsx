@@ -31,8 +31,8 @@ function EpisodeSummaryFileRow(props: EpisodeSummaryFileRowProps) {
     qualityCutoffNotMet,
     customFormats,
     customFormatScore,
-    partNumber,
-    versionName,
+    multipleType,
+    multipleNumber,
   } = useEpisodeFile(episodeFileId) || {};
 
   const handleDeleteEpisodeFile = useCallback(() => {
@@ -64,8 +64,8 @@ function EpisodeSummaryFileRow(props: EpisodeSummaryFileRowProps) {
       customFormats={customFormats!}
       customFormatScore={customFormatScore!}
       mediaInfo={mediaInfo!}
-      partNumber={partNumber}
-      versionName={versionName}
+      multipleType={multipleType}
+      multipleNumber={multipleNumber}
       columns={columns}
       onDeleteEpisodeFile={handleDeleteEpisodeFile}
     />

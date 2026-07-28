@@ -12,6 +12,7 @@ import EpisodeQuality from 'Episode/EpisodeQuality';
 import { EpisodeFile } from 'EpisodeFile/EpisodeFile';
 import useModalOpenState from 'Helpers/Hooks/useModalOpenState';
 import { icons, kinds, tooltipPositions } from 'Helpers/Props';
+import getMultipleMarker from 'InteractiveImport/Multiple/getMultipleMarker';
 import formatBytes from 'Utilities/Number/formatBytes';
 import formatCustomFormatScore from 'Utilities/Number/formatCustomFormatScore';
 import translate from 'Utilities/String/translate';
@@ -29,8 +30,8 @@ interface EpisodeFileRowProps
     | 'customFormatScore'
     | 'qualityCutoffNotMet'
     | 'mediaInfo'
-    | 'partNumber'
-    | 'versionName'
+    | 'multipleType'
+    | 'multipleNumber'
   > {
   columns: Column[];
   onDeleteEpisodeFile(): void;
@@ -46,8 +47,8 @@ function EpisodeFileRow(props: EpisodeFileRowProps) {
     customFormatScore,
     qualityCutoffNotMet,
     mediaInfo,
-    partNumber,
-    versionName,
+    multipleType,
+    multipleNumber,
     columns,
     onDeleteEpisodeFile,
   } = props;
@@ -75,11 +76,10 @@ function EpisodeFileRow(props: EpisodeFileRowProps) {
           return <TableRowCell key={name}>{path}</TableRowCell>;
         }
 
-        if (name === 'partNumber') {
+        if (name === 'multiple') {
           return (
             <TableRowCell key={name}>
-              {partNumber ? `${partNumber}` : null}
-              {versionName ? ` ${versionName}` : null}
+              {getMultipleMarker(multipleType, multipleNumber)}
             </TableRowCell>
           );
         }

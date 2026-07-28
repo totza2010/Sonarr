@@ -1,5 +1,6 @@
 import ModelBase from 'App/ModelBase';
 import Episode from 'Episode/Episode';
+import MultipleType from 'InteractiveImport/MultipleType';
 import ReleaseType from 'InteractiveImport/ReleaseType';
 import Language from 'Language/Language';
 import { QualityModel } from 'Quality/Quality';
@@ -17,7 +18,8 @@ export interface InteractiveImportCommandOptions {
   languages: Language[];
   indexerFlags: number;
   releaseType: ReleaseType;
-  partNumber?: number;
+  multipleType?: MultipleType;
+  multipleNumber?: number;
   downloadId?: string;
   episodeFileId?: number;
 }
@@ -38,9 +40,10 @@ interface InteractiveImport extends ModelBase {
   customFormats: CustomFormat[];
   indexerFlags: number;
   releaseType: ReleaseType;
-  // Which part of the episode this file is. 0 means the file is the whole episode, and importing it
-  // replaces whatever the episode already has; anything else is kept alongside the other parts.
-  partNumber: number;
+  // Which of the episode's files this one is. 'none' means the file is the whole episode, and importing
+  // it replaces whatever the episode already has; anything else is kept alongside the other files.
+  multipleType: MultipleType;
+  multipleNumber: number;
   rejections: Rejection[];
   episodeFileId?: number;
 }

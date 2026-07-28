@@ -102,9 +102,9 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport
                     episodeFile.ReleaseHash = localEpisode.ReleaseHash;
                     episodeFile.Languages = localEpisode.Languages;
 
-                    // Which part or version of the episode this file is, when the import said so.
-                    episodeFile.PartNumber = localEpisode.PartNumber;
-                    episodeFile.VersionName = localEpisode.VersionName ?? string.Empty;
+                    // Which of the episode's files this one is, when the import said so.
+                    episodeFile.MultipleType = localEpisode.MultipleType;
+                    episodeFile.MultipleNumber = localEpisode.MultipleNumber;
 
                     // Prefer the release type from the download client, folder and finally the file so we have the most accurate information.
                     episodeFile.ReleaseType = localEpisode.DownloadClientEpisodeInfo?.ReleaseType ??

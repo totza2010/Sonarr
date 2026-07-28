@@ -23,8 +23,8 @@ const COLUMNS: Column[] = [
     isVisible: true,
   },
   {
-    name: 'partNumber',
-    label: () => translate('EpisodePart'),
+    name: 'multiple',
+    label: () => translate('MultipleTypeLabel'),
     isSortable: false,
     isVisible: true,
   },

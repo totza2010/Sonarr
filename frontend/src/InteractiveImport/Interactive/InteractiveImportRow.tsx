@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDispatch } from 'react-redux';
-import NumberInput from 'Components/Form/NumberInput';
 import Icon from 'Components/Icon';
 import LoadingIndicator from 'Components/Loading/LoadingIndicator';
 import TableRowCell from 'Components/Table/Cells/TableRowCell';
@@ -20,6 +19,9 @@ import SelectEpisodeModal from 'InteractiveImport/Episode/SelectEpisodeModal';
 import { SelectedEpisode } from 'InteractiveImport/Episode/SelectEpisodeModalContent';
 import SelectIndexerFlagsModal from 'InteractiveImport/IndexerFlags/SelectIndexerFlagsModal';
 import SelectLanguageModal from 'InteractiveImport/Language/SelectLanguageModal';
+import getMultipleMarker from 'InteractiveImport/Multiple/getMultipleMarker';
+import SelectMultipleModal from 'InteractiveImport/Multiple/SelectMultipleModal';
+import MultipleType from 'InteractiveImport/MultipleType';
 import SelectQualityModal from 'InteractiveImport/Quality/SelectQualityModal';
 import SelectReleaseGroupModal from 'InteractiveImport/ReleaseGroup/SelectReleaseGroupModal';
 import ReleaseType from 'InteractiveImport/ReleaseType';
@@ -29,12 +31,12 @@ import SelectSeriesModal from 'InteractiveImport/Series/SelectSeriesModal';
 import Language from 'Language/Language';
 import { QualityModel } from 'Quality/Quality';
 import Series from 'Series/Series';
+import { updateEpisodeFiles } from 'Store/Actions/episodeFileActions';
 import {
   reprocessInteractiveImportItems,
   updateInteractiveImportItem,
 } from 'Store/Actions/interactiveImportActions';
 import CustomFormat from 'typings/CustomFormat';
-import { FileInputChanged, InputChanged } from 'typings/inputs';
 import { SelectStateInputProps } from 'typings/props';
 import Rejection from 'typings/Rejection';
 import formatBytes from 'Utilities/Number/formatBytes';
@@ -51,7 +53,8 @@ type SelectType =
   | 'quality'
   | 'language'
   | 'indexerFlags'
-  | 'releaseType';
+  | 'releaseType'
+  | 'multiple';
 
 type SelectedChangeProps = SelectStateInputProps & {
   hasEpisodeFileId: boolean;
@@ -69,7 +72,8 @@ interface InteractiveImportRowProps {
   languages?: Language[];
   size: number;
   releaseType: ReleaseType;
-  partNumber: number;
+  multipleType: MultipleType;
+  multipleNumber: number;
   customFormats?: CustomFormat[];
   customFormatScore?: number;
   indexerFlags: number;
@@ -96,7 +100,8 @@ function InteractiveImportRow(props: InteractiveImportRowProps) {
     releaseGroup,
     size,
     releaseType,
-    partNumber,
+    multipleType,
+    multipleNumber,
     customFormats = [],
     customFormatScore,
     indexerFlags,
@@ -330,16 +335,41 @@ function InteractiveImportRow(props: InteractiveImportRowProps) {
   // A part number says this file is one part of the episode rather than the whole of it, so importing
   // it keeps the other parts instead of replacing them. It changes nothing about acceptance, so there
   // is no need to reprocess the row.
-  const onPartNumberChange = useCallback(
-    ({ value }: FileInputChanged | InputChanged<number | null>) => {
+  const multipleMarker = getMultipleMarker(multipleType, multipleNumber);
+
+  const onSelectMultiplePress = useCallback(() => {
+    setSelectModalOpen('multiple');
+  }, [setSelectModalOpen]);
+
+  const onMultipleSelect = useCallback(
+    (newType: MultipleType, newNumber: number) => {
       dispatch(
         updateInteractiveImportItem({
           id,
-          partNumber: Number(value) || 0,
+          multipleType: newType,
+          multipleNumber: newNumber,
         })
       );
+
+      // A file already in the library is not waiting to be imported, so pressing Import would add a
+      // second row for the same file rather than change this one. Save it against the file instead.
+      if (episodeFileId) {
+        dispatch(
+          updateEpisodeFiles({
+            files: [
+              {
+                id: episodeFileId,
+                multipleType: newType,
+                multipleNumber: newNumber,
+              },
+            ],
+          })
+        );
+      }
+
+      setSelectModalOpen(null);
     },
-    [id, dispatch]
+    [id, episodeFileId, dispatch, setSelectModalOpen]
   );
 
   const onSelectReleaseTypePress = useCallback(() => {
@@ -516,15 +546,17 @@ function InteractiveImportRow(props: InteractiveImportRowProps) {
         {getReleaseTypeName(releaseType)}
       </TableRowCellButton>
 
-      <TableRowCell className={styles.partNumber}>
-        <NumberInput
-          name={`partNumber-${id}`}
-          value={partNumber || null}
-          min={0}
-          placeholder={translate('EpisodePartPlaceholder')}
-          onChange={onPartNumberChange}
-        />
-      </TableRowCell>
+      <TableRowCellButton
+        className={styles.multiple}
+        title={translate('ClickToChangeMultiple')}
+        onPress={onSelectMultiplePress}
+      >
+        {multipleMarker ? (
+          multipleMarker
+        ) : (
+          <InteractiveImportRowCellPlaceholder isOptional={true} />
+        )}
+      </TableRowCellButton>
 
       <TableRowCell>
         {customFormats?.length ? (
@@ -650,6 +682,15 @@ function InteractiveImportRow(props: InteractiveImportRowProps) {
         indexerFlags={indexerFlags ?? 0}
         modalTitle={modalTitle}
         onIndexerFlagsSelect={onIndexerFlagsSelect}
+        onModalClose={onSelectModalClose}
+      />
+
+      <SelectMultipleModal
+        isOpen={selectModalOpen === 'multiple'}
+        multipleType={multipleType ?? 'none'}
+        multipleNumber={multipleNumber ?? 0}
+        modalTitle={modalTitle}
+        onMultipleSelect={onMultipleSelect}
         onModalClose={onSelectModalClose}
       />
     </TableRow>

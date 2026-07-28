@@ -1,4 +1,3 @@
-using System;
 using System.IO;
 using System.Linq;
 using NLog;
@@ -39,17 +38,13 @@ namespace NzbDrone.Core.MediaFiles
         }
 
         // Two files sit alongside each other when they are different parts of one episode, or different
-        // versions of it. Same part or same version means this one takes the other's place.
+        // versions of it. The same part, or the same version, means this one takes the other's place.
         private static bool IsSeparateFileFor(EpisodeFile existing, LocalEpisode localEpisode)
         {
-            if (localEpisode.PartNumber > 0)
+            if (localEpisode.IsAdditionalFile)
             {
-                return existing.PartNumber != localEpisode.PartNumber;
-            }
-
-            if (localEpisode.VersionName.IsNotNullOrWhiteSpace())
-            {
-                return !localEpisode.VersionName.Equals(existing.VersionName, StringComparison.InvariantCultureIgnoreCase);
+                return existing.MultipleType != localEpisode.MultipleType ||
+                       existing.MultipleNumber != localEpisode.MultipleNumber;
             }
 
             // An ordinary import replaces whatever is there, including files that carry a part or a
@@ -68,15 +63,18 @@ namespace NzbDrone.Core.MediaFiles
                                            .Where(e => e != null)
                                            .ToList();
 
-            // Files the episode owns beyond the one it points at, so a third part does not delete the
-            // second. Only worth a lookup when this import is itself a part or a version.
-            if (localEpisode.IsAdditionalFile)
-            {
-                var linkedIds = _episodeFileLinkService.GetLinkedFileIds(episodeIds);
+            // Files the episode owns beyond the one it points at. They are needed either way: so a third
+            // part does not delete the second, and so a plain release replaces every part it supersedes
+            // instead of only the first and leaving the rest behind from the older release.
+            var linkedIds = _episodeFileLinkService.GetLinkedFileIds(episodeIds);
 
-                if (linkedIds?.Any() == true)
+            if (linkedIds?.Any() == true)
+            {
+                var linkedFiles = _mediaFileService.Get(linkedIds);
+
+                if (linkedFiles != null)
                 {
-                    currentFiles.AddRange(_mediaFileService.Get(linkedIds).Where(f => f != null));
+                    currentFiles.AddRange(linkedFiles.Where(f => f != null));
                 }
             }
 

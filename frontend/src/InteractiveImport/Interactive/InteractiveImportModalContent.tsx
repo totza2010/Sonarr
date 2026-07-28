@@ -137,8 +137,8 @@ const COLUMNS = [
     isVisible: true,
   },
   {
-    name: 'partNumber',
-    label: () => translate('EpisodePart'),
+    name: 'multiple',
+    label: () => translate('MultipleTypeLabel'),
     isSortable: true,
     isVisible: true,
   },
@@ -530,7 +530,8 @@ function InteractiveImportModalContent(
           indexerFlags,
           episodeFileId,
           releaseType,
-          partNumber,
+          multipleType,
+          multipleNumber,
         } = item;
 
         if (!series) {
@@ -597,7 +598,8 @@ function InteractiveImportModalContent(
           languages,
           indexerFlags,
           releaseType,
-          partNumber,
+          multipleType,
+          multipleNumber,
           downloadId,
           episodeFileId,
         });

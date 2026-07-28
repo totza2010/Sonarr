@@ -19,7 +19,7 @@ function createAdditionalEpisodeFilesSelector() {
       return additionalEpisodeFileIds
         .map((id) => episodeFiles.items.find((file) => file.id === id))
         .filter((file): file is EpisodeFile => !!file)
-        .sort((a, b) => (a.partNumber ?? 0) - (b.partNumber ?? 0));
+        .sort((a, b) => (a.multipleNumber ?? 0) - (b.multipleNumber ?? 0));
     }
   );
 }

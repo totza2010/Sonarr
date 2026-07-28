@@ -448,8 +448,8 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Manual
             item.Rejections = decision.Rejections;
             item.IndexerFlags = (int)decision.LocalEpisode.IndexerFlags;
             item.ReleaseType = decision.LocalEpisode.ReleaseType;
-            item.PartNumber = decision.LocalEpisode.PartNumber;
-            item.VersionName = decision.LocalEpisode.VersionName;
+            item.MultipleType = decision.LocalEpisode.MultipleType;
+            item.MultipleNumber = decision.LocalEpisode.MultipleNumber;
 
             if (decision.LocalEpisode.Series != null)
             {
@@ -480,8 +480,8 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Manual
             item.Languages = episodeFile.Languages;
             item.IndexerFlags = (int)episodeFile.IndexerFlags;
             item.ReleaseType = episodeFile.ReleaseType;
-            item.PartNumber = episodeFile.PartNumber;
-            item.VersionName = episodeFile.VersionName;
+            item.MultipleType = episodeFile.MultipleType;
+            item.MultipleNumber = episodeFile.MultipleNumber;
             item.Size = _diskProvider.GetFileSize(item.Path);
             item.Rejections = Enumerable.Empty<ImportRejection>();
             item.EpisodeFileId = episodeFile.Id;
@@ -520,8 +520,8 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Manual
                     Languages = file.Languages,
                     IndexerFlags = (IndexerFlags)file.IndexerFlags,
                     ReleaseType = file.ReleaseType,
-                    PartNumber = file.PartNumber,
-                    VersionName = file.VersionName,
+                    MultipleType = file.MultipleType,
+                    MultipleNumber = file.MultipleNumber,
                     Series = series,
                     Size = 0
                 };

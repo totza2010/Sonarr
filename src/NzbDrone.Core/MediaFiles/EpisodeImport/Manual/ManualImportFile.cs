@@ -19,8 +19,8 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Manual
         public string ReleaseGroup { get; set; }
         public int IndexerFlags { get; set; }
         public ReleaseType ReleaseType { get; set; }
-        public int PartNumber { get; set; }
-        public string VersionName { get; set; }
+        public EpisodeFileMultipleType MultipleType { get; set; }
+        public int MultipleNumber { get; set; }
         public string DownloadId { get; set; }
 
         public bool Equals(ManualImportFile other)

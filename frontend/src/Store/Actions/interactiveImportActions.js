@@ -173,7 +173,8 @@ export const actionHandlers = handleThunks({
         releaseType: item.releaseType,
         // Sent so the response echoes it back: the response is spread over the item, so leaving it
         // out would reset whatever part the user picked.
-        partNumber: item.partNumber,
+        multipleType: item.multipleType,
+        multipleNumber: item.multipleNumber,
         downloadId: item.downloadId
       };
     });
