@@ -33,6 +33,7 @@ namespace Sonarr.Api.V3.Series
         public string AirTime { get; set; }
         public List<MediaCover> Images { get; set; }
         public Language OriginalLanguage { get; set; }
+        public Language NamingLanguage { get; set; }
         public string RemotePoster { get; set; }
         public List<SeasonResource> Seasons { get; set; }
         public int Year { get; set; }
@@ -111,6 +112,7 @@ namespace Sonarr.Api.V3.Series
                        Seasons = model.Seasons.ToResource(includeSeasonImages),
                        Year = model.Year,
                        OriginalLanguage = model.OriginalLanguage,
+                       NamingLanguage = model.NamingLanguage,
 
                        Path = model.Path,
                        QualityProfileId = model.QualityProfileId,
@@ -176,6 +178,7 @@ namespace Sonarr.Api.V3.Series
                        Seasons = resource.Seasons?.ToModel() ?? new List<Season>(),
                        Year = resource.Year,
                        OriginalLanguage = resource.OriginalLanguage,
+                       NamingLanguage = resource.NamingLanguage,
 
                        Path = resource.Path,
                        QualityProfileId = resource.QualityProfileId,

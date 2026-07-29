@@ -31,6 +31,12 @@ namespace NzbDrone.Core.Parser.Model
         public List<DeletedEpisodeFile> OldFiles { get; set; }
         public QualityModel Quality { get; set; }
         public List<Language> Languages { get; set; }
+
+        // What the naming tokens should say about this file, when the import was told.
+        public List<Language> NamingAudioLanguages { get; set; }
+        public List<Language> NamingSubtitleLanguages { get; set; }
+        public List<int> ManualCustomFormats { get; set; }
+        public List<int> ExcludedCustomFormats { get; set; }
         public IndexerFlags IndexerFlags { get; set; }
         public ReleaseType ReleaseType { get; set; }
         public MediaInfoModel MediaInfo { get; set; }

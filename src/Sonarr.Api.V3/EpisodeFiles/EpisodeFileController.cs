@@ -214,6 +214,26 @@ namespace Sonarr.Api.V3.EpisodeFiles
                 {
                     episodeFile.ReleaseType = (ReleaseType)resourceEpisodeFile.ReleaseType;
                 }
+
+                if (resourceEpisodeFile.NamingAudioLanguages != null)
+                {
+                    episodeFile.NamingAudioLanguages = resourceEpisodeFile.NamingAudioLanguages;
+                }
+
+                if (resourceEpisodeFile.NamingSubtitleLanguages != null)
+                {
+                    episodeFile.NamingSubtitleLanguages = resourceEpisodeFile.NamingSubtitleLanguages;
+                }
+
+                if (resourceEpisodeFile.ManualCustomFormats != null)
+                {
+                    episodeFile.ManualCustomFormats = resourceEpisodeFile.ManualCustomFormats;
+                }
+
+                if (resourceEpisodeFile.ExcludedCustomFormats != null)
+                {
+                    episodeFile.ExcludedCustomFormats = resourceEpisodeFile.ExcludedCustomFormats;
+                }
             }
 
             _mediaFileService.Update(episodeFiles);

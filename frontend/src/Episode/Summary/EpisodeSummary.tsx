@@ -97,6 +97,8 @@ function EpisodeSummary(props: EpisodeSummaryProps) {
     qualityCutoffNotMet,
     customFormats,
     customFormatScore,
+    manualCustomFormats,
+    excludedCustomFormats,
   } = useEpisodeFile(episodeFileId) || {};
 
   const handleDeleteEpisodeFile = useCallback(() => {
@@ -147,6 +149,8 @@ function EpisodeSummary(props: EpisodeSummaryProps) {
               qualityCutoffNotMet={qualityCutoffNotMet!}
               customFormats={customFormats!}
               customFormatScore={customFormatScore!}
+              manualCustomFormats={manualCustomFormats}
+              excludedCustomFormats={excludedCustomFormats}
               mediaInfo={mediaInfo!}
               columns={COLUMNS}
               onDeleteEpisodeFile={handleDeleteEpisodeFile}

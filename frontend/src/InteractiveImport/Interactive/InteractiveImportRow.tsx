@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
+import AppState from 'App/State/AppState';
 import Icon from 'Components/Icon';
 import LoadingIndicator from 'Components/Loading/LoadingIndicator';
 import TableRowCell from 'Components/Table/Cells/TableRowCell';
@@ -14,11 +15,14 @@ import EpisodeLanguages from 'Episode/EpisodeLanguages';
 import EpisodeQuality from 'Episode/EpisodeQuality';
 import getReleaseTypeName from 'Episode/getReleaseTypeName';
 import IndexerFlags from 'Episode/IndexerFlags';
+import NamingLanguages from 'EpisodeFile/NamingLanguages';
 import { icons, kinds, tooltipPositions } from 'Helpers/Props';
+import SelectCustomFormatModal from 'InteractiveImport/CustomFormat/SelectCustomFormatModal';
 import SelectEpisodeModal from 'InteractiveImport/Episode/SelectEpisodeModal';
 import { SelectedEpisode } from 'InteractiveImport/Episode/SelectEpisodeModalContent';
 import SelectIndexerFlagsModal from 'InteractiveImport/IndexerFlags/SelectIndexerFlagsModal';
 import SelectLanguageModal from 'InteractiveImport/Language/SelectLanguageModal';
+import SelectNamingLanguagesModal from 'InteractiveImport/NamingLanguages/SelectNamingLanguagesModal';
 import SelectQualityModal from 'InteractiveImport/Quality/SelectQualityModal';
 import SelectReleaseGroupModal from 'InteractiveImport/ReleaseGroup/SelectReleaseGroupModal';
 import ReleaseType from 'InteractiveImport/ReleaseType';
@@ -28,6 +32,7 @@ import SelectSeriesModal from 'InteractiveImport/Series/SelectSeriesModal';
 import Language from 'Language/Language';
 import { QualityModel } from 'Quality/Quality';
 import Series from 'Series/Series';
+import { updateEpisodeFiles } from 'Store/Actions/episodeFileActions';
 import {
   reprocessInteractiveImportItems,
   updateInteractiveImportItem,
@@ -49,7 +54,9 @@ type SelectType =
   | 'quality'
   | 'language'
   | 'indexerFlags'
-  | 'releaseType';
+  | 'releaseType'
+  | 'namingLanguages'
+  | 'customFormats';
 
 type SelectedChangeProps = SelectStateInputProps & {
   hasEpisodeFileId: boolean;
@@ -65,9 +72,15 @@ interface InteractiveImportRowProps {
   releaseGroup?: string;
   quality?: QualityModel;
   languages?: Language[];
+  namingAudioLanguages?: Language[];
+  namingSubtitleLanguages?: Language[];
+  detectedAudioLanguages?: Language[];
+  detectedSubtitleLanguages?: Language[];
   size: number;
   releaseType: ReleaseType;
   customFormats?: CustomFormat[];
+  manualCustomFormats?: number[];
+  excludedCustomFormats?: number[];
   customFormatScore?: number;
   indexerFlags: number;
   rejections: Rejection[];
@@ -90,10 +103,16 @@ function InteractiveImportRow(props: InteractiveImportRowProps) {
     episodes = [],
     quality,
     languages,
+    namingAudioLanguages,
+    namingSubtitleLanguages,
+    detectedAudioLanguages,
+    detectedSubtitleLanguages,
     releaseGroup,
     size,
     releaseType,
     customFormats = [],
+    manualCustomFormats,
+    excludedCustomFormats,
     customFormatScore,
     indexerFlags,
     rejections,
@@ -107,6 +126,41 @@ function InteractiveImportRow(props: InteractiveImportRowProps) {
   } = props;
 
   const dispatch = useDispatch();
+
+  // The list the backend returns is what the name matched; anything added by hand only exists on the
+  // row until the file is imported, so its names are looked up here to show it right away.
+  const allCustomFormats = useSelector(
+    (state: AppState) => state.settings.customFormats.items
+  );
+
+  const shownCustomFormats = useMemo(() => {
+    const kept = customFormats.filter(
+      (format) => !excludedCustomFormats?.includes(format.id)
+    );
+
+    const manual = allCustomFormats.filter(
+      (format) =>
+        manualCustomFormats?.includes(format.id) &&
+        !kept.some((f) => f.id === format.id)
+    );
+
+    return [...kept, ...manual];
+  }, [
+    customFormats,
+    manualCustomFormats,
+    excludedCustomFormats,
+    allCustomFormats,
+  ]);
+
+  // What the name matched on its own, which is what the picker measures additions and removals
+  // against. The list from the backend already has the file's own choices folded in, so they come
+  // back out here rather than being asked for again.
+  const matchedCustomFormatIds = useMemo(() => {
+    return customFormats
+      .filter((format) => !manualCustomFormats?.includes(format.id))
+      .map((format) => format.id)
+      .concat(excludedCustomFormats ?? []);
+  }, [customFormats, manualCustomFormats, excludedCustomFormats]);
 
   const isSeriesColumnVisible = useMemo(
     () => columns.find((c) => c.name === 'series')?.isVisible ?? false,
@@ -323,6 +377,93 @@ function InteractiveImportRow(props: InteractiveImportRowProps) {
     [id, dispatch, setSelectModalOpen, selectRowAfterChange]
   );
 
+  // What the tokens will actually say: the override where there is one, what MediaInfo read where
+  // there is not. Showing only overrides would leave the column blank on every file nobody has
+  // touched, which is most of them; showing them the same way would hide which is which.
+  const namingParts = [
+    { chosen: namingAudioLanguages, detected: detectedAudioLanguages },
+    { chosen: namingSubtitleLanguages, detected: detectedSubtitleLanguages },
+  ]
+    .map(({ chosen, detected }) => ({
+      languages: chosen?.length ? chosen : detected ?? [],
+      detectedNames: (detected ?? []).map((l) => l.name),
+    }))
+    .filter(({ languages }) => languages.length);
+
+  const hasNamingOverride = !!(
+    namingAudioLanguages?.length || namingSubtitleLanguages?.length
+  );
+
+  const onSelectNamingLanguagesPress = useCallback(() => {
+    setSelectModalOpen('namingLanguages');
+  }, [setSelectModalOpen]);
+
+  const onNamingLanguagesSelect = useCallback(
+    (audio: Language[], subtitles: Language[]) => {
+      dispatch(
+        updateInteractiveImportItem({
+          id,
+          namingAudioLanguages: audio,
+          namingSubtitleLanguages: subtitles,
+        })
+      );
+
+      // A file already in the library is not waiting to be imported, so pressing Import would add a
+      // second row for the same file rather than change this one. Save it against the file instead.
+      if (episodeFileId) {
+        dispatch(
+          updateEpisodeFiles({
+            files: [
+              {
+                id: episodeFileId,
+                namingAudioLanguages: audio,
+                namingSubtitleLanguages: subtitles,
+              },
+            ],
+          })
+        );
+      }
+
+      setSelectModalOpen(null);
+    },
+    [id, episodeFileId, dispatch, setSelectModalOpen]
+  );
+
+  const onSelectCustomFormatsPress = useCallback(() => {
+    setSelectModalOpen('customFormats');
+  }, [setSelectModalOpen]);
+
+  const onCustomFormatsSelect = useCallback(
+    (added: number[], excluded: number[]) => {
+      dispatch(
+        updateInteractiveImportItem({
+          id,
+          manualCustomFormats: added,
+          excludedCustomFormats: excluded,
+        })
+      );
+
+      // Only files already in the library have somewhere to keep this; a file waiting to be imported
+      // has no row in the database yet, so there is nothing to write it to.
+      if (episodeFileId) {
+        dispatch(
+          updateEpisodeFiles({
+            files: [
+              {
+                id: episodeFileId,
+                manualCustomFormats: added,
+                excludedCustomFormats: excluded,
+              },
+            ],
+          })
+        );
+      }
+
+      setSelectModalOpen(null);
+    },
+    [id, episodeFileId, dispatch, setSelectModalOpen]
+  );
+
   const onSelectReleaseTypePress = useCallback(() => {
     setSelectModalOpen('releaseType');
   }, [setSelectModalOpen]);
@@ -488,6 +629,33 @@ function InteractiveImportRow(props: InteractiveImportRowProps) {
         )}
       </TableRowCellButton>
 
+      <TableRowCellButton
+        className={styles.languages}
+        title={
+          hasNamingOverride
+            ? translate('ClickToChangeNamingLanguages')
+            : translate('ClickToChangeNamingLanguagesDetected')
+        }
+        onPress={onSelectNamingLanguagesPress}
+      >
+        {namingParts.length ? (
+          namingParts.map(({ languages, detectedNames }, index) => (
+            <span key={index}>
+              {index > 0 ? ' / ' : null}
+
+              {/* Both branches go through the same component: with no override every language is
+                  simply "kept", which renders plainly and truncates like everything else. */}
+              <NamingLanguages
+                languages={languages}
+                detectedNames={detectedNames}
+              />
+            </span>
+          ))
+        ) : (
+          <InteractiveImportRowCellPlaceholder isOptional={true} />
+        )}
+      </TableRowCellButton>
+
       <TableRowCell>{formatBytes(size)}</TableRowCell>
 
       <TableRowCellButton
@@ -497,23 +665,32 @@ function InteractiveImportRow(props: InteractiveImportRowProps) {
         {getReleaseTypeName(releaseType)}
       </TableRowCellButton>
 
-      <TableRowCell>
-        {customFormats?.length ? (
+      <TableRowCellButton
+        title={translate('ClickToChangeCustomFormats')}
+        onPress={onSelectCustomFormatsPress}
+      >
+        {shownCustomFormats.length ? (
           <Popover
             anchor={formatCustomFormatScore(
               customFormatScore,
-              customFormats.length
+              shownCustomFormats.length
             )}
             title={translate('CustomFormats')}
             body={
               <div className={styles.customFormatTooltip}>
-                <EpisodeFormats formats={customFormats} />
+                <EpisodeFormats
+                  formats={shownCustomFormats}
+                  manualIds={manualCustomFormats}
+                  excludedIds={excludedCustomFormats}
+                />
               </div>
             }
             position={tooltipPositions.LEFT}
           />
-        ) : null}
-      </TableRowCell>
+        ) : (
+          <InteractiveImportRowCellPlaceholder isOptional={true} />
+        )}
+      </TableRowCellButton>
 
       {isIndexerFlagsColumnVisible ? (
         <TableRowCellButton
@@ -613,6 +790,26 @@ function InteractiveImportRow(props: InteractiveImportRowProps) {
         releaseType={releaseType ?? 'unknown'}
         modalTitle={modalTitle}
         onReleaseTypeSelect={onReleaseTypeSelect}
+        onModalClose={onSelectModalClose}
+      />
+
+      <SelectCustomFormatModal
+        isOpen={selectModalOpen === 'customFormats'}
+        selectedIds={shownCustomFormats.map((f) => f.id)}
+        matchedIds={matchedCustomFormatIds}
+        modalTitle={modalTitle}
+        onCustomFormatsSelect={onCustomFormatsSelect}
+        onModalClose={onSelectModalClose}
+      />
+
+      <SelectNamingLanguagesModal
+        isOpen={selectModalOpen === 'namingLanguages'}
+        audioLanguages={namingAudioLanguages ?? []}
+        subtitleLanguages={namingSubtitleLanguages ?? []}
+        detectedAudioLanguages={detectedAudioLanguages ?? []}
+        detectedSubtitleLanguages={detectedSubtitleLanguages ?? []}
+        modalTitle={modalTitle}
+        onNamingLanguagesSelect={onNamingLanguagesSelect}
         onModalClose={onSelectModalClose}
       />
 

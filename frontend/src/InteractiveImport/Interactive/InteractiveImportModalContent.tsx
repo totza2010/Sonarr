@@ -125,6 +125,11 @@ const COLUMNS = [
     isVisible: true,
   },
   {
+    name: 'namingLanguages',
+    label: () => translate('NamingLanguages'),
+    isVisible: true,
+  },
+  {
     name: 'size',
     label: () => translate('Size'),
     isSortable: true,
@@ -392,7 +397,6 @@ function InteractiveImportModalContent(
 
     return options;
   }, [allowSeriesChange, items, selectedIds]);
-
   useEffect(
     () => {
       if (initialSortKey) {
@@ -521,6 +525,10 @@ function InteractiveImportModalContent(
           releaseGroup,
           quality,
           languages,
+          namingAudioLanguages,
+          namingSubtitleLanguages,
+          manualCustomFormats,
+          excludedCustomFormats,
           indexerFlags,
           episodeFileId,
           releaseType,
@@ -572,6 +580,10 @@ function InteractiveImportModalContent(
               releaseGroup,
               quality,
               languages,
+              namingAudioLanguages,
+              namingSubtitleLanguages,
+              manualCustomFormats,
+              excludedCustomFormats,
               indexerFlags,
               releaseType,
             });
@@ -588,6 +600,10 @@ function InteractiveImportModalContent(
           releaseGroup,
           quality,
           languages,
+          namingAudioLanguages,
+          namingSubtitleLanguages,
+          manualCustomFormats,
+          excludedCustomFormats,
           indexerFlags,
           releaseType,
           downloadId,

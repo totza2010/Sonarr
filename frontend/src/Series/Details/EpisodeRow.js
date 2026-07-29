@@ -80,6 +80,8 @@ class EpisodeRow extends Component {
       episodeFileSize,
       releaseGroup,
       customFormats,
+      manualCustomFormats,
+      excludedCustomFormats,
       customFormatScore,
       indexerFlags,
       alternateTitles,
@@ -199,6 +201,8 @@ class EpisodeRow extends Component {
               return (
                 <TableRowCell key={name}>
                   <EpisodeFormats
+                    manualIds={manualCustomFormats}
+                    excludedIds={excludedCustomFormats}
                     formats={customFormats}
                   />
                 </TableRowCell>
@@ -216,7 +220,13 @@ class EpisodeRow extends Component {
                       customFormatScore,
                       customFormats.length
                     )}
-                    tooltip={<EpisodeFormats formats={customFormats} />}
+                    tooltip={
+                      <EpisodeFormats
+                        formats={customFormats}
+                        manualIds={manualCustomFormats}
+                        excludedIds={excludedCustomFormats}
+                      />
+                    }
                     position={tooltipPositions.LEFT}
                   />
                 </TableRowCell>
@@ -405,6 +415,8 @@ EpisodeRow.propTypes = {
   episodeFileSize: PropTypes.number,
   releaseGroup: PropTypes.string,
   customFormats: PropTypes.arrayOf(PropTypes.object),
+  manualCustomFormats: PropTypes.arrayOf(PropTypes.number),
+  excludedCustomFormats: PropTypes.arrayOf(PropTypes.number),
   customFormatScore: PropTypes.number.isRequired,
   indexerFlags: PropTypes.number.isRequired,
   mediaInfo: PropTypes.object,
@@ -416,6 +428,8 @@ EpisodeRow.propTypes = {
 EpisodeRow.defaultProps = {
   alternateTitles: [],
   customFormats: [],
+  manualCustomFormats: [],
+  excludedCustomFormats: [],
   indexerFlags: 0
 };
 

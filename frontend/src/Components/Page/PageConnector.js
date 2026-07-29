@@ -7,6 +7,7 @@ import { fetchTranslations, saveDimensions, setIsSidebarVisible } from 'Store/Ac
 import { fetchCustomFilters } from 'Store/Actions/customFilterActions';
 import { fetchSeries } from 'Store/Actions/seriesActions';
 import {
+  fetchCustomFormats,
   fetchImportLists,
   fetchIndexerFlags,
   fetchLanguages,
@@ -183,6 +184,7 @@ function createMapDispatchToProps(dispatch, props) {
     },
     dispatchFetchLanguages() {
       dispatch(fetchLanguages());
+      dispatch(fetchCustomFormats());
     },
     dispatchFetchImportLists() {
       dispatch(fetchImportLists());

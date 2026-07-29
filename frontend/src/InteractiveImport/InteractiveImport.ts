@@ -15,6 +15,10 @@ export interface InteractiveImportCommandOptions {
   releaseGroup?: string;
   quality: QualityModel;
   languages: Language[];
+  namingAudioLanguages?: Language[];
+  namingSubtitleLanguages?: Language[];
+  manualCustomFormats?: number[];
+  excludedCustomFormats?: number[];
   indexerFlags: number;
   releaseType: ReleaseType;
   downloadId?: string;
@@ -30,6 +34,14 @@ interface InteractiveImport extends ModelBase {
   releaseGroup: string;
   quality: QualityModel;
   languages: Language[];
+  // What the naming tokens should say about this file, when MediaInfo got it wrong or said nothing.
+  namingAudioLanguages?: Language[];
+  namingSubtitleLanguages?: Language[];
+  // What MediaInfo read, so the picker can open on it rather than on nothing.
+  detectedAudioLanguages?: Language[];
+  detectedSubtitleLanguages?: Language[];
+  manualCustomFormats?: number[];
+  excludedCustomFormats?: number[];
   series?: Series;
   seasonNumber: number;
   episodes: Episode[];

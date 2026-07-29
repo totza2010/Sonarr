@@ -8,6 +8,7 @@ using NzbDrone.Common.Extensions;
 using NzbDrone.Core.Download;
 using NzbDrone.Core.Extras;
 using NzbDrone.Core.History;
+using NzbDrone.Core.Languages;
 using NzbDrone.Core.MediaFiles.Commands;
 using NzbDrone.Core.MediaFiles.Events;
 using NzbDrone.Core.Messaging.Commands;
@@ -98,6 +99,13 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport
                     episodeFile.ReleaseGroup = localEpisode.ReleaseGroup;
                     episodeFile.ReleaseHash = localEpisode.ReleaseHash;
                     episodeFile.Languages = localEpisode.Languages;
+
+                    // Only overwritten when the import said so, so an ordinary import leaves the file
+                    // reporting whatever MediaInfo read.
+                    episodeFile.NamingAudioLanguages = localEpisode.NamingAudioLanguages ?? new List<Language>();
+                    episodeFile.NamingSubtitleLanguages = localEpisode.NamingSubtitleLanguages ?? new List<Language>();
+                    episodeFile.ManualCustomFormats = localEpisode.ManualCustomFormats ?? new List<int>();
+                    episodeFile.ExcludedCustomFormats = localEpisode.ExcludedCustomFormats ?? new List<int>();
 
                     // Prefer the release type from the download client, folder and finally the file so we have the most accurate information.
                     episodeFile.ReleaseType = localEpisode.DownloadClientEpisodeInfo?.ReleaseType ??

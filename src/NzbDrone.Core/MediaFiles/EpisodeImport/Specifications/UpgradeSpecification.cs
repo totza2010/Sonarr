@@ -58,7 +58,7 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Specifications
                     return ImportSpecDecision.Reject(ImportRejectionReason.NotRevisionUpgrade, "Not a quality revision upgrade for existing episode file(s)");
                 }
 
-                var currentFormats = _formatService.ParseCustomFormat(episodeFile);
+                var currentFormats = _formatService.ParseScoredCustomFormat(episodeFile);
                 var currentFormatScore = qualityProfile.CalculateCustomFormatScore(currentFormats);
                 var newFormats = localEpisode.CustomFormats;
                 var newFormatScore = localEpisode.CustomFormatScore;

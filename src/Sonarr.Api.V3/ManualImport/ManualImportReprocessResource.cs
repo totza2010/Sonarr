@@ -17,6 +17,11 @@ namespace Sonarr.Api.V3.ManualImport
         public List<int> EpisodeIds { get; set; }
         public QualityModel Quality { get; set; }
         public List<Language> Languages { get; set; }
+
+        // Sent back so the row can show what MediaInfo read once a series makes reprocessing possible.
+        // The reprocess response is spread over the row, so anything missing here never reaches it.
+        public List<Language> DetectedAudioLanguages { get; set; }
+        public List<Language> DetectedSubtitleLanguages { get; set; }
         public string ReleaseGroup { get; set; }
         public string DownloadId { get; set; }
         public List<CustomFormatResource> CustomFormats { get; set; }

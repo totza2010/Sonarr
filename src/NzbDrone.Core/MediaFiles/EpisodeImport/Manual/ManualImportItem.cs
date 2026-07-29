@@ -20,6 +20,15 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Manual
         public int? EpisodeFileId { get; set; }
         public QualityModel Quality { get; set; }
         public List<Language> Languages { get; set; }
+
+        // What was decided for the file name, and what MediaInfo actually read. The second is sent so
+        // the picker can open on the detected languages rather than on an empty box.
+        public List<Language> NamingAudioLanguages { get; set; }
+        public List<Language> NamingSubtitleLanguages { get; set; }
+        public List<Language> DetectedAudioLanguages { get; set; }
+        public List<Language> DetectedSubtitleLanguages { get; set; }
+        public List<int> ManualCustomFormats { get; set; }
+        public List<int> ExcludedCustomFormats { get; set; }
         public string ReleaseGroup { get; set; }
         public string DownloadId { get; set; }
         public List<CustomFormat> CustomFormats { get; set; }

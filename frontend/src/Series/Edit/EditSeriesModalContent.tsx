@@ -50,6 +50,7 @@ function EditSeriesModalContent({
     seasonFolder,
     qualityProfileId,
     seriesType,
+    namingLanguage,
     path,
     tags,
     rootFolderPath: initialRootFolderPath,
@@ -75,6 +76,10 @@ function EditSeriesModalContent({
         seasonFolder,
         qualityProfileId,
         seriesType,
+
+        // The language picker reads an id straight off whatever it is handed, so a series saved
+        // before this field existed has to arrive as Unknown rather than as nothing at all.
+        namingLanguage: namingLanguage ?? { id: 0, name: 'Unknown' },
         path,
         tags,
       },
@@ -87,6 +92,7 @@ function EditSeriesModalContent({
     seasonFolder,
     qualityProfileId,
     seriesType,
+    namingLanguage,
     path,
     tags,
     pendingChanges,
@@ -185,6 +191,19 @@ function EditSeriesModalContent({
               name="monitorNewItems"
               helpText={translate('MonitorNewSeasonsHelpText')}
               {...settings.monitorNewItems}
+              onChange={handleInputChange}
+            />
+          </FormGroup>
+
+          <FormGroup size={sizes.MEDIUM}>
+            <FormLabel>{translate('NamingLanguage')}</FormLabel>
+
+            <FormInputGroup
+              type={inputTypes.LANGUAGE_SELECT}
+              name="namingLanguage"
+              unknownLabel={translate('NamingLanguageFromMetadata')}
+              helpText={translate('NamingLanguageHelpText')}
+              {...settings.namingLanguage}
               onChange={handleInputChange}
             />
           </FormGroup>

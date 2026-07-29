@@ -18,6 +18,9 @@ interface LanguageSelectInputProps {
   includeNoChange: boolean;
   includeNoChangeDisabled?: boolean;
   includeMixed: boolean;
+  // Unknown is filtered out of the list, which leaves no way back once something else is picked.
+  // Callers that treat Unknown as "not set" need it offered under a name that says so.
+  unknownLabel?: string;
   onChange: (payload: LanguageSelectInputOnChangeProps) => void;
 }
 
@@ -26,6 +29,7 @@ export default function LanguageSelectInput({
   includeNoChange,
   includeNoChangeDisabled,
   includeMixed,
+  unknownLabel,
   onChange,
   ...otherProps
 }: LanguageSelectInputProps) {
@@ -57,8 +61,18 @@ export default function LanguageSelectInput({
       });
     }
 
+    if (unknownLabel) {
+      result.unshift({ key: 0, value: unknownLabel });
+    }
+
     return result;
-  }, [includeNoChange, includeNoChangeDisabled, includeMixed, items]);
+  }, [
+    includeNoChange,
+    includeNoChangeDisabled,
+    includeMixed,
+    unknownLabel,
+    items,
+  ]);
 
   const selectValue =
     typeof value === 'number' || typeof value === 'string' ? value : value.id;

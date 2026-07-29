@@ -28,6 +28,18 @@ namespace NzbDrone.Core.MediaFiles
         public LazyLoaded<List<Episode>> Episodes { get; set; }
         public LazyLoaded<Series> Series { get; set; }
         public List<Language> Languages { get; set; }
+
+        // What the naming tokens should say this file's audio and subtitles are. Empty means take
+        // MediaInfo's word for it. Kept apart from Languages, which decides upgrades and profiles, so
+        // correcting a file name cannot quietly change what Sonarr grabs next.
+        // The columns are not nullable, so these default rather than leaving every insert to fail.
+        public List<Language> NamingAudioLanguages { get; set; } = new List<Language>();
+        public List<Language> NamingSubtitleLanguages { get; set; } = new List<Language>();
+
+        // Custom formats this file was given by hand, added to the ones its name matches, and ones it
+        // matches but was told to ignore. Both empty means the name speaks for itself.
+        public List<int> ManualCustomFormats { get; set; } = new List<int>();
+        public List<int> ExcludedCustomFormats { get; set; } = new List<int>();
         public ReleaseType ReleaseType { get; set; }
 
         public override string ToString()

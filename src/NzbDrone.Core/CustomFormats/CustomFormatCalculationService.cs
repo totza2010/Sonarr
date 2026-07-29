@@ -16,6 +16,9 @@ namespace NzbDrone.Core.CustomFormats
     {
         List<CustomFormat> ParseCustomFormat(RemoteEpisode remoteEpisode, long size);
         List<CustomFormat> ParseCustomFormat(EpisodeFile episodeFile, Series series);
+        List<CustomFormat> ParseCustomFormatFromName(EpisodeFile episodeFile, Series series);
+        List<CustomFormat> ParseScoredCustomFormat(EpisodeFile episodeFile, Series series);
+        List<CustomFormat> ParseScoredCustomFormat(EpisodeFile episodeFile);
         List<CustomFormat> ParseCustomFormat(EpisodeFile episodeFile);
         List<CustomFormat> ParseCustomFormat(Blocklist blocklist, Series series);
         List<CustomFormat> ParseCustomFormat(EpisodeHistory history, Series series);
@@ -50,12 +53,12 @@ namespace NzbDrone.Core.CustomFormats
 
         public List<CustomFormat> ParseCustomFormat(EpisodeFile episodeFile, Series series)
         {
-            return ParseCustomFormat(episodeFile, series, _formatService.All());
+            return Merge(episodeFile, series, _formatService.All());
         }
 
         public List<CustomFormat> ParseCustomFormat(EpisodeFile episodeFile)
         {
-            return ParseCustomFormat(episodeFile, episodeFile.Series.Value, _formatService.All());
+            return Merge(episodeFile, episodeFile.Series.Value, _formatService.All());
         }
 
         public List<CustomFormat> ParseCustomFormat(Blocklist blocklist, Series series)
@@ -167,7 +170,16 @@ namespace NzbDrone.Core.CustomFormats
             return matches.OrderBy(x => x.Name).ToList();
         }
 
-        private List<CustomFormat> ParseCustomFormat(EpisodeFile episodeFile, Series series, List<CustomFormat> allCustomFormats)
+        /// <summary>
+        /// What the file earns on its own, before anything added by hand is folded in. Exposed so the
+        /// cleanup can tell the two apart; everything else wants the merged list below.
+        /// </summary>
+        public List<CustomFormat> ParseCustomFormatFromName(EpisodeFile episodeFile, Series series)
+        {
+            return MatchFormats(episodeFile, series, _formatService.All());
+        }
+
+        private List<CustomFormat> MatchFormats(EpisodeFile episodeFile, Series series, List<CustomFormat> allCustomFormats)
         {
             var releaseTitle = string.Empty;
 
@@ -208,6 +220,45 @@ namespace NzbDrone.Core.CustomFormats
             };
 
             return ParseCustomFormat(input, allCustomFormats);
+        }
+
+        /// <summary>
+        /// What counts towards the file's score: only what the file itself is, never what was added by
+        /// hand. A hand-added format is a naming instruction, not a property of the release, so scoring
+        /// it would let a rename inflate the file's own score and block upgrades. Once the new name
+        /// carries the format the file earns it here on its own, and the hand-added copy is dropped.
+        /// </summary>
+        public List<CustomFormat> ParseScoredCustomFormat(EpisodeFile episodeFile, Series series)
+        {
+            return Earned(episodeFile, series, _formatService.All()).ToList();
+        }
+
+        public List<CustomFormat> ParseScoredCustomFormat(EpisodeFile episodeFile)
+        {
+            return ParseScoredCustomFormat(episodeFile, episodeFile.Series.Value);
+        }
+
+        /// <summary>
+        /// What the name matches, less anything ruled out by hand.
+        /// </summary>
+        private IEnumerable<CustomFormat> Earned(EpisodeFile episodeFile, Series series, List<CustomFormat> allCustomFormats)
+        {
+            return MatchFormats(episodeFile, series, allCustomFormats)
+                .Where(f => episodeFile.ExcludedCustomFormats?.Contains(f.Id) != true);
+        }
+
+        /// <summary>
+        /// What the file matches on its own plus what it was given by hand. Ids that no longer name a
+        /// format are ignored rather than reported, since deleting a format is a deliberate act.
+        /// </summary>
+        private List<CustomFormat> Merge(EpisodeFile episodeFile, Series series, List<CustomFormat> allCustomFormats)
+        {
+            var matched = Earned(episodeFile, series, allCustomFormats).ToList();
+
+            var manual = allCustomFormats.Where(f => episodeFile.ManualCustomFormats?.Contains(f.Id) == true &&
+                                                     matched.All(m => m.Id != f.Id));
+
+            return matched.Concat(manual).ToList();
         }
     }
 }

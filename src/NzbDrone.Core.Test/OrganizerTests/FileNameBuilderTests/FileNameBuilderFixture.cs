@@ -8,6 +8,7 @@ using FluentAssertions;
 using Moq;
 using NUnit.Framework;
 using NzbDrone.Core.CustomFormats;
+using NzbDrone.Core.Languages;
 using NzbDrone.Core.MediaFiles;
 using NzbDrone.Core.MediaFiles.MediaInfo;
 using NzbDrone.Core.Organizer;
@@ -859,6 +860,146 @@ namespace NzbDrone.Core.Test.OrganizerTests.FileNameBuilderTests
 
             Subject.BuildFileName(new List<Episode> { _episode1 }, _series, _episodeFile)
                    .Should().Be(expected);
+        }
+
+        [TestCase("tha/eng/jpn", "[TH+EN+JA]")]
+        [TestCase("tha/eng", "[TH+EN]")]
+        [TestCase("jpn", "[JA]")]
+        [TestCase("deu", "")]
+        public void should_resolve_original_in_a_language_filter(string audioLanguages, string expected)
+        {
+            // One format for every show: the two that are always wanted, plus whatever this one was
+            // made in. Without the reserved word that needs a naming format per original language.
+            _episodeFile.ReleaseGroup = null;
+            _series.OriginalLanguage = Language.Japanese;
+
+            GivenMediaInfoModel(audioLanguages: audioLanguages);
+
+            _namingConfig.StandardEpisodeFormat = "{MediaInfo AudioLanguagesAll:TH+EN+ORIGINAL}";
+
+            Subject.BuildFileName(new List<Episode> { _episode1 }, _series, _episodeFile)
+                   .Should().Be(expected);
+        }
+
+        [Test]
+        public void should_drop_original_when_the_series_language_has_no_code()
+        {
+            // The term goes rather than staying as the literal word, which would match nothing and
+            // leave a stray separator behind it.
+            _episodeFile.ReleaseGroup = null;
+            _series.OriginalLanguage = Language.Unknown;
+
+            GivenMediaInfoModel(audioLanguages: "tha/eng/jpn");
+
+            _namingConfig.StandardEpisodeFormat = "{MediaInfo AudioLanguagesAll:TH+EN+ORIGINAL}";
+
+            Subject.BuildFileName(new List<Episode> { _episode1 }, _series, _episodeFile)
+                   .Should().Be("[TH+EN]");
+        }
+
+        [Test]
+        public void should_exclude_the_original_language_when_asked_to()
+        {
+            _episodeFile.ReleaseGroup = null;
+            _series.OriginalLanguage = Language.Japanese;
+
+            GivenMediaInfoModel(audioLanguages: "tha/eng/jpn");
+
+            _namingConfig.StandardEpisodeFormat = "{MediaInfo AudioLanguagesAll:-ORIGINAL}";
+
+            // The leading '-' is the instruction, not a separator, so resolving the word must not eat it.
+            Subject.BuildFileName(new List<Episode> { _episode1 }, _series, _episodeFile)
+                   .Should().Be("[TH+EN]");
+        }
+
+        [Test]
+        public void should_prefer_the_languages_the_file_was_told_to_report()
+        {
+            // The streams say English; they are wrong. What the file was told to say wins.
+            _episodeFile.ReleaseGroup = null;
+            _episodeFile.NamingAudioLanguages = new List<Language> { Language.Thai, Language.Japanese };
+
+            GivenMediaInfoModel(audioLanguages: "eng");
+
+            _namingConfig.StandardEpisodeFormat = "{MediaInfo AudioLanguagesAll}";
+
+            Subject.BuildFileName(new List<Episode> { _episode1 }, _series, _episodeFile)
+                   .Should().Be("[TH+JA]");
+        }
+
+        [Test]
+        public void should_name_subtitles_that_declared_nothing()
+        {
+            // Subtitles with no language are dropped as "und", which is the other half of the problem.
+            _episodeFile.ReleaseGroup = null;
+            _episodeFile.NamingSubtitleLanguages = new List<Language> { Language.Thai };
+
+            GivenMediaInfoModel(subtitles: "und");
+
+            _namingConfig.StandardEpisodeFormat = "{MediaInfo SubtitleLanguages}";
+
+            Subject.BuildFileName(new List<Episode> { _episode1 }, _series, _episodeFile)
+                   .Should().Be("[TH]");
+        }
+
+        [Test]
+        public void should_fall_back_to_mediainfo_when_the_file_was_told_nothing()
+        {
+            _episodeFile.ReleaseGroup = null;
+            _episodeFile.NamingAudioLanguages = new List<Language>();
+
+            GivenMediaInfoModel(audioLanguages: "eng/deu");
+
+            _namingConfig.StandardEpisodeFormat = "{MediaInfo AudioLanguagesAll}";
+
+            Subject.BuildFileName(new List<Episode> { _episode1 }, _series, _episodeFile)
+                   .Should().Be("[EN+DE]");
+        }
+
+        [Test]
+        public void should_prefer_the_naming_language_over_the_metadata_one()
+        {
+            // The metadata says what the show is; this says what the files are. For a name, the second
+            // one is the answer, and custom formats keep reading the first.
+            _episodeFile.ReleaseGroup = null;
+            _series.OriginalLanguage = Language.Japanese;
+            _series.NamingLanguage = Language.Korean;
+
+            GivenMediaInfoModel(audioLanguages: "tha/eng/jpn/kor");
+
+            _namingConfig.StandardEpisodeFormat = "{MediaInfo AudioLanguagesAll:TH+EN+ORIGINAL}";
+
+            Subject.BuildFileName(new List<Episode> { _episode1 }, _series, _episodeFile)
+                   .Should().Be("[TH+EN+KO]");
+        }
+
+        [Test]
+        public void should_fall_back_to_the_metadata_language_when_none_was_set()
+        {
+            _episodeFile.ReleaseGroup = null;
+            _series.OriginalLanguage = Language.Japanese;
+            _series.NamingLanguage = Language.Unknown;
+
+            GivenMediaInfoModel(audioLanguages: "tha/eng/jpn");
+
+            _namingConfig.StandardEpisodeFormat = "{MediaInfo AudioLanguagesAll:TH+EN+ORIGINAL}";
+
+            Subject.BuildFileName(new List<Episode> { _episode1 }, _series, _episodeFile)
+                   .Should().Be("[TH+EN+JA]");
+        }
+
+        [Test]
+        public void should_leave_a_filter_without_the_reserved_word_alone()
+        {
+            _episodeFile.ReleaseGroup = null;
+            _series.OriginalLanguage = Language.Japanese;
+
+            GivenMediaInfoModel(audioLanguages: "tha/eng/jpn");
+
+            _namingConfig.StandardEpisodeFormat = "{MediaInfo AudioLanguagesAll:TH+EN}";
+
+            Subject.BuildFileName(new List<Episode> { _episode1 }, _series, _episodeFile)
+                   .Should().Be("[TH+EN]");
         }
 
         [TestCase("eng", "[EN]")]

@@ -78,6 +78,8 @@ interface Series extends ModelBase {
   monitorNewItems: MonitorNewItems;
   network: string;
   originalLanguage: Language;
+  // Stands in for ORIGINAL when building file names, leaving originalLanguage to the metadata.
+  namingLanguage: Language;
   overview: string;
   path: string;
   previousAiring?: string;

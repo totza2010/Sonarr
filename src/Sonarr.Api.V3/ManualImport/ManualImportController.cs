@@ -48,6 +48,8 @@ namespace Sonarr.Api.V3.ManualImport
                 item.Rejections = processedItem.Rejections.Select(r => r.ToResource());
                 item.CustomFormats = processedItem.CustomFormats.ToResource(false);
                 item.CustomFormatScore = processedItem.CustomFormatScore;
+                item.DetectedAudioLanguages = processedItem.DetectedAudioLanguages;
+                item.DetectedSubtitleLanguages = processedItem.DetectedSubtitleLanguages;
 
                 // Only set the language/quality if they're unknown and languages were returned.
                 // Languages won't be returned when reprocessing if the season/episode isn't filled in yet and we don't want to return no languages to the client.
