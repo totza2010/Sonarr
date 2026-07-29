@@ -1,14 +1,15 @@
 import React from 'react';
 import getLanguageName from 'Utilities/String/getLanguageName';
 import translate from 'Utilities/String/translate';
+import NamingLanguages from './NamingLanguages';
 import useEpisodeFile from './useEpisodeFile';
 
-function formatLanguages(languages: string | undefined) {
+function toLanguageNames(languages: string | undefined) {
   if (!languages) {
-    return null;
+    return [];
   }
 
-  const splitLanguages = [...new Set(languages.split('/'))].map((l) => {
+  return [...new Set(languages.split('/'))].map((l) => {
     const simpleLanguage = l.split('_')[0];
 
     if (simpleLanguage === 'und') {
@@ -17,6 +18,14 @@ function formatLanguages(languages: string | undefined) {
 
     return getLanguageName(simpleLanguage);
   });
+}
+
+function formatLanguages(languages: string | undefined) {
+  if (!languages) {
+    return null;
+  }
+
+  const splitLanguages = toLanguageNames(languages);
 
   if (splitLanguages.length > 3) {
     return (
@@ -44,6 +53,26 @@ interface MediaInfoProps {
 
 function MediaInfo({ episodeFileId, type }: MediaInfoProps) {
   const episodeFile = useEpisodeFile(episodeFileId);
+
+  // Checked before MediaInfo, both because it overrides it and because a file can carry these
+  // without MediaInfo ever having read anything worth reporting.
+  if (type === 'audioLanguages' && episodeFile?.namingAudioLanguages?.length) {
+    return (
+      <NamingLanguages
+        languages={episodeFile.namingAudioLanguages}
+        detectedNames={toLanguageNames(episodeFile.mediaInfo?.audioLanguages)}
+      />
+    );
+  }
+
+  if (type === 'subtitles' && episodeFile?.namingSubtitleLanguages?.length) {
+    return (
+      <NamingLanguages
+        languages={episodeFile.namingSubtitleLanguages}
+        detectedNames={toLanguageNames(episodeFile.mediaInfo?.subtitles)}
+      />
+    );
+  }
 
   if (!episodeFile?.mediaInfo) {
     return null;

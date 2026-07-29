@@ -17,6 +17,7 @@ namespace NzbDrone.Core.Tv
             Seasons = new List<Season>();
             Tags = new HashSet<int>();
             OriginalLanguage = Language.English;
+            NamingLanguage = Language.Unknown;
             MalIds = new HashSet<int>();
             AniListIds = new HashSet<int>();
             EditionName = SeriesEditions.MainEdition;
@@ -60,6 +61,11 @@ namespace NzbDrone.Core.Tv
         public LazyLoaded<QualityProfile> QualityProfile { get; set; }
         public Language OriginalLanguage { get; set; }
 
+        // Overrides OriginalLanguage for ORIGINAL in a naming format, and only there. The metadata
+        // refresh keeps owning OriginalLanguage, so custom formats and auto tagging carry on reading
+        // what the metadata says while file names can say what the files actually are.
+        public Language NamingLanguage { get; set; }
+
         public List<Season> Seasons { get; set; }
         public HashSet<int> Tags { get; set; }
         public AddSeriesOptions AddOptions { get; set; }
@@ -85,6 +91,16 @@ namespace NzbDrone.Core.Tv
             MonitorNewItems = otherSeries.MonitorNewItems;
 
             SeriesType = otherSeries.SeriesType;
+
+            // Set by hand and never by the metadata refresh, so it has to be carried across here or
+            // an edit is thrown away without a word. A client that has never heard of the field sends
+            // nothing at all, and taking that as "clear it" would both wipe the setting and fail the
+            // save, since a language column cannot hold null.
+            if (otherSeries.NamingLanguage != null)
+            {
+                NamingLanguage = otherSeries.NamingLanguage;
+            }
+
             RootFolderPath = otherSeries.RootFolderPath;
             Tags = otherSeries.Tags;
             AddOptions = otherSeries.AddOptions;

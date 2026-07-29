@@ -16,6 +16,10 @@ export interface EpisodeFile extends ModelBase {
   sceneName: string;
   releaseGroup: string;
   languages: Language[];
+  namingAudioLanguages?: Language[];
+  namingSubtitleLanguages?: Language[];
+  manualCustomFormats?: number[];
+  excludedCustomFormats?: number[];
   quality: QualityModel;
   customFormats: CustomFormat[];
   customFormatScore: number;

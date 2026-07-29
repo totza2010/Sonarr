@@ -225,6 +225,26 @@ namespace Sonarr.Api.V3.EpisodeFiles
                     episodeFile.ReleaseType = (ReleaseType)resourceEpisodeFile.ReleaseType;
                 }
 
+                if (resourceEpisodeFile.NamingAudioLanguages != null)
+                {
+                    episodeFile.NamingAudioLanguages = resourceEpisodeFile.NamingAudioLanguages;
+                }
+
+                if (resourceEpisodeFile.NamingSubtitleLanguages != null)
+                {
+                    episodeFile.NamingSubtitleLanguages = resourceEpisodeFile.NamingSubtitleLanguages;
+                }
+
+                if (resourceEpisodeFile.ManualCustomFormats != null)
+                {
+                    episodeFile.ManualCustomFormats = resourceEpisodeFile.ManualCustomFormats;
+                }
+
+                if (resourceEpisodeFile.ExcludedCustomFormats != null)
+                {
+                    episodeFile.ExcludedCustomFormats = resourceEpisodeFile.ExcludedCustomFormats;
+                }
+
                 // Marking an existing file as a part of its episode. Left alone unless it is sent, so this
                 // is the only way a file ever gains a part outside of an import that declared one.
                 if (resourceEpisodeFile.MultipleType.HasValue)

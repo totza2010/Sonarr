@@ -1,0 +1,5 @@
+.excluded {
+  margin-right: 4px;
+  color: var(--disabledColor);
+  text-decoration: line-through;
+}

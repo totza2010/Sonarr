@@ -29,6 +29,12 @@ namespace Sonarr.Api.V3.ManualImport
         public string ReleaseGroup { get; set; }
         public QualityModel Quality { get; set; }
         public List<Language> Languages { get; set; }
+        public List<Language> NamingAudioLanguages { get; set; }
+        public List<Language> NamingSubtitleLanguages { get; set; }
+        public List<Language> DetectedAudioLanguages { get; set; }
+        public List<Language> DetectedSubtitleLanguages { get; set; }
+        public List<int> ManualCustomFormats { get; set; }
+        public List<int> ExcludedCustomFormats { get; set; }
         public int QualityWeight { get; set; }
         public string DownloadId { get; set; }
         public List<CustomFormatResource> CustomFormats { get; set; }
@@ -50,7 +56,10 @@ namespace Sonarr.Api.V3.ManualImport
             }
 
             var customFormats = model.CustomFormats;
-            var customFormatScore = model.Series?.QualityProfile?.Value?.CalculateCustomFormatScore(customFormats) ?? 0;
+
+            // Hand-added formats are shown but never scored — see EpisodeFileResource.
+            var scoredFormats = customFormats?.Where(f => model.ManualCustomFormats?.Contains(f.Id) != true).ToList();
+            var customFormatScore = model.Series?.QualityProfile?.Value?.CalculateCustomFormatScore(scoredFormats) ?? 0;
 
             return new ManualImportResource
             {
@@ -67,6 +76,12 @@ namespace Sonarr.Api.V3.ManualImport
                 ReleaseGroup = model.ReleaseGroup,
                 Quality = model.Quality,
                 Languages = model.Languages,
+                NamingAudioLanguages = model.NamingAudioLanguages,
+                NamingSubtitleLanguages = model.NamingSubtitleLanguages,
+                DetectedAudioLanguages = model.DetectedAudioLanguages,
+                DetectedSubtitleLanguages = model.DetectedSubtitleLanguages,
+                ManualCustomFormats = model.ManualCustomFormats,
+                ExcludedCustomFormats = model.ExcludedCustomFormats,
                 CustomFormats = customFormats.ToResource(false),
                 CustomFormatScore = customFormatScore,
 

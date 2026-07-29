@@ -467,6 +467,8 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Manual
             item.ReleaseGroup = decision.LocalEpisode.ReleaseGroup;
             item.Quality = decision.LocalEpisode.Quality;
             item.Languages = decision.LocalEpisode.Languages;
+            item.DetectedAudioLanguages = MapDetectedLanguages(decision.LocalEpisode.MediaInfo?.AudioLanguages);
+            item.DetectedSubtitleLanguages = MapDetectedLanguages(decision.LocalEpisode.MediaInfo?.Subtitles);
             item.Size = _diskProvider.GetFileSize(decision.LocalEpisode.Path);
             item.Rejections = decision.Rejections;
             item.IndexerFlags = (int)decision.LocalEpisode.IndexerFlags;
@@ -501,6 +503,12 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Manual
             item.ReleaseGroup = episodeFile.ReleaseGroup;
             item.Quality = episodeFile.Quality;
             item.Languages = episodeFile.Languages;
+            item.NamingAudioLanguages = episodeFile.NamingAudioLanguages;
+            item.NamingSubtitleLanguages = episodeFile.NamingSubtitleLanguages;
+            item.DetectedAudioLanguages = MapDetectedLanguages(episodeFile.MediaInfo?.AudioLanguages);
+            item.DetectedSubtitleLanguages = MapDetectedLanguages(episodeFile.MediaInfo?.Subtitles);
+            item.ManualCustomFormats = episodeFile.ManualCustomFormats;
+            item.ExcludedCustomFormats = episodeFile.ExcludedCustomFormats;
             item.IndexerFlags = (int)episodeFile.IndexerFlags;
             item.ReleaseType = episodeFile.ReleaseType;
             item.MultipleType = episodeFile.MultipleType;
@@ -511,6 +519,24 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Manual
             item.CustomFormats = _formatCalculator.ParseCustomFormat(episodeFile, series);
 
             return item;
+        }
+
+        /// <summary>
+        /// MediaInfo reports whatever the streams declare, as iso codes and sometimes as nothing at all.
+        /// Mapped here so the naming languages picker can open on what was detected; codes it cannot
+        /// name are dropped, which is the same thing the naming tokens do with them.
+        /// </summary>
+        private static List<Language> MapDetectedLanguages(List<string> isoCodes)
+        {
+            if (isoCodes == null)
+            {
+                return new List<Language>();
+            }
+
+            return isoCodes.Select(c => IsoLanguages.Find(c?.ToLowerInvariant())?.Language)
+                           .Where(l => l != null && l != Language.Unknown)
+                           .Distinct()
+                           .ToList();
         }
 
         public void Execute(ManualImportCommand message)
@@ -541,6 +567,10 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Manual
                     ReleaseGroup = file.ReleaseGroup,
                     Quality = file.Quality,
                     Languages = file.Languages,
+                    NamingAudioLanguages = file.NamingAudioLanguages,
+                    NamingSubtitleLanguages = file.NamingSubtitleLanguages,
+                    ManualCustomFormats = file.ManualCustomFormats,
+                    ExcludedCustomFormats = file.ExcludedCustomFormats,
                     IndexerFlags = (IndexerFlags)file.IndexerFlags,
                     ReleaseType = file.ReleaseType,
                     MultipleType = file.MultipleType,

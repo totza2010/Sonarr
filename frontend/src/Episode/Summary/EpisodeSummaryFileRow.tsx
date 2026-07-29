@@ -31,6 +31,8 @@ function EpisodeSummaryFileRow(props: EpisodeSummaryFileRowProps) {
     qualityCutoffNotMet,
     customFormats,
     customFormatScore,
+    manualCustomFormats,
+    excludedCustomFormats,
     multipleType,
     multipleNumber,
   } = useEpisodeFile(episodeFileId) || {};
@@ -63,6 +65,8 @@ function EpisodeSummaryFileRow(props: EpisodeSummaryFileRowProps) {
       qualityCutoffNotMet={qualityCutoffNotMet!}
       customFormats={customFormats!}
       customFormatScore={customFormatScore!}
+      manualCustomFormats={manualCustomFormats}
+      excludedCustomFormats={excludedCustomFormats}
       mediaInfo={mediaInfo!}
       multipleType={multipleType}
       multipleNumber={multipleNumber}

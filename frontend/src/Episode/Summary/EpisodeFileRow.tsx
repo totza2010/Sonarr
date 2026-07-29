@@ -28,6 +28,8 @@ interface EpisodeFileRowProps
     | 'quality'
     | 'customFormats'
     | 'customFormatScore'
+    | 'manualCustomFormats'
+    | 'excludedCustomFormats'
     | 'qualityCutoffNotMet'
     | 'mediaInfo'
     | 'multipleType'
@@ -45,6 +47,8 @@ function EpisodeFileRow(props: EpisodeFileRowProps) {
     quality,
     customFormats,
     customFormatScore,
+    manualCustomFormats,
+    excludedCustomFormats,
     qualityCutoffNotMet,
     mediaInfo,
     multipleType,
@@ -110,7 +114,11 @@ function EpisodeFileRow(props: EpisodeFileRowProps) {
         if (name === 'customFormats') {
           return (
             <TableRowCell key={name} className={styles.customFormats}>
-              <EpisodeFormats formats={customFormats} />
+              <EpisodeFormats
+                formats={customFormats}
+                manualIds={manualCustomFormats}
+                excludedIds={excludedCustomFormats}
+              />
             </TableRowCell>
           );
         }

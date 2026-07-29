@@ -12,8 +12,10 @@ using NzbDrone.Common.Disk;
 using NzbDrone.Common.EnsureThat;
 using NzbDrone.Common.Extensions;
 using NzbDrone.Core.CustomFormats;
+using NzbDrone.Core.Languages;
 using NzbDrone.Core.MediaFiles;
 using NzbDrone.Core.MediaFiles.MediaInfo;
+using NzbDrone.Core.Parser;
 using NzbDrone.Core.Qualities;
 using NzbDrone.Core.Tv;
 
@@ -69,6 +71,9 @@ namespace NzbDrone.Core.Organizer
 
         public static readonly Regex SeriesTitleRegex = new Regex(@"(?<token>\{(?:Series)(?<separator>[- ._])(Clean)?Title(The)?(Without)?(Year)?(?::(?<customFormat>[0-9-]+))?\})",
                                                                             RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+        private static readonly Regex OriginalLanguageFilterRegex = new Regex(@"(?<![a-z0-9])original(?![a-z0-9])", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static readonly Regex LanguageFilterCleanupRegex = new Regex(@"([+-])[+-]+", RegexOptions.Compiled);
 
         private static readonly Regex FileNameCleanupRegex = new Regex(@"([- ._])(\1)+", RegexOptions.Compiled);
         private static readonly Regex TrimSeparatorsRegex = new Regex(@"[- ._]+$", RegexOptions.Compiled);
@@ -198,7 +203,7 @@ namespace NzbDrone.Core.Organizer
                 AddEpisodeTitlePlaceholderTokens(tokenHandlers);
                 AddEpisodeFileTokens(tokenHandlers, episodeFile, !patternHasEpisodeIdentifier || episodeFile.Id == 0);
                 AddQualityTokens(tokenHandlers, series, episodeFile);
-                AddMediaInfoTokens(tokenHandlers, episodeFile);
+                AddMediaInfoTokens(tokenHandlers, series, episodeFile);
                 AddCustomFormats(tokenHandlers, series, episodeFile, customFormats);
 
                 var component = ReplaceTokens(splitPattern, tokenHandlers, namingConfig, true).Trim();
@@ -715,7 +720,7 @@ namespace NzbDrone.Core.Organizer
             { MediaInfoVideoDynamicRangeTypeToken, 11 }
         };
 
-        private void AddMediaInfoTokens(Dictionary<string, Func<TokenMatch, string>> tokenHandlers, EpisodeFile episodeFile)
+        private void AddMediaInfoTokens(Dictionary<string, Func<TokenMatch, string>> tokenHandlers, Series series, EpisodeFile episodeFile)
         {
             if (episodeFile.MediaInfo == null)
             {
@@ -729,8 +734,8 @@ namespace NzbDrone.Core.Organizer
             var videoCodec = MediaInfoFormatter.FormatVideoCodec(episodeFile.MediaInfo, sceneName);
             var audioCodec = MediaInfoFormatter.FormatAudioCodec(episodeFile.MediaInfo, sceneName);
             var audioChannels = MediaInfoFormatter.FormatAudioChannels(episodeFile.MediaInfo);
-            var audioLanguages = episodeFile.MediaInfo.AudioLanguages ?? new List<string>();
-            var subtitles = episodeFile.MediaInfo.Subtitles ?? new List<string>();
+            var audioLanguages = GetNamingLanguages(episodeFile.NamingAudioLanguages) ?? episodeFile.MediaInfo.AudioLanguages ?? new List<string>();
+            var subtitles = GetNamingLanguages(episodeFile.NamingSubtitleLanguages) ?? episodeFile.MediaInfo.Subtitles ?? new List<string>();
 
             var videoBitDepth = episodeFile.MediaInfo.VideoBitDepth > 0 ? episodeFile.MediaInfo.VideoBitDepth.ToString() : 8.ToString();
             var audioChannelsFormatted = audioChannels > 0 ?
@@ -744,15 +749,15 @@ namespace NzbDrone.Core.Organizer
             tokenHandlers["{MediaInfo Audio}"] = m => audioCodec;
             tokenHandlers["{MediaInfo AudioCodec}"] = m => audioCodec;
             tokenHandlers["{MediaInfo AudioChannels}"] = m => audioChannelsFormatted;
-            tokenHandlers["{MediaInfo AudioLanguages}"] = m => GetLanguagesToken(audioLanguages, m.CustomFormat, true, true);
-            tokenHandlers["{MediaInfo AudioLanguagesAll}"] = m => GetLanguagesToken(audioLanguages, m.CustomFormat, false, true);
+            tokenHandlers["{MediaInfo AudioLanguages}"] = m => GetLanguagesToken(audioLanguages, ResolveLanguageFilter(m.CustomFormat, series), true, true);
+            tokenHandlers["{MediaInfo AudioLanguagesAll}"] = m => GetLanguagesToken(audioLanguages, ResolveLanguageFilter(m.CustomFormat, series), false, true);
 
-            tokenHandlers["{MediaInfo SubtitleLanguages}"] = m => GetLanguagesToken(subtitles, m.CustomFormat, false, true);
-            tokenHandlers["{MediaInfo SubtitleLanguagesAll}"] = m => GetLanguagesToken(subtitles, m.CustomFormat, false, true);
+            tokenHandlers["{MediaInfo SubtitleLanguages}"] = m => GetLanguagesToken(subtitles, ResolveLanguageFilter(m.CustomFormat, series), false, true);
+            tokenHandlers["{MediaInfo SubtitleLanguagesAll}"] = m => GetLanguagesToken(subtitles, ResolveLanguageFilter(m.CustomFormat, series), false, true);
 
             tokenHandlers["{MediaInfo Simple}"] = m => $"{videoCodec} {audioCodec}";
 
-            tokenHandlers["{MediaInfo Full}"] = m => $"{videoCodec} {audioCodec}{GetLanguagesToken(audioLanguages, m.CustomFormat, true, true)} {GetLanguagesToken(subtitles, m.CustomFormat, false, true)}";
+            tokenHandlers["{MediaInfo Full}"] = m => $"{videoCodec} {audioCodec}{GetLanguagesToken(audioLanguages, ResolveLanguageFilter(m.CustomFormat, series), true, true)} {GetLanguagesToken(subtitles, ResolveLanguageFilter(m.CustomFormat, series), false, true)}";
 
             tokenHandlers[MediaInfoVideoDynamicRangeToken] =
                 m => MediaInfoFormatter.FormatVideoDynamicRange(episodeFile.MediaInfo);
@@ -809,6 +814,77 @@ namespace NzbDrone.Core.Organizer
             }
 
             return string.Join(" ", filteredTokens);
+        }
+
+        /// <summary>
+        /// Swaps the reserved word ORIGINAL in a language filter for the series' own language, so one
+        /// naming format can ask for "the usual two plus whatever this show was made in" instead of
+        /// needing a separate format per language. Left alone when the language is not one this
+        /// filter can name, which drops the term rather than matching something unintended.
+        /// </summary>
+        /// <summary>
+        /// The language ORIGINAL stands for. The one the series was set to by hand wins, because the
+        /// metadata is a guess about the show while this is a statement about the files.
+        /// </summary>
+        /// <summary>
+        /// The languages a file was told to report, as the codes the token machinery expects, or null
+        /// when it was told nothing and MediaInfo should be believed instead. A language with no code
+        /// is dropped rather than printed under a name the filter cannot match.
+        /// </summary>
+        private static List<string> GetNamingLanguages(List<Language> languages)
+        {
+            if (languages == null || languages.Empty())
+            {
+                return null;
+            }
+
+            var codes = languages.Select(l => IsoLanguages.Get(l)?.TwoLetterCode)
+                                 .Where(c => c.IsNotNullOrWhiteSpace())
+                                 .ToList();
+
+            return codes.Any() ? codes : null;
+        }
+
+        private static Language GetNamingLanguage(Series series)
+        {
+            if (series == null)
+            {
+                return Language.Unknown;
+            }
+
+            if (series.NamingLanguage != null && series.NamingLanguage != Language.Unknown)
+            {
+                return series.NamingLanguage;
+            }
+
+            return series.OriginalLanguage ?? Language.Unknown;
+        }
+
+        private string ResolveLanguageFilter(string filter, Series series)
+        {
+            if (filter.IsNullOrWhiteSpace() || !OriginalLanguageFilterRegex.IsMatch(filter))
+            {
+                return filter;
+            }
+
+            var code = IsoLanguages.Get(GetNamingLanguage(series))?.TwoLetterCode;
+
+            // A filter starting with '-' excludes rather than includes, so that sign is part of the
+            // instruction and has to survive the tidying below.
+            var isExclusion = filter.StartsWith("-");
+
+            var resolved = OriginalLanguageFilterRegex.Replace(filter, code?.ToUpperInvariant() ?? string.Empty);
+
+            // Removing the word can leave the separators it sat between, which would otherwise become
+            // an empty term and match nothing under a name of its own.
+            resolved = LanguageFilterCleanupRegex.Replace(resolved, "$1").Trim('+', ' ').Trim('-');
+
+            if (resolved.IsNullOrWhiteSpace())
+            {
+                return string.Empty;
+            }
+
+            return isExclusion ? $"-{resolved}" : resolved;
         }
 
         private string GetLanguagesToken(List<string> mediaInfoLanguages, string filter, bool skipEnglishOnly, bool quoted)

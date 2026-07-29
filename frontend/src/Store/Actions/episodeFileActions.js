@@ -163,10 +163,28 @@ export const actionHandlers = handleThunks({
           props.qualityCutoffNotMet = episodeFile.qualityCutoffNotMet;
           props.customFormats = episodeFile.customFormats;
           props.customFormatScore = episodeFile.customFormatScore;
-          props.languages = file.languages;
-          props.quality = file.quality;
-          props.releaseGroup = file.releaseGroup;
-          props.indexerFlags = file.indexerFlags;
+          props.manualCustomFormats = episodeFile.manualCustomFormats;
+          props.excludedCustomFormats = episodeFile.excludedCustomFormats;
+          props.namingAudioLanguages = episodeFile.namingAudioLanguages;
+          props.namingSubtitleLanguages = episodeFile.namingSubtitleLanguages;
+
+          // Only what this request actually carried. Copying them unconditionally blanks whatever a
+          // partial update left out, which is how editing one field emptied the quality column.
+          if (file.languages !== undefined) {
+            props.languages = file.languages;
+          }
+
+          if (file.quality !== undefined) {
+            props.quality = file.quality;
+          }
+
+          if (file.releaseGroup !== undefined) {
+            props.releaseGroup = file.releaseGroup;
+          }
+
+          if (file.indexerFlags !== undefined) {
+            props.indexerFlags = file.indexerFlags;
+          }
 
           return updateItem({
             section,
