@@ -178,6 +178,8 @@ namespace Sonarr.Api.V3.Series
                        Seasons = resource.Seasons?.ToModel() ?? new List<Season>(),
                        Year = resource.Year,
                        OriginalLanguage = resource.OriginalLanguage,
+                       // Left null when the client did not send it, which ApplyChanges reads as
+                       // "leave whatever is there alone".
                        NamingLanguage = resource.NamingLanguage,
 
                        Path = resource.Path,

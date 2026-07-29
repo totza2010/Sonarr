@@ -88,8 +88,13 @@ namespace NzbDrone.Core.Tv
             SeriesType = otherSeries.SeriesType;
 
             // Set by hand and never by the metadata refresh, so it has to be carried across here or
-            // an edit is thrown away without a word.
-            NamingLanguage = otherSeries.NamingLanguage;
+            // an edit is thrown away without a word. A client that has never heard of the field sends
+            // nothing at all, and taking that as "clear it" would both wipe the setting and fail the
+            // save, since a language column cannot hold null.
+            if (otherSeries.NamingLanguage != null)
+            {
+                NamingLanguage = otherSeries.NamingLanguage;
+            }
 
             RootFolderPath = otherSeries.RootFolderPath;
             Tags = otherSeries.Tags;

@@ -8,6 +8,7 @@ using NLog;
 using NzbDrone.Common.EnsureThat;
 using NzbDrone.Common.Extensions;
 using NzbDrone.Core.Exceptions;
+using NzbDrone.Core.Languages;
 using NzbDrone.Core.MetadataSource;
 using NzbDrone.Core.Organizer;
 using NzbDrone.Core.Parser;
@@ -150,6 +151,9 @@ namespace NzbDrone.Core.Tv
             newSeries.CleanTitle = newSeries.Title.CleanSeriesTitle();
             newSeries.SortTitle = SeriesTitleNormalizer.Normalize(newSeries.Title, newSeries.TvdbId);
             newSeries.Added = DateTime.UtcNow;
+
+            // A client that predates the field sends nothing, and the column cannot hold null.
+            newSeries.NamingLanguage ??= Language.Unknown;
 
             if (newSeries.AddOptions != null && newSeries.AddOptions.Monitor == MonitorTypes.None)
             {
