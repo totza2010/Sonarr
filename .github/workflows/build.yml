@@ -218,6 +218,11 @@ jobs:
   deploy:
     if: ${{ github.ref_name == 'develop' || github.ref_name == 'main' }}
     needs: [backend, frontend, unit_test, unit_test_postgres, integration_test]
+    # A called workflow cannot ask for more than its caller holds, and the caller holds only what
+    # the repository hands out by default, which is read. Without this the run does not start at
+    # all: the release job's `contents: write` is refused while the workflow is still being read.
+    permissions:
+      contents: write
     # This fork's own copy of upstream's deploy. Theirs declares SERVICES_API_KEY as a required
     # secret, and a required secret that does not exist fails the whole workflow before the `if`
     # above is ever read. Ours packages and releases the same way, minus the step that reports the
