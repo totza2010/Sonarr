@@ -7,7 +7,7 @@ using NzbDrone.Core.Profiles.Qualities;
 
 namespace NzbDrone.Core.Tv
 {
-    public class Series : ModelBase
+    public class Series : ModelBase, ISeriesEditionIdentity
     {
         public Series()
         {
@@ -19,9 +19,11 @@ namespace NzbDrone.Core.Tv
             OriginalLanguage = Language.English;
             MalIds = new HashSet<int>();
             AniListIds = new HashSet<int>();
+            EditionName = SeriesEditions.MainEdition;
         }
 
         public int TvdbId { get; set; }
+        public string EditionName { get; set; }
         public int TvRageId { get; set; }
         public int TvMazeId { get; set; }
         public string ImdbId { get; set; }
@@ -64,12 +66,15 @@ namespace NzbDrone.Core.Tv
 
         public override string ToString()
         {
-            return string.Format("[{0}][{1}]", TvdbId, Title.NullSafe());
+            return SeriesEditions.IsMainEdition(EditionName)
+                ? string.Format("[{0}][{1}]", TvdbId, Title.NullSafe())
+                : string.Format("[{0}][{1}][{2}]", TvdbId, Title.NullSafe(), EditionName);
         }
 
         public void ApplyChanges(Series otherSeries)
         {
             TvdbId = otherSeries.TvdbId;
+            EditionName = SeriesEditions.NormalizeEditionName(otherSeries.EditionName);
 
             Seasons = otherSeries.Seasons;
             Path = otherSeries.Path;

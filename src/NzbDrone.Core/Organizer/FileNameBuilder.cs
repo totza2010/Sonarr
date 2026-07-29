@@ -273,6 +273,17 @@ namespace NzbDrone.Core.Organizer
             folderName = ReplaceReservedDeviceNames(folderName);
             folderName = folderName.Replace("{ellipsis}", "...");
 
+            // Editions of the same series share their title, so the folder has to carry the edition name
+            // to stay unique. Plex reads the same token to tell the editions apart.
+            if (!SeriesEditions.IsMainEdition(series.EditionName))
+            {
+                // AddSeriesService stores the cleaned name, cleaning again is a no-op there and keeps
+                // series edited straight through the API from producing an unusable folder.
+                var editionName = CleanFileName(SeriesEditions.NormalizeEditionName(series.EditionName));
+
+                folderName = $"{folderName} {{edition-{editionName}}}";
+            }
+
             return folderName;
         }
 

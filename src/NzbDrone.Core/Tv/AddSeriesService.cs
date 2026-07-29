@@ -58,7 +58,7 @@ namespace NzbDrone.Core.Tv
         {
             var added = DateTime.UtcNow;
             var seriesToAdd = new List<Series>();
-            var existingSeriesTvdbIds = _seriesService.AllSeriesTvdbIds();
+            var existingSeriesEditions = _seriesService.AllSeriesEditions();
 
             foreach (var s in newSeries)
             {
@@ -76,13 +76,14 @@ namespace NzbDrone.Core.Tv
                     var series = AddSkyhookData(s);
                     series = SetPropertiesAndValidate(series);
                     series.Added = added;
-                    if (existingSeriesTvdbIds.Any(f => f == series.TvdbId))
+                    if (existingSeriesEditions.TryGetValue(series.TvdbId, out var existingEditions) &&
+                        existingEditions.Any(e => SeriesEditions.SameEdition(e, series.EditionName)))
                     {
                         _logger.Debug("TVDB ID {0} was not added due to validation failure: Series {1} already exists in database", s.TvdbId, s);
                         continue;
                     }
 
-                    if (seriesToAdd.Any(f => f.TvdbId == series.TvdbId))
+                    if (seriesToAdd.Any(f => f.TvdbId == series.TvdbId && SeriesEditions.SameEdition(f.EditionName, series.EditionName)))
                     {
                         _logger.Trace("TVDB ID {0} was already added from another import list, not adding series {1} again", s.TvdbId, s);
                         continue;
@@ -141,11 +142,19 @@ namespace NzbDrone.Core.Tv
 
         private Series SetPropertiesAndValidate(Series newSeries)
         {
+            // Store the name that the folder will actually carry, so the edition shown in the UI, the
+            // folder on disk and the label Plex reads cannot drift apart.
+            newSeries.EditionName = FileNameBuilder.CleanFileName(SeriesEditions.NormalizeEditionName(newSeries.EditionName));
+
             if (string.IsNullOrWhiteSpace(newSeries.Path))
             {
+                // GetSeriesFolder adds the edition to the folder name, so editions get their own path.
                 var folderName = _fileNameBuilder.GetSeriesFolder(newSeries);
                 newSeries.Path = Path.Combine(newSeries.RootFolderPath, folderName);
             }
+
+            // TitleSlug is unique, so each edition needs its own.
+            newSeries.TitleSlug = SeriesEditions.ApplyEditionToSlug(newSeries.TitleSlug, newSeries.EditionName);
 
             newSeries.CleanTitle = newSeries.Title.CleanSeriesTitle();
             newSeries.SortTitle = SeriesTitleNormalizer.Normalize(newSeries.Title, newSeries.TvdbId);

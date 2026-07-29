@@ -78,10 +78,11 @@ one image comfortable:
 Anything set here wins over `config.xml`, so the instance identity lives in the compose file and the
 volume only carries state.
 
-## Two instances
+## Two instances, editions inside each
 
-Each instance owns one root folder, which is one Plex library. Quality tier is the usual reason to
-run more than one.
+The quality tier is the instance axis and the edition is the version axis — see
+[series-editions-v5-plan.md](series-editions-v5-plan.md). Each instance owns one root folder, which
+is one Plex library, and holds the main edition plus any editions of the same series.
 
 ```yaml
 services:
@@ -124,9 +125,11 @@ On disk that gives:
 
 ```
 /mnt/media/TV/
-  Spider-Noir (2024)/
+  Spider-Noir (2024)/                            main edition, automated
+  Spider-Noir (2024) {edition-Black & White}/    manual import
 /mnt/media/TV-4K/
   Spider-Noir (2024)/
+  Spider-Noir (2024) {edition-Black & White}/
 ```
 
 ## Mount media at the same path inside and outside
@@ -137,7 +140,7 @@ stores absolute paths in its database, so:
 - an existing instance can be moved into a container without rewriting every series path,
 - the path Sonarr reports matches the path the download client and Plex see, so hardlinks and
   atomic moves work instead of silently falling back to a copy,
-- the folders Sonarr creates line up with what the Plex library scanner walks.
+- `{edition-...}` folders line up with what the Plex library scanner walks.
 
 If media and downloads live on the same filesystem, mount them under one parent so a completed
 download can be hardlinked into the library rather than copied.
@@ -212,7 +215,7 @@ local build cannot produce a working package yet:
 - `--user 1000:1000` against a pre-chowned volume works as well, so the recursive chmod does its job
 
 What that does **not** cover: the image has never been built from this fork's own code, so none of
-this fork's features have been exercised in a container. The workflow has not run either.
+this fork's features have been exercised in a container.
 
 ## Not covered yet
 

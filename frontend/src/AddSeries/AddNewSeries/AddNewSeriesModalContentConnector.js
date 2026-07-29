@@ -47,13 +47,24 @@ const mapDispatchToProps = {
 class AddNewSeriesModalContentConnector extends Component {
 
   //
+  // Lifecycle
+
+  componentDidUpdate(prevProps) {
+    // An edition leaves the search result marked as already added, so the modal has to be closed
+    // from here rather than when the result stops being addable.
+    if (prevProps.isAdding && !this.props.isAdding && !this.props.addError) {
+      this.props.onModalClose();
+    }
+  }
+
+  //
   // Listeners
 
   onInputChange = ({ name, value }) => {
     this.props.setAddSeriesDefault({ [name]: value });
   };
 
-  onAddSeriesPress = (seriesType) => {
+  onAddSeriesPress = (seriesType, editionName) => {
     const {
       tvdbId,
       rootFolderPath,
@@ -67,6 +78,7 @@ class AddNewSeriesModalContentConnector extends Component {
 
     this.props.addSeries({
       tvdbId,
+      editionName,
       rootFolderPath: rootFolderPath.value,
       monitor: monitor.value,
       qualityProfileId: qualityProfileId.value,
@@ -94,6 +106,8 @@ class AddNewSeriesModalContentConnector extends Component {
 
 AddNewSeriesModalContentConnector.propTypes = {
   tvdbId: PropTypes.number.isRequired,
+  isAdding: PropTypes.bool.isRequired,
+  addError: PropTypes.object,
   rootFolderPath: PropTypes.object,
   monitor: PropTypes.object.isRequired,
   qualityProfileId: PropTypes.object,
