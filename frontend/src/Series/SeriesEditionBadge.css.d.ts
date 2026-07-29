@@ -2,11 +2,6 @@
 // Please do not change this file!
 interface CssExports {
   'badge': string;
-  'edition': string;
-  'editionName': string;
-  'editions': string;
-  'path': string;
-  'posterContainer': string;
 }
 export const cssExports: CssExports;
 export default cssExports;

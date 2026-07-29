@@ -7,6 +7,7 @@ interface CssExports {
   'contentContainer': string;
   'details': string;
   'detailsLabel': string;
+  'edition': string;
   'fileCountMessage': string;
   'genres': string;
   'header': string;

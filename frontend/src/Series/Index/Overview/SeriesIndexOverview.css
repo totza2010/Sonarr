@@ -53,6 +53,11 @@ $hoverScale: 1.05;
   padding-left: 10px;
 }
 
+.edition {
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
 .titleRow {
   display: flex;
   justify-content: space-between;

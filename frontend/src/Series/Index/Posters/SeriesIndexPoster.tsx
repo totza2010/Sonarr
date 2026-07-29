@@ -13,6 +13,7 @@ import EditSeriesModal from 'Series/Edit/EditSeriesModal';
 import SeriesIndexProgressBar from 'Series/Index/ProgressBar/SeriesIndexProgressBar';
 import SeriesIndexPosterSelect from 'Series/Index/Select/SeriesIndexPosterSelect';
 import { Statistics } from 'Series/Series';
+import SeriesEditionBadge from 'Series/SeriesEditionBadge';
 import seriesEditionTitle from 'Series/seriesEditionTitle';
 import SeriesPoster from 'Series/SeriesPoster';
 import { executeCommand } from 'Store/Actions/commandActions';
@@ -180,6 +181,11 @@ function SeriesIndexPoster(props: SeriesIndexPosterProps) {
           />
         ) : null}
 
+        <SeriesEditionBadge
+          className={styles.edition}
+          editionName={editionName}
+        />
+
         <Link className={styles.link} style={elementStyle} to={link}>
           <SeriesPoster
             style={elementStyle}
@@ -209,9 +215,12 @@ function SeriesIndexPoster(props: SeriesIndexPosterProps) {
         isStandalone={false}
       />
 
+      {/* The badge over the poster carries the edition, so the line under it can stay the title on
+          its own instead of being cut off halfway through the edition name. Hovering still gives
+          the whole thing. */}
       {showTitle ? (
         <div className={styles.title} title={title}>
-          {title}
+          {seriesTitle}
         </div>
       ) : null}
 

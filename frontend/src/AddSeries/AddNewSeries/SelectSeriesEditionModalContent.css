@@ -1,13 +1,14 @@
 .editions {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
+  gap: 15px;
 }
 
 .edition {
   display: flex;
-  align-items: center;
-  margin-bottom: 5px;
+  flex-direction: column;
   padding: 10px;
+  width: 172px;
   border: 1px solid var(--borderColor);
   border-radius: 4px;
   background-color: var(--inputBackgroundColor);
@@ -20,15 +21,29 @@
   text-decoration: none;
 }
 
+/* The poster is given its size in the component, so the container only has to be the box the badge
+   is positioned against. */
+.posterContainer {
+  position: relative;
+  line-height: 0;
+}
+
+.badge {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  max-width: calc(100% - 8px);
+}
+
 .editionName {
-  flex: 0 0 200px;
+  margin-top: 8px;
   font-weight: bold;
 }
 
 .path {
-  flex: 1 1 auto;
   overflow: hidden;
-  margin-right: 10px;
   color: var(--disabledColor);
-  word-break: break-all;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
 }

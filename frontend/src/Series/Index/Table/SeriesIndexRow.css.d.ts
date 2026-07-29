@@ -9,6 +9,7 @@ interface CssExports {
   'cell': string;
   'certification': string;
   'checkInput': string;
+  'edition': string;
   'episodeCount': string;
   'episodeProgress': string;
   'genres': string;
