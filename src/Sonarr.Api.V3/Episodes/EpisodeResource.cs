@@ -26,6 +26,12 @@ namespace Sonarr.Api.V3.Episodes
         public string FinaleType { get; set; }
         public string Overview { get; set; }
         public EpisodeFileResource EpisodeFile { get; set; }
+
+        // The extra parts and versions of this episode. EpisodeFileId stays the primary file, so clients that
+        // only know about one file per episode keep behaving exactly as before. Left null unless the episode
+        // actually has extra files, and nulls are dropped from the response, so an install that does not use
+        // the feature serves byte-for-byte the same JSON as before.
+        public List<int> AdditionalEpisodeFileIds { get; set; }
         public bool HasFile { get; set; }
         public bool Monitored { get; set; }
         public int? AbsoluteEpisodeNumber { get; set; }

@@ -12,7 +12,7 @@ namespace NzbDrone.Core.MediaFiles
 {
     public interface IMediaFileService
     {
-        EpisodeFile Add(EpisodeFile episodeFile);
+        EpisodeFile Add(EpisodeFile episodeFile, bool isAdditionalFile);
         void Update(EpisodeFile episodeFile);
         void Update(List<EpisodeFile> episodeFiles);
         void Delete(EpisodeFile episodeFile, DeleteMediaFileReason reason);
@@ -24,6 +24,7 @@ namespace NzbDrone.Core.MediaFiles
         EpisodeFile Get(int id);
         List<EpisodeFile> Get(IEnumerable<int> ids);
         List<EpisodeFile> GetFilesWithRelativePath(int seriesId, string relativePath);
+        List<int> SeriesIdsWithMultipleFiles();
     }
 
     public class MediaFileService : IMediaFileService, IHandleAsync<SeriesDeletedEvent>
@@ -39,10 +40,10 @@ namespace NzbDrone.Core.MediaFiles
             _logger = logger;
         }
 
-        public EpisodeFile Add(EpisodeFile episodeFile)
+        public EpisodeFile Add(EpisodeFile episodeFile, bool isAdditionalFile)
         {
             var addedFile = _mediaFileRepository.Insert(episodeFile);
-            _eventAggregator.PublishEvent(new EpisodeFileAddedEvent(addedFile));
+            _eventAggregator.PublishEvent(new EpisodeFileAddedEvent(addedFile, isAdditionalFile));
             return addedFile;
         }
 
@@ -106,6 +107,11 @@ namespace NzbDrone.Core.MediaFiles
         public List<EpisodeFile> GetFilesWithRelativePath(int seriesId, string relativePath)
         {
             return _mediaFileRepository.GetFilesWithRelativePath(seriesId, relativePath);
+        }
+
+        public List<int> SeriesIdsWithMultipleFiles()
+        {
+            return _mediaFileRepository.SeriesIdsWithMultipleFiles();
         }
 
         public void HandleAsync(SeriesDeletedEvent message)

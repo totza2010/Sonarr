@@ -35,5 +35,7 @@ public enum ImportRejectionReason
     UnverifiedSceneMapping,
     NotQualityUpgrade,
     NotRevisionUpgrade,
-    NotCustomFormatUpgrade
+    NotCustomFormatUpgrade,
+    ExistingFileIsNotAMultiple,
+    MultipleNotSupportedByNaming
 }

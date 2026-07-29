@@ -1,0 +1,6 @@
+# The image only copies the published package, so everything else is context the daemon does not
+# need to receive. Without this the build ships .git, node_modules and every build output.
+*
+
+!_artifacts/**
+!docker-entrypoint.sh

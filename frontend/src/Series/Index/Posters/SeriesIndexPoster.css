@@ -91,6 +91,16 @@ $hoverScale: 1.05;
   }
 }
 
+/* Top left: the status corner takes the top right, and the buttons that appear on hover sit at the
+   bottom left. */
+.edition {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  z-index: 2;
+  max-width: calc(100% - 32px);
+}
+
 .controls {
   position: absolute;
   bottom: 10px;

@@ -1,9 +1,12 @@
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.AspNetCore.Mvc;
+using NzbDrone.Common.Extensions;
 using NzbDrone.Core.CustomFormats;
 using NzbDrone.Core.Datastore.Events;
 using NzbDrone.Core.DecisionEngine.Specifications;
 using NzbDrone.Core.Download;
+using NzbDrone.Core.MediaFiles;
 using NzbDrone.Core.MediaFiles.Events;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Tv;
@@ -23,11 +26,13 @@ namespace Sonarr.Api.V3.Episodes
         protected readonly ISeriesService _seriesService;
         protected readonly IUpgradableSpecification _upgradableSpecification;
         protected readonly ICustomFormatCalculationService _formatCalculator;
+        protected readonly IEpisodeFileLinkService _episodeFileLinkService;
 
         protected EpisodeControllerWithSignalR(IEpisodeService episodeService,
                                            ISeriesService seriesService,
                                            IUpgradableSpecification upgradableSpecification,
                                            ICustomFormatCalculationService formatCalculator,
+                                           IEpisodeFileLinkService episodeFileLinkService,
                                            IBroadcastSignalRMessage signalRBroadcaster)
             : base(signalRBroadcaster)
         {
@@ -35,12 +40,14 @@ namespace Sonarr.Api.V3.Episodes
             _seriesService = seriesService;
             _upgradableSpecification = upgradableSpecification;
             _formatCalculator = formatCalculator;
+            _episodeFileLinkService = episodeFileLinkService;
         }
 
         protected EpisodeControllerWithSignalR(IEpisodeService episodeService,
                                            ISeriesService seriesService,
                                            IUpgradableSpecification upgradableSpecification,
                                            ICustomFormatCalculationService formatCalculator,
+                                           IEpisodeFileLinkService episodeFileLinkService,
                                            IBroadcastSignalRMessage signalRBroadcaster,
                                            string resource)
             : base(signalRBroadcaster)
@@ -49,6 +56,7 @@ namespace Sonarr.Api.V3.Episodes
             _seriesService = seriesService;
             _upgradableSpecification = upgradableSpecification;
             _formatCalculator = formatCalculator;
+            _episodeFileLinkService = episodeFileLinkService;
         }
 
         protected override EpisodeResource GetResourceById(int id)
@@ -82,7 +90,55 @@ namespace Sonarr.Api.V3.Episodes
                 }
             }
 
+            AddAdditionalFiles(new List<EpisodeResource> { resource });
+
             return resource;
+        }
+
+        /// <summary>
+        /// Fills in the extra parts and versions each episode owns. They are only reachable through the link
+        /// table, so they are looked up for the whole batch at once rather than per episode.
+        /// </summary>
+        private void AddAdditionalFiles(List<EpisodeResource> resources)
+        {
+            var episodeIds = resources.Select(r => r.Id).ToList();
+            var links = _episodeFileLinkService.GetLinkedFileIds(episodeIds);
+
+            if (links.Empty())
+            {
+                return;
+            }
+
+            var fileIdsByEpisode = new Dictionary<int, List<int>>();
+
+            foreach (var link in _episodeFileLinkService.GetEpisodeIdsByFileIds(links))
+            {
+                foreach (var episodeId in link.Value)
+                {
+                    if (!fileIdsByEpisode.TryGetValue(episodeId, out var fileIds))
+                    {
+                        fileIds = new List<int>();
+                        fileIdsByEpisode[episodeId] = fileIds;
+                    }
+
+                    fileIds.Add(link.Key);
+                }
+            }
+
+            foreach (var resource in resources)
+            {
+                var fileIds = fileIdsByEpisode.GetValueOrDefault(resource.Id)
+                    ?.Where(id => id != resource.EpisodeFileId)
+                    .OrderBy(id => id)
+                    .ToList();
+
+                if (fileIds == null || fileIds.Empty())
+                {
+                    continue;
+                }
+
+                resource.AdditionalEpisodeFileIds = fileIds;
+            }
         }
 
         protected List<EpisodeResource> MapToResource(List<Episode> episodes, bool includeSeries, bool includeEpisodeFile, bool includeImages)
@@ -116,6 +172,8 @@ namespace Sonarr.Api.V3.Episodes
                     }
                 }
             }
+
+            AddAdditionalFiles(result);
 
             return result;
         }

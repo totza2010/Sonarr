@@ -1231,7 +1231,12 @@ namespace NzbDrone.Core.Parser
                 result = new ParsedEpisodeInfo
                 {
                     ReleaseTitle = releaseTitle,
-                    AirDate = airDate.ToString(Episode.AIR_DATE_FORMAT),
+
+                    // Invariant, or a calendar that does not start counting at the same place writes a
+                    // different year: on a Thai system this is 2556-10-30 rather than 2013-10-30, which
+                    // then matches no episode. Everywhere this string is read back names the invariant
+                    // culture already.
+                    AirDate = airDate.ToString(Episode.AIR_DATE_FORMAT, CultureInfo.InvariantCulture),
                 };
 
                 var partMatch = matchCollection[0].Groups["part"];

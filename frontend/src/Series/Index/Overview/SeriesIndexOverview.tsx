@@ -13,6 +13,7 @@ import EditSeriesModal from 'Series/Edit/EditSeriesModal';
 import SeriesIndexProgressBar from 'Series/Index/ProgressBar/SeriesIndexProgressBar';
 import SeriesIndexPosterSelect from 'Series/Index/Select/SeriesIndexPosterSelect';
 import { Statistics } from 'Series/Series';
+import SeriesEditionBadge from 'Series/SeriesEditionBadge';
 import SeriesPoster from 'Series/SeriesPoster';
 import { executeCommand } from 'Store/Actions/commandActions';
 import dimensions from 'Styles/Variables/dimensions';
@@ -62,6 +63,7 @@ function SeriesIndexOverview(props: SeriesIndexOverviewProps) {
 
   const {
     title,
+    editionName,
     monitored,
     status,
     path,
@@ -190,6 +192,11 @@ function SeriesIndexOverview(props: SeriesIndexOverviewProps) {
           <div className={styles.titleRow}>
             <Link className={styles.title} to={link}>
               {title}
+
+              <SeriesEditionBadge
+                className={styles.edition}
+                editionName={editionName}
+              />
             </Link>
 
             <div className={styles.actions}>

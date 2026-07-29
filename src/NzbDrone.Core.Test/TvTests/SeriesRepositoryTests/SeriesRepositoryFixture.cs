@@ -82,5 +82,127 @@ namespace NzbDrone.Core.Test.TvTests.SeriesRepositoryTests
             found.Should().HaveCount(2);
             found.Select(x => x.CleanTitle).Should().BeEquivalentTo(new[] { "crown", "crownextralong" });
         }
+
+        private void GivenSeriesWithEditions()
+        {
+            var series = Builder<Series>.CreateListOfSize(2)
+                .All()
+                .With(a => a.Id = 0)
+                .With(a => a.TvdbId = 100)
+                .With(a => a.CleanTitle = "spidernoir")
+                .TheFirst(1)
+                .With(x => x.TitleSlug = "spider-noir")
+                .With(x => x.EditionName = SeriesEditions.MainEdition)
+                .TheNext(1)
+                .With(x => x.TitleSlug = "spider-noir-black-white")
+                .With(x => x.EditionName = "Black & White")
+                .BuildList();
+
+            Subject.InsertMany(series);
+        }
+
+        [Test]
+        public void should_store_multiple_editions_of_the_same_tvdb_id()
+        {
+            GivenSeriesWithEditions();
+
+            Subject.FindAllByTvdbId(100).Should().HaveCount(2);
+        }
+
+        [Test]
+        public void should_return_the_main_edition_when_finding_by_tvdb_id_alone()
+        {
+            GivenSeriesWithEditions();
+
+            var found = Subject.FindByTvdbId(100);
+
+            found.Should().NotBeNull();
+            found.EditionName.Should().BeEmpty();
+        }
+
+        [Test]
+        public void should_find_a_specific_edition()
+        {
+            GivenSeriesWithEditions();
+
+            var found = Subject.FindByTvdbIdAndEdition(100, "Black & White");
+
+            found.Should().NotBeNull();
+            found.TitleSlug.Should().Be("spider-noir-black-white");
+        }
+
+        [Test]
+        public void should_not_find_an_edition_that_was_not_added()
+        {
+            GivenSeriesWithEditions();
+
+            Subject.FindByTvdbIdAndEdition(100, "Remastered").Should().BeNull();
+        }
+
+        [Test]
+        public void should_return_the_main_edition_when_finding_by_title()
+        {
+            GivenSeriesWithEditions();
+
+            var found = Subject.FindByTitle("spidernoir");
+
+            found.Should().NotBeNull();
+            found.EditionName.Should().BeEmpty();
+        }
+
+        [Test]
+        public void should_return_an_edition_when_finding_by_title_and_no_main_edition_exists()
+        {
+            var series = Builder<Series>.CreateListOfSize(2)
+                .All()
+                .With(a => a.Id = 0)
+                .With(a => a.TvdbId = 100)
+                .With(a => a.CleanTitle = "spidernoir")
+                .TheFirst(1)
+                .With(x => x.TitleSlug = "spider-noir-color")
+                .With(x => x.EditionName = "Color")
+                .TheNext(1)
+                .With(x => x.TitleSlug = "spider-noir-black-white")
+                .With(x => x.EditionName = "Black & White")
+                .BuildList();
+
+            Subject.InsertMany(series);
+
+            Subject.FindByTitle("spidernoir").Should().NotBeNull();
+        }
+
+        [Test]
+        public void should_still_throw_when_separate_series_share_a_title()
+        {
+            // Editions are not the only reason a title matches more than one series, and a genuine
+            // clash between different shows has to stay ambiguous.
+            var series = Builder<Series>.CreateListOfSize(2)
+                .All()
+                .With(a => a.Id = 0)
+                .With(a => a.CleanTitle = "thesameshow")
+                .With(a => a.EditionName = SeriesEditions.MainEdition)
+                .TheFirst(1)
+                .With(x => x.TvdbId = 200)
+                .With(x => x.TitleSlug = "the-same-show-1990")
+                .TheNext(1)
+                .With(x => x.TvdbId = 201)
+                .With(x => x.TitleSlug = "the-same-show-2020")
+                .BuildList();
+
+            Subject.InsertMany(series);
+
+            Assert.Throws<MultipleSeriesFoundException>(() => Subject.FindByTitle("thesameshow"));
+        }
+
+        [Test]
+        public void should_list_the_editions_of_each_tvdb_id()
+        {
+            GivenSeriesWithEditions();
+
+            var editions = Subject.AllSeriesEditions();
+
+            editions.Should().ContainKey(100);
+            editions[100].Should().BeEquivalentTo(new[] { SeriesEditions.MainEdition, "Black & White" });
+        }
     }
 }

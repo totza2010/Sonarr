@@ -8495,6 +8495,14 @@
         },
         "additionalProperties": false
       },
+      "EpisodeFileMultipleType": {
+        "enum": [
+          "none",
+          "part",
+          "version"
+        ],
+        "type": "string"
+      },
       "EpisodeFileResource": {
         "type": "object",
         "properties": {
@@ -8593,6 +8601,14 @@
           "releaseType": {
             "$ref": "#/components/schemas/ReleaseType"
           },
+          "multipleType": {
+            "$ref": "#/components/schemas/EpisodeFileMultipleType"
+          },
+          "multipleNumber": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
           "mediaInfo": {
             "$ref": "#/components/schemas/MediaInfoResource"
           },
@@ -8674,6 +8690,14 @@
           },
           "episodeFile": {
             "$ref": "#/components/schemas/EpisodeFileResource"
+          },
+          "additionalEpisodeFileIds": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "nullable": true
           },
           "hasFile": {
             "type": "boolean"
@@ -9893,6 +9917,13 @@
           "releaseType": {
             "$ref": "#/components/schemas/ReleaseType"
           },
+          "multipleType": {
+            "$ref": "#/components/schemas/EpisodeFileMultipleType"
+          },
+          "multipleNumber": {
+            "type": "integer",
+            "format": "int32"
+          },
           "rejections": {
             "type": "array",
             "items": {
@@ -10033,6 +10064,13 @@
           },
           "releaseType": {
             "$ref": "#/components/schemas/ReleaseType"
+          },
+          "multipleType": {
+            "$ref": "#/components/schemas/EpisodeFileMultipleType"
+          },
+          "multipleNumber": {
+            "type": "integer",
+            "format": "int32"
           },
           "rejections": {
             "type": "array",

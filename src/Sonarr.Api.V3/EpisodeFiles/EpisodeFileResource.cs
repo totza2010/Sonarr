@@ -36,6 +36,11 @@ namespace Sonarr.Api.V3.EpisodeFiles
         public int CustomFormatScore { get; set; }
         public int? IndexerFlags { get; set; }
         public ReleaseType? ReleaseType { get; set; }
+
+        // Null unless this file is an extra part or version, so a file that is the whole episode serialises
+        // exactly as it did before the feature existed.
+        public EpisodeFileMultipleType? MultipleType { get; set; }
+        public int? MultipleNumber { get; set; }
         public MediaInfoResource MediaInfo { get; set; }
 
         public bool QualityCutoffNotMet { get; set; }
@@ -82,6 +87,8 @@ namespace Sonarr.Api.V3.EpisodeFiles
                 CustomFormatScore = customFormatScore,
                 IndexerFlags = (int)model.IndexerFlags,
                 ReleaseType = model.ReleaseType,
+                MultipleType = model.MultipleType == EpisodeFileMultipleType.None ? null : model.MultipleType,
+                MultipleNumber = model.MultipleNumber > 0 ? model.MultipleNumber : null,
             };
         }
     }

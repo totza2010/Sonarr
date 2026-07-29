@@ -105,6 +105,16 @@ namespace Sonarr.Api.V3.EpisodeFiles
                 episodeFile.ReleaseGroup = episodeFileResource.ReleaseGroup;
             }
 
+            if (episodeFileResource.MultipleType.HasValue)
+            {
+                episodeFile.MultipleType = episodeFileResource.MultipleType.Value;
+            }
+
+            if (episodeFileResource.MultipleNumber.HasValue)
+            {
+                episodeFile.MultipleNumber = episodeFileResource.MultipleNumber.Value;
+            }
+
             _mediaFileService.Update(episodeFile);
             return Accepted(episodeFile.Id);
         }
@@ -233,6 +243,18 @@ namespace Sonarr.Api.V3.EpisodeFiles
                 if (resourceEpisodeFile.ExcludedCustomFormats != null)
                 {
                     episodeFile.ExcludedCustomFormats = resourceEpisodeFile.ExcludedCustomFormats;
+                }
+
+                // Marking an existing file as a part of its episode. Left alone unless it is sent, so this
+                // is the only way a file ever gains a part outside of an import that declared one.
+                if (resourceEpisodeFile.MultipleType.HasValue)
+                {
+                    episodeFile.MultipleType = resourceEpisodeFile.MultipleType.Value;
+                }
+
+                if (resourceEpisodeFile.MultipleNumber.HasValue)
+                {
+                    episodeFile.MultipleNumber = resourceEpisodeFile.MultipleNumber.Value;
                 }
             }
 

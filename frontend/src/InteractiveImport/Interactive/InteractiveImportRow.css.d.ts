@@ -4,6 +4,7 @@ interface CssExports {
   'customFormatTooltip': string;
   'label': string;
   'languages': string;
+  'multiple': string;
   'quality': string;
   'relativePath': string;
   'reprocessing': string;

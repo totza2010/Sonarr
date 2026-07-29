@@ -19,6 +19,7 @@ import Column from 'Components/Table/Column';
 import VirtualTableRowButton from 'Components/Table/VirtualTableRowButton';
 import { scrollDirections } from 'Helpers/Props';
 import Series from 'Series/Series';
+import seriesEditionTitle from 'Series/seriesEditionTitle';
 import createAllSeriesSelector from 'Store/Selectors/createAllSeriesSelector';
 import dimensions from 'Styles/Variables/dimensions';
 import { InputChanged } from 'typings/inputs';
@@ -91,7 +92,7 @@ function Row({ index, style, data }: ListChildComponentProps<RowItemData>) {
       <SelectSeriesRow
         key={series.id}
         id={series.id}
-        title={series.title}
+        title={seriesEditionTitle(series.title, series.editionName)}
         tvdbId={series.tvdbId}
         imdbId={series.imdbId}
         year={series.year}
@@ -174,7 +175,9 @@ function SelectSeriesModalContent(props: SelectSeriesModalContentProps) {
     () =>
       sortedSeries.filter(
         (item) =>
-          item.title.toLowerCase().includes(filter.toLowerCase()) ||
+          seriesEditionTitle(item.title, item.editionName)
+            .toLowerCase()
+            .includes(filter.toLowerCase()) ||
           item.tvdbId.toString().includes(filter) ||
           item.imdbId?.includes(filter)
       ),

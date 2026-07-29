@@ -25,7 +25,11 @@ namespace NzbDrone.Core.Validation.Paths
 
             var tvdbId = Convert.ToInt32(context.PropertyValue.ToString());
 
-            return !_seriesService.AllSeriesTvdbIds().Any(s => s == tvdbId);
+            // A TVDB ID can be added more than once as long as each copy is a distinct edition.
+            var editionName = SeriesEditions.NormalizeEditionName((context.InstanceToValidate as ISeriesEditionIdentity)?.EditionName);
+
+            return !_seriesService.AllSeriesEditions().TryGetValue(tvdbId, out var existingEditions) ||
+                   !existingEditions.Any(e => SeriesEditions.SameEdition(e, editionName));
         }
     }
 }

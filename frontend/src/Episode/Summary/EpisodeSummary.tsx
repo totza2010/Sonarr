@@ -1,5 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
-import { useDispatch } from 'react-redux';
+import React, { useMemo } from 'react';
 import Icon from 'Components/Icon';
 import Label from 'Components/Label';
 import Column from 'Components/Table/Column';
@@ -7,24 +6,25 @@ import Table from 'Components/Table/Table';
 import TableBody from 'Components/Table/TableBody';
 import Episode from 'Episode/Episode';
 import useEpisode, { EpisodeEntities } from 'Episode/useEpisode';
-import useEpisodeFile from 'EpisodeFile/useEpisodeFile';
 import { icons, kinds, sizes } from 'Helpers/Props';
 import Series from 'Series/Series';
 import useSeries from 'Series/useSeries';
 import QualityProfileNameConnector from 'Settings/Profiles/Quality/QualityProfileNameConnector';
-import {
-  deleteEpisodeFile,
-  fetchEpisodeFile,
-} from 'Store/Actions/episodeFileActions';
 import translate from 'Utilities/String/translate';
 import EpisodeAiring from './EpisodeAiring';
-import EpisodeFileRow from './EpisodeFileRow';
+import EpisodeSummaryFileRow from './EpisodeSummaryFileRow';
 import styles from './EpisodeSummary.css';
 
 const COLUMNS: Column[] = [
   {
     name: 'path',
     label: () => translate('Path'),
+    isSortable: false,
+    isVisible: true,
+  },
+  {
+    name: 'multiple',
+    label: () => translate('MultipleTypeLabel'),
     isSortable: false,
     isVisible: true,
   },
@@ -79,42 +79,21 @@ interface EpisodeSummaryProps {
 function EpisodeSummary(props: EpisodeSummaryProps) {
   const { seriesId, episodeId, episodeEntity, episodeFileId } = props;
 
-  const dispatch = useDispatch();
-
   const { qualityProfileId, network } = useSeries(seriesId) as Series;
 
-  const { airDateUtc, overview } = useEpisode(
+  const { airDateUtc, overview, additionalEpisodeFileIds } = useEpisode(
     episodeId,
     episodeEntity
   ) as Episode;
 
-  const {
-    path,
-    mediaInfo,
-    size,
-    languages,
-    quality,
-    qualityCutoffNotMet,
-    customFormats,
-    customFormatScore,
-    manualCustomFormats,
-    excludedCustomFormats,
-  } = useEpisodeFile(episodeFileId) || {};
+  // The primary file first, then whatever extra parts or versions the episode holds.
+  const episodeFileIds = useMemo(() => {
+    const ids = episodeFileId ? [episodeFileId] : [];
 
-  const handleDeleteEpisodeFile = useCallback(() => {
-    dispatch(
-      deleteEpisodeFile({
-        id: episodeFileId,
-        episodeEntity,
-      })
+    return ids.concat(
+      (additionalEpisodeFileIds ?? []).filter((id) => id !== episodeFileId)
     );
-  }, [episodeFileId, episodeEntity, dispatch]);
-
-  useEffect(() => {
-    if (episodeFileId && !path) {
-      dispatch(fetchEpisodeFile({ id: episodeFileId }));
-    }
-  }, [episodeFileId, path, dispatch]);
+  }, [episodeFileId, additionalEpisodeFileIds]);
 
   const hasOverview = !!overview;
 
@@ -138,23 +117,17 @@ function EpisodeSummary(props: EpisodeSummaryProps) {
         {hasOverview ? overview : translate('NoEpisodeOverview')}
       </div>
 
-      {path ? (
+      {episodeFileIds.length > 0 ? (
         <Table columns={COLUMNS}>
           <TableBody>
-            <EpisodeFileRow
-              path={path}
-              size={size!}
-              languages={languages!}
-              quality={quality!}
-              qualityCutoffNotMet={qualityCutoffNotMet!}
-              customFormats={customFormats!}
-              customFormatScore={customFormatScore!}
-              manualCustomFormats={manualCustomFormats}
-              excludedCustomFormats={excludedCustomFormats}
-              mediaInfo={mediaInfo!}
-              columns={COLUMNS}
-              onDeleteEpisodeFile={handleDeleteEpisodeFile}
-            />
+            {episodeFileIds.map((id) => (
+              <EpisodeSummaryFileRow
+                key={id}
+                episodeFileId={id}
+                episodeEntity={episodeEntity}
+                columns={COLUMNS}
+              />
+            ))}
           </TableBody>
         </Table>
       ) : null}

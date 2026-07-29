@@ -98,6 +98,7 @@ interface Series extends ModelBase {
   title: string;
   titleSlug: string;
   tvdbId: number;
+  editionName: string;
   tvMazeId: number;
   tvRageId: number;
   tmdbId: number;

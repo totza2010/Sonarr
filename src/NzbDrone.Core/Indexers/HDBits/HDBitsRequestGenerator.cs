@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Net.Http;
 using Newtonsoft.Json;
@@ -72,7 +73,7 @@ namespace NzbDrone.Core.Indexers.HDBits
 
             if (TryAddSearchParameters(query, searchCriteria))
             {
-                query.Search = searchCriteria.AirDate.ToString("yyyy-MM-dd");
+                query.Search = searchCriteria.AirDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
                 pageableRequests.Add(GetRequest(query));
             }

@@ -1,3 +1,9 @@
+.edition {
+  align-self: center;
+  margin-left: 15px;
+  font-size: 14px;
+}
+
 .innerContentBody {
   padding: 0;
 }

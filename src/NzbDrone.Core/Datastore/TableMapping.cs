@@ -168,6 +168,7 @@ namespace NzbDrone.Core.Datastore
 
             Mapper.Entity<UpdateHistory>("UpdateHistory").RegisterModel();
             Mapper.Entity<ImportListExclusion>("ImportListExclusions").RegisterModel();
+            Mapper.Entity<EpisodeFileLink>("EpisodeFileLinks").RegisterModel();
 
             Mapper.Entity<AutoTagging.AutoTag>("AutoTagging").RegisterModel();
         }

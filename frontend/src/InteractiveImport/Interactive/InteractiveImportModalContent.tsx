@@ -56,7 +56,9 @@ import {
   updateInteractiveImportItem,
   updateInteractiveImportItems,
 } from 'Store/Actions/interactiveImportActions';
+import { fetchNamingSettings } from 'Store/Actions/settingsActions';
 import createClientSideCollectionSelector from 'Store/Selectors/createClientSideCollectionSelector';
+import createMultipleFilesEnabledSelector from 'Store/Selectors/createMultipleFilesEnabledSelector';
 import { SortCallback } from 'typings/callbacks';
 import { SelectStateInputProps } from 'typings/props';
 import getErrorMessage from 'Utilities/Object/getErrorMessage';
@@ -138,6 +140,12 @@ const COLUMNS = [
   {
     name: 'releaseType',
     label: () => translate('ReleaseType'),
+    isSortable: true,
+    isVisible: true,
+  },
+  {
+    name: 'multiple',
+    label: () => translate('MultipleTypeLabel'),
     isSortable: true,
     isVisible: true,
   },
@@ -279,6 +287,7 @@ function InteractiveImportModalContent(
 
   const { isDeleting, deleteError } = useSelector(episodeFilesInfoSelector);
   const importMode = useSelector(importModeSelector);
+  const isMultipleEnabled = useSelector(createMultipleFilesEnabledSelector());
 
   const [invalidRowsSelected, setInvalidRowsSelected] = useState<number[]>([]);
   const [
@@ -325,6 +334,28 @@ function InteractiveImportModalContent(
   const selectedIds: number[] = useMemo(() => {
     return getSelectedIds(selectedState);
   }, [selectedState]);
+
+  // Rows whose episodes were worked out from the file name can land on the same episode more than
+  // once, which is what a split episode looks like before anyone says so. Grouped here so the action
+  // can be offered only when there is something to act on.
+  const partGroups = useMemo(() => {
+    const groups = new Map<string, number[]>();
+
+    items.forEach((item) => {
+      if (!selectedIds.includes(item.id) || !item.episodes?.length) {
+        return;
+      }
+
+      const key = item.episodes
+        .map((episode) => episode.id)
+        .sort((a, b) => a - b)
+        .join(',');
+
+      groups.set(key, [...(groups.get(key) ?? []), item.id]);
+    });
+
+    return [...groups.values()].filter((ids) => ids.length > 1);
+  }, [items, selectedIds]);
 
   const bulkSelectOptions = useMemo(() => {
     const { seasonSelectDisabled, episodeSelectDisabled } = items.reduce(
@@ -410,6 +441,10 @@ function InteractiveImportModalContent(
 
         dispatch(setInteractiveImportSort(sortProps));
       }
+
+      // Needed to know whether parts can be named apart, which decides whether marking them is
+      // offered at all. Nothing else in this view has a reason to have loaded it.
+      dispatch(fetchNamingSettings());
 
       dispatch(
         fetchInteractiveImportItems({
@@ -532,6 +567,8 @@ function InteractiveImportModalContent(
           indexerFlags,
           episodeFileId,
           releaseType,
+          multipleType,
+          multipleNumber,
         } = item;
 
         if (!series) {
@@ -606,6 +643,8 @@ function InteractiveImportModalContent(
           excludedCustomFormats,
           indexerFlags,
           releaseType,
+          multipleType,
+          multipleNumber,
           downloadId,
           episodeFileId,
         });
@@ -695,6 +734,20 @@ function InteractiveImportModalContent(
     [setSelectModalOpen]
   );
 
+  const onMarkAsPartsPress = useCallback(() => {
+    partGroups.forEach((ids) => {
+      ids.forEach((id, index) => {
+        dispatch(
+          updateInteractiveImportItem({
+            id,
+            multipleType: 'part',
+            multipleNumber: index + 1,
+          })
+        );
+      });
+    });
+  }, [partGroups, dispatch]);
+
   const onSelectModalClose = useCallback(() => {
     setSelectModalOpen(null);
   }, [setSelectModalOpen]);
@@ -737,12 +790,17 @@ function InteractiveImportModalContent(
   const onEpisodesSelect = useCallback(
     (selectedEpisodes: SelectedEpisode[]) => {
       selectedEpisodes.forEach((selectedEpisode) => {
-        const { id, episodes } = selectedEpisode;
+        const { id, episodes, multipleType, multipleNumber } = selectedEpisode;
 
         dispatch(
           updateInteractiveImportItem({
             id,
             episodes,
+            // Only carried by the parts flow, which says 'none' for the episodes it decided are not
+            // split. The ordinary path sends neither and leaves whatever each row holds alone.
+            ...(multipleType
+              ? { multipleType, multipleNumber: multipleNumber ?? 0 }
+              : {}),
           })
         );
       });
@@ -966,6 +1024,16 @@ function InteractiveImportModalContent(
             isDisabled={!selectedIds.length}
             onChange={onSelectModalSelect}
           />
+
+          {/* Its own button rather than an entry in the list above: everything in that list opens a
+              modal to choose something, while this one acts on the selection there and then. It
+              appears only when the selection divides evenly into parts and the naming format can
+              tell them apart. */}
+          {isMultipleEnabled && partGroups.length ? (
+            <Button onPress={onMarkAsPartsPress}>
+              {translate('MarkAsParts')}
+            </Button>
+          ) : null}
         </div>
 
         <div className={styles.rightButtons}>

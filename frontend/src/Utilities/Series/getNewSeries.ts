@@ -5,6 +5,7 @@ import Series, {
 } from 'Series/Series';
 
 interface NewSeriesPayload {
+  editionName?: string;
   rootFolderPath: string;
   monitor: SeriesMonitor;
   monitorNewItems: MonitorNewItems;
@@ -18,6 +19,7 @@ interface NewSeriesPayload {
 
 function getNewSeries(series: Series, payload: NewSeriesPayload) {
   const {
+    editionName = '',
     rootFolderPath,
     monitor,
     monitorNewItems,
@@ -35,6 +37,14 @@ function getNewSeries(series: Series, payload: NewSeriesPayload) {
     searchForCutoffUnmetEpisodes,
   };
 
+  // Looking up a series that is already in the library returns that series, so the id and path of
+  // the existing edition have to be dropped or the new edition would collide with it.
+  if (editionName) {
+    series.id = 0;
+    series.path = '';
+  }
+
+  series.editionName = editionName;
   series.addOptions = addOptions;
   series.monitored = true;
   series.monitorNewItems = monitorNewItems;

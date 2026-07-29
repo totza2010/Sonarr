@@ -6,6 +6,7 @@ interface CssExports {
   'content': string;
   'controls': string;
   'deleted': string;
+  'edition': string;
   'ended': string;
   'link': string;
   'nextAiring': string;

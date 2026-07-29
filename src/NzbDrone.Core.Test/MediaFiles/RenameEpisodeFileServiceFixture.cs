@@ -1,14 +1,19 @@
 ﻿using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using FizzWare.NBuilder;
+using FluentAssertions;
 using Moq;
 using NUnit.Framework;
+using NzbDrone.Core.CustomFormats;
 using NzbDrone.Core.MediaFiles;
 using NzbDrone.Core.MediaFiles.Commands;
 using NzbDrone.Core.MediaFiles.Events;
 using NzbDrone.Core.Messaging.Events;
+using NzbDrone.Core.Organizer;
 using NzbDrone.Core.Test.Framework;
 using NzbDrone.Core.Tv;
+using NzbDrone.Test.Common;
 
 namespace NzbDrone.Core.Test.MediaFiles
 {
@@ -117,6 +122,69 @@ namespace NzbDrone.Core.Test.MediaFiles
 
             Mocker.GetMock<IMediaFileService>()
                   .Verify(v => v.Get(files), Times.Once());
+        }
+
+        private void GivenSeriesWithLinkedFile()
+        {
+            _series.Path = @"C:\Test\TV\Series".AsOsAgnostic();
+
+            // The episode points at the first file only. The second is an extra part, reachable through
+            // the link table alone, which is exactly what the preview used to miss.
+            var episodes = Builder<Episode>.CreateListOfSize(1)
+                                           .All()
+                                           .With(e => e.Id = 1)
+                                           .With(e => e.SeasonNumber = 1)
+                                           .With(e => e.EpisodeFileId = _episodeFiles[0].Id)
+                                           .Build()
+                                           .ToList();
+
+            _episodeFiles[0].RelativePath = @"Season 01\old.name.pt1.mkv";
+            _episodeFiles[1].RelativePath = @"Season 01\old.name.pt2.mkv";
+
+            Mocker.GetMock<IEpisodeService>()
+                  .Setup(s => s.GetEpisodeBySeries(_series.Id))
+                  .Returns(episodes);
+
+            Mocker.GetMock<IMediaFileService>()
+                  .Setup(s => s.GetFilesBySeries(_series.Id))
+                  .Returns(_episodeFiles);
+
+            Mocker.GetMock<IBuildFileNames>()
+                  .Setup(s => s.BuildFilePath(It.IsAny<List<Episode>>(), _series, It.IsAny<EpisodeFile>(), It.IsAny<string>(), null, null))
+                  .Returns<List<Episode>, Series, EpisodeFile, string, string, List<CustomFormat>>(
+                      (e, s, f, ext, p, cf) => Path.Combine(s.Path, "Season 01", $"new.name.{f.Id}.mkv"));
+        }
+
+        [Test]
+        public void should_include_a_linked_part_in_the_rename_preview()
+        {
+            GivenSeriesWithLinkedFile();
+
+            Mocker.GetMock<IEpisodeFileLinkService>()
+                  .Setup(s => s.GetEpisodeIdsByFileIds(It.IsAny<List<int>>()))
+                  .Returns(new Dictionary<int, List<int>> { { _episodeFiles[1].Id, new List<int> { 1 } } });
+
+            var previews = Subject.GetRenamePreviews(_series.Id);
+
+            previews.Should().HaveCount(2);
+            previews.Select(p => p.EpisodeFileId).Should().BeEquivalentTo(_episodeFiles.Select(f => f.Id));
+        }
+
+        [Test]
+        public void should_skip_a_file_that_belongs_to_no_episode()
+        {
+            GivenSeriesWithLinkedFile();
+
+            Mocker.GetMock<IEpisodeFileLinkService>()
+                  .Setup(s => s.GetEpisodeIdsByFileIds(It.IsAny<List<int>>()))
+                  .Returns(new Dictionary<int, List<int>>());
+
+            var previews = Subject.GetRenamePreviews(_series.Id);
+
+            previews.Should().HaveCount(1);
+            previews.Single().EpisodeFileId.Should().Be(_episodeFiles[0].Id);
+
+            ExceptionVerification.ExpectedWarns(1);
         }
     }
 }

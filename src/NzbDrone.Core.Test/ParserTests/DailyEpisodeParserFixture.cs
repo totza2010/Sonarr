@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using FluentAssertions;
 using NUnit.Framework;
 using NzbDrone.Common.Expansive;
@@ -43,7 +44,7 @@ namespace NzbDrone.Core.Test.ParserTests
             var airDate = new DateTime(year, month, day);
             result.Should().NotBeNull();
             result.SeriesTitle.Should().Be(title);
-            result.AirDate.Should().Be(airDate.ToString(Episode.AIR_DATE_FORMAT));
+            result.AirDate.Should().Be(airDate.ToString(Episode.AIR_DATE_FORMAT, CultureInfo.InvariantCulture));
             result.EpisodeNumbers.Should().BeEmpty();
             result.AbsoluteEpisodeNumbers.Should().BeEmpty();
             result.FullSeason.Should().BeFalse();
@@ -59,7 +60,7 @@ namespace NzbDrone.Core.Test.ParserTests
             var airDate = new DateTime(year, month, day);
             result.Should().NotBeNull();
             result.SeriesTitle.Should().Be(title);
-            result.AirDate.Should().Be(airDate.ToString(Episode.AIR_DATE_FORMAT));
+            result.AirDate.Should().Be(airDate.ToString(Episode.AIR_DATE_FORMAT, CultureInfo.InvariantCulture));
             result.EpisodeNumbers.Should().BeEmpty();
             result.AbsoluteEpisodeNumbers.Should().BeEmpty();
             result.FullSeason.Should().BeFalse();

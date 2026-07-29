@@ -16,6 +16,8 @@ namespace NzbDrone.Core.Tv
         Series AddSeries(Series newSeries);
         List<Series> AddSeries(List<Series> newSeries);
         Series FindByTvdbId(int tvdbId);
+        List<Series> FindAllByTvdbId(int tvdbId);
+        Series FindByTvdbIdAndEdition(int tvdbId, string editionName);
         Series FindByTvRageId(int tvRageId);
         Series FindByImdbId(string imdbId);
         Series FindByTitle(string title);
@@ -25,6 +27,7 @@ namespace NzbDrone.Core.Tv
         void DeleteSeries(List<int> seriesIds, bool deleteFiles, bool addImportListExclusion);
         List<Series> GetAllSeries();
         List<int> AllSeriesTvdbIds();
+        Dictionary<int, List<string>> AllSeriesEditions();
         Dictionary<int, string> GetAllSeriesPaths();
         Dictionary<int, List<int>> GetAllSeriesTags();
         List<Series> AllForTag(int tagId);
@@ -90,6 +93,16 @@ namespace NzbDrone.Core.Tv
             return _seriesRepository.FindByTvdbId(tvRageId);
         }
 
+        public List<Series> FindAllByTvdbId(int tvdbId)
+        {
+            return _seriesRepository.FindAllByTvdbId(tvdbId);
+        }
+
+        public Series FindByTvdbIdAndEdition(int tvdbId, string editionName)
+        {
+            return _seriesRepository.FindByTvdbIdAndEdition(tvdbId, editionName);
+        }
+
         public Series FindByTvRageId(int tvRageId)
         {
             return _seriesRepository.FindByTvRageId(tvRageId);
@@ -134,6 +147,10 @@ namespace NzbDrone.Core.Tv
                     .ToList()
                     .OrderBy(s => s.position)
                     .ThenByDescending(s => s.length)
+
+                    // Editions of one series match equally well, the main edition is the one that
+                    // release parsing wants. Without this the winner is whatever order the db returns.
+                    .ThenBy(s => SeriesEditions.IsMainEdition(s.series.EditionName) ? 0 : 1)
                     .ToList();
 
             // get the leftmost series that is the longest
@@ -174,6 +191,11 @@ namespace NzbDrone.Core.Tv
         public List<int> AllSeriesTvdbIds()
         {
             return _seriesRepository.AllSeriesTvdbIds().ToList();
+        }
+
+        public Dictionary<int, List<string>> AllSeriesEditions()
+        {
+            return _seriesRepository.AllSeriesEditions();
         }
 
         public Dictionary<int, string> GetAllSeriesPaths()

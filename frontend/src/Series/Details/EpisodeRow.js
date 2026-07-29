@@ -78,6 +78,7 @@ class EpisodeRow extends Component {
       episodeFilePath,
       episodeFileRelativePath,
       episodeFileSize,
+      additionalEpisodeFiles,
       releaseGroup,
       customFormats,
       manualCustomFormats,
@@ -87,6 +88,13 @@ class EpisodeRow extends Component {
       alternateTitles,
       columns
     } = this.props;
+
+    // An episode holding extra parts or versions has more than one file, so the path and size cells cover
+    // all of them rather than just the one Episode.episodeFileId points at.
+    const totalSize = additionalEpisodeFiles.reduce(
+      (total, file) => total + file.size,
+      episodeFileSize || 0
+    );
 
     return (
       <TableRow>
@@ -163,6 +171,14 @@ class EpisodeRow extends Component {
                   {
                     episodeFilePath
                   }
+
+                  {
+                    additionalEpisodeFiles.map((file) => (
+                      <div key={file.id}>
+                        {file.path}
+                      </div>
+                    ))
+                  }
                 </TableRowCell>
               );
             }
@@ -172,6 +188,14 @@ class EpisodeRow extends Component {
                 <TableRowCell key={name}>
                   {
                     episodeFileRelativePath
+                  }
+
+                  {
+                    additionalEpisodeFiles.map((file) => (
+                      <div key={file.id}>
+                        {file.relativePath}
+                      </div>
+                    ))
                   }
                 </TableRowCell>
               );
@@ -322,7 +346,7 @@ class EpisodeRow extends Component {
                   key={name}
                   className={styles.size}
                 >
-                  {!!episodeFileSize && formatBytes(episodeFileSize)}
+                  {!!totalSize && formatBytes(totalSize)}
                 </TableRowCell>
               );
             }
@@ -413,6 +437,7 @@ EpisodeRow.propTypes = {
   episodeFilePath: PropTypes.string,
   episodeFileRelativePath: PropTypes.string,
   episodeFileSize: PropTypes.number,
+  additionalEpisodeFiles: PropTypes.arrayOf(PropTypes.object).isRequired,
   releaseGroup: PropTypes.string,
   customFormats: PropTypes.arrayOf(PropTypes.object),
   manualCustomFormats: PropTypes.arrayOf(PropTypes.number),
@@ -430,6 +455,7 @@ EpisodeRow.defaultProps = {
   customFormats: [],
   manualCustomFormats: [],
   excludedCustomFormats: [],
+  additionalEpisodeFiles: [],
   indexerFlags: 0
 };
 

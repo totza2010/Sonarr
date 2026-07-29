@@ -27,6 +27,7 @@ import DeleteSeriesModal from 'Series/Delete/DeleteSeriesModal';
 import EditSeriesModal from 'Series/Edit/EditSeriesModal';
 import SeriesHistoryModal from 'Series/History/SeriesHistoryModal';
 import MonitoringOptionsModal from 'Series/MonitoringOptions/MonitoringOptionsModal';
+import SeriesEditionBadge from 'Series/SeriesEditionBadge';
 import SeriesGenres from 'Series/SeriesGenres';
 import SeriesPoster from 'Series/SeriesPoster';
 import { getSeriesStatusDetails } from 'Series/SeriesStatus';
@@ -177,6 +178,7 @@ class SeriesDetails extends Component {
       imdbId,
       tmdbId,
       title,
+      editionName,
       runtime,
       ratings,
       path,
@@ -362,6 +364,11 @@ class SeriesDetails extends Component {
                     <div className={styles.title}>
                       {title}
                     </div>
+
+                    <SeriesEditionBadge
+                      className={styles.edition}
+                      editionName={editionName}
+                    />
 
                     {
                       !!alternateTitles.length &&
@@ -740,6 +747,7 @@ SeriesDetails.propTypes = {
   imdbId: PropTypes.string,
   tmdbId: PropTypes.number,
   title: PropTypes.string.isRequired,
+  editionName: PropTypes.string,
   runtime: PropTypes.number.isRequired,
   ratings: PropTypes.object.isRequired,
   path: PropTypes.string.isRequired,

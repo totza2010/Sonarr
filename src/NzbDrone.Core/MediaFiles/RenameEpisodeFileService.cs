@@ -30,6 +30,7 @@ namespace NzbDrone.Core.MediaFiles
         private readonly IMoveEpisodeFiles _episodeFileMover;
         private readonly IEventAggregator _eventAggregator;
         private readonly IEpisodeService _episodeService;
+        private readonly IEpisodeFileLinkService _episodeFileLinkService;
         private readonly IBuildFileNames _filenameBuilder;
         private readonly IDiskProvider _diskProvider;
         private readonly Logger _logger;
@@ -39,6 +40,7 @@ namespace NzbDrone.Core.MediaFiles
                                         IMoveEpisodeFiles episodeFileMover,
                                         IEventAggregator eventAggregator,
                                         IEpisodeService episodeService,
+                                        IEpisodeFileLinkService episodeFileLinkService,
                                         IBuildFileNames filenameBuilder,
                                         IDiskProvider diskProvider,
                                         Logger logger)
@@ -48,6 +50,7 @@ namespace NzbDrone.Core.MediaFiles
             _episodeFileMover = episodeFileMover;
             _eventAggregator = eventAggregator;
             _episodeService = episodeService;
+            _episodeFileLinkService = episodeFileLinkService;
             _filenameBuilder = filenameBuilder;
             _diskProvider = diskProvider;
             _logger = logger;
@@ -77,10 +80,15 @@ namespace NzbDrone.Core.MediaFiles
 
         private IEnumerable<RenameEpisodeFilePreview> GetPreviews(Series series, List<Episode> episodes, List<EpisodeFile> files)
         {
+            // Extra parts and versions are only reachable through the link table, so without this they would
+            // look unlinked and be skipped, leaving the rename to cover just the primary file.
+            var linkedEpisodeIds = _episodeFileLinkService.GetEpisodeIdsByFileIds(files.Select(f => f.Id).ToList());
+
             foreach (var f in files)
             {
                 var file = f;
-                var episodesInFile = episodes.Where(e => e.EpisodeFileId == file.Id).ToList();
+                var linkedIds = linkedEpisodeIds.GetValueOrDefault(file.Id) ?? new List<int>();
+                var episodesInFile = episodes.Where(e => e.EpisodeFileId == file.Id || linkedIds.Contains(e.Id)).ToList();
                 var episodeFilePath = Path.Combine(series.Path, file.RelativePath);
 
                 if (!episodesInFile.Any())

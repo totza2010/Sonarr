@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using FizzWare.NBuilder;
@@ -91,6 +92,123 @@ namespace NzbDrone.Core.Test.MediaFiles
                                                                                 })
                                                      .Build()
                                                      .ToList();
+        }
+
+        private void GivenExistingMultiple(EpisodeFileMultipleType multipleType, int multipleNumber)
+        {
+            _localEpisode.Episodes = Builder<Episode>.CreateListOfSize(1)
+                                                     .All()
+                                                     .With(e => e.EpisodeFileId = 1)
+                                                     .With(e => e.EpisodeFile = new EpisodeFile
+                                                                                {
+                                                                                    Id = 1,
+                                                                                    MultipleType = multipleType,
+                                                                                    MultipleNumber = multipleNumber,
+                                                                                    RelativePath = @"Season 01.rock.s01e01.pt1.avi",
+                                                                                })
+                                                     .Build()
+                                                     .ToList();
+        }
+
+        [Test]
+        public void should_not_delete_a_different_part_of_the_same_episode()
+        {
+            // The whole point: importing part 2 must leave part 1 where it is.
+            GivenExistingMultiple(EpisodeFileMultipleType.Part, 1);
+            _localEpisode.MultipleType = EpisodeFileMultipleType.Part;
+            _localEpisode.MultipleNumber = 2;
+
+            Subject.UpgradeEpisodeFile(_episodeFile, _localEpisode);
+
+            Mocker.GetMock<IRecycleBinProvider>().Verify(v => v.DeleteFile(It.IsAny<string>(), It.IsAny<string>()), Times.Never());
+        }
+
+        [Test]
+        public void should_replace_the_same_part()
+        {
+            // Re-importing part 1 is still a replacement, otherwise duplicates pile up.
+            GivenExistingMultiple(EpisodeFileMultipleType.Part, 1);
+            _localEpisode.MultipleType = EpisodeFileMultipleType.Part;
+            _localEpisode.MultipleNumber = 1;
+
+            Subject.UpgradeEpisodeFile(_episodeFile, _localEpisode);
+
+            Mocker.GetMock<IRecycleBinProvider>().Verify(v => v.DeleteFile(It.IsAny<string>(), It.IsAny<string>()), Times.Once());
+        }
+
+        [Test]
+        public void should_delete_every_part_when_importing_an_ordinary_release()
+        {
+            // A plain release supersedes the whole episode, so it replaces all of its parts rather than
+            // only the one the episode points at, which would leave the rest behind from the old release.
+            GivenExistingMultiple(EpisodeFileMultipleType.Part, 1);
+
+            Mocker.GetMock<IEpisodeFileLinkService>()
+                  .Setup(s => s.GetLinkedFileIds(It.IsAny<List<int>>()))
+                  .Returns(new List<int> { 2 });
+
+            Mocker.GetMock<IMediaFileService>()
+                  .Setup(s => s.Get(It.IsAny<IEnumerable<int>>()))
+                  .Returns(new List<EpisodeFile>
+                           {
+                               new EpisodeFile { Id = 2, MultipleType = EpisodeFileMultipleType.Part, MultipleNumber = 2, RelativePath = @"Season 01\30.rock.s01e01.pt2.avi" }
+                           });
+
+            Subject.UpgradeEpisodeFile(_episodeFile, _localEpisode);
+
+            Mocker.GetMock<IRecycleBinProvider>().Verify(v => v.DeleteFile(It.IsAny<string>(), It.IsAny<string>()), Times.Exactly(2));
+        }
+
+        [Test]
+        public void should_not_delete_a_different_version_of_the_same_episode()
+        {
+            GivenSingleEpisodeWithSingleEpisodeFile();
+            _localEpisode.Episodes.First().EpisodeFile.Value.MultipleType = EpisodeFileMultipleType.Version;
+            _localEpisode.Episodes.First().EpisodeFile.Value.MultipleNumber = 1;
+            _localEpisode.MultipleType = EpisodeFileMultipleType.Version;
+            _localEpisode.MultipleNumber = 2;
+
+            Subject.UpgradeEpisodeFile(_episodeFile, _localEpisode);
+
+            Mocker.GetMock<IRecycleBinProvider>().Verify(v => v.DeleteFile(It.IsAny<string>(), It.IsAny<string>()), Times.Never());
+        }
+
+        [Test]
+        public void should_replace_the_same_version()
+        {
+            GivenSingleEpisodeWithSingleEpisodeFile();
+            _localEpisode.Episodes.First().EpisodeFile.Value.MultipleType = EpisodeFileMultipleType.Version;
+            _localEpisode.Episodes.First().EpisodeFile.Value.MultipleNumber = 2;
+            _localEpisode.MultipleType = EpisodeFileMultipleType.Version;
+            _localEpisode.MultipleNumber = 2;
+
+            Subject.UpgradeEpisodeFile(_episodeFile, _localEpisode);
+
+            Mocker.GetMock<IRecycleBinProvider>().Verify(v => v.DeleteFile(It.IsAny<string>(), It.IsAny<string>()), Times.Once());
+        }
+
+        [Test]
+        public void should_not_replace_a_part_with_a_version_of_the_same_number()
+        {
+            // Sharing a number is not sharing an identity: part 1 and version 1 are different files.
+            GivenExistingMultiple(EpisodeFileMultipleType.Part, 1);
+            _localEpisode.MultipleType = EpisodeFileMultipleType.Version;
+            _localEpisode.MultipleNumber = 1;
+
+            Subject.UpgradeEpisodeFile(_episodeFile, _localEpisode);
+
+            Mocker.GetMock<IRecycleBinProvider>().Verify(v => v.DeleteFile(It.IsAny<string>(), It.IsAny<string>()), Times.Never());
+        }
+
+        [Test]
+        public void should_still_replace_a_part_when_the_import_says_nothing_about_parts()
+        {
+            // An ordinary upgrade has no part or version, so it replaces whatever is there.
+            GivenExistingMultiple(EpisodeFileMultipleType.Part, 1);
+
+            Subject.UpgradeEpisodeFile(_episodeFile, _localEpisode);
+
+            Mocker.GetMock<IRecycleBinProvider>().Verify(v => v.DeleteFile(It.IsAny<string>(), It.IsAny<string>()), Times.Once());
         }
 
         [Test]

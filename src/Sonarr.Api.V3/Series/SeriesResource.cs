@@ -9,7 +9,7 @@ using Sonarr.Http.REST;
 
 namespace Sonarr.Api.V3.Series
 {
-    public class SeriesResource : RestResource
+    public class SeriesResource : RestResource, ISeriesEditionIdentity
     {
         // Todo: Sorters should be done completely on the client
         // Todo: Is there an easy way to keep IgnoreArticlesWhenSorting in sync between, Series, History, Missing?
@@ -50,6 +50,7 @@ namespace Sonarr.Api.V3.Series
         public bool UseSceneNumbering { get; set; }
         public int Runtime { get; set; }
         public int TvdbId { get; set; }
+        public string EditionName { get; set; } = SeriesEditions.MainEdition;
         public int TvRageId { get; set; }
         public int TvMazeId { get; set; }
         public int TmdbId { get; set; }
@@ -124,6 +125,7 @@ namespace Sonarr.Api.V3.Series
                        UseSceneNumbering = model.UseSceneNumbering,
                        Runtime = model.Runtime,
                        TvdbId = model.TvdbId,
+                       EditionName = model.EditionName,
                        TvRageId = model.TvRageId,
                        TvMazeId = model.TvMazeId,
                        TmdbId = model.TmdbId,
@@ -178,6 +180,7 @@ namespace Sonarr.Api.V3.Series
                        Seasons = resource.Seasons?.ToModel() ?? new List<Season>(),
                        Year = resource.Year,
                        OriginalLanguage = resource.OriginalLanguage,
+
                        // Left null when the client did not send it, which ApplyChanges reads as
                        // "leave whatever is there alone".
                        NamingLanguage = resource.NamingLanguage,
@@ -192,6 +195,7 @@ namespace Sonarr.Api.V3.Series
                        UseSceneNumbering = resource.UseSceneNumbering,
                        Runtime = resource.Runtime,
                        TvdbId = resource.TvdbId,
+                       EditionName = SeriesEditions.NormalizeEditionName(resource.EditionName),
                        TvRageId = resource.TvRageId,
                        TvMazeId = resource.TvMazeId,
                        TmdbId = resource.TmdbId,

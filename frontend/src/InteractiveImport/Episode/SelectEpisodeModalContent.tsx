@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { createSelector } from 'reselect';
 import EpisodesAppState from 'App/State/EpisodesAppState';
@@ -16,12 +16,14 @@ import Episode from 'Episode/Episode';
 import useSelectState from 'Helpers/Hooks/useSelectState';
 import { kinds, scrollDirections } from 'Helpers/Props';
 import { SortDirection } from 'Helpers/Props/sortDirections';
+import MultipleType from 'InteractiveImport/MultipleType';
 import {
   clearEpisodes,
   fetchEpisodes,
   setEpisodesSort,
 } from 'Store/Actions/episodeSelectionActions';
 import createClientSideCollectionSelector from 'Store/Selectors/createClientSideCollectionSelector';
+import createMultipleFilesEnabledSelector from 'Store/Selectors/createMultipleFilesEnabledSelector';
 import { CheckInputChanged, InputChanged } from 'typings/inputs';
 import { SelectStateInputProps } from 'typings/props';
 import getErrorMessage from 'Utilities/Object/getErrorMessage';
@@ -61,6 +63,8 @@ function episodesSelector() {
 export interface SelectedEpisode {
   id: number;
   episodes: Episode[];
+  multipleType?: MultipleType;
+  multipleNumber?: number;
 }
 
 interface SelectEpisodeModalContentProps {
@@ -89,6 +93,18 @@ function SelectEpisodeModalContent(props: SelectEpisodeModalContentProps) {
   const [filter, setFilter] = useState('');
   const [selectState, setSelectState] = useSelectState();
 
+  // Offering to split an episode into parts that the naming format cannot tell apart would only lead
+  // to an import the server refuses. The modal that opened this one loads the setting.
+  const isMultipleEnabled = useSelector(createMultipleFilesEnabledSelector());
+  const [splitSelectState, setSplitSelectState] = useSelectState();
+
+  // The second step works from a snapshot taken when it is entered rather than from the live
+  // selection, so nothing it shows can drift out from under it while the user is deciding.
+  const [splitStep, setSplitStep] = useState<{
+    episodes: Episode[];
+    count: number;
+  } | null>(null);
+
   const { allSelected, allUnselected, selectedState } = selectState;
   const { isFetching, isPopulated, items, error, sortKey, sortDirection } =
     useSelector(episodesSelector());
@@ -100,6 +116,35 @@ function SelectEpisodeModalContent(props: SelectEpisodeModalContentProps) {
   const selectedEpisodesCount = getSelectedIds(selectedState).length;
   const selectionIsValid =
     selectedEpisodesCount > 0 && selectedEpisodesCount % selectedCount === 0;
+
+  const chosenEpisodes = useMemo(() => {
+    const episodeIds: number[] = getSelectedIds(selectedState);
+
+    return items
+      .filter((item) => episodeIds.includes(item.id))
+      .sort(
+        (a, b) =>
+          a.seasonNumber - b.seasonNumber || a.episodeNumber - b.episodeNumber
+      );
+  }, [items, selectedState]);
+
+  // Splitting episodes across the files is the opposite of the rule above, which shares several
+  // episodes out between the files, so it gets its own button rather than changing that one. It
+  // needs more files than episodes: 12 over 6 is two parts each, 7 over 6 is one episode in two.
+  // Counted off the same list the action works from, so the button cannot offer something the
+  // action then finds nothing to do with.
+  const partSelectionIsValid =
+    chosenEpisodes.length > 0 && selectedCount > chosenEpisodes.length;
+
+  // How many episodes have an extra file when the files do not divide evenly. Nothing can work that
+  // out on the user's behalf, so it becomes a second step where they say which ones.
+  const splitCount = chosenEpisodes.length
+    ? selectedCount % chosenEpisodes.length
+    : 0;
+
+  const splitSelectedCount = getSelectedIds(
+    splitSelectState.selectedState
+  ).length;
 
   const onFilterChange = useCallback(
     ({ value }: InputChanged<string>) => {
@@ -172,6 +217,80 @@ function SelectEpisodeModalContent(props: SelectEpisodeModalContentProps) {
     onEpisodesSelect(mappedEpisodes);
   }, [selectedIds, items, selectedState, onEpisodesSelect]);
 
+  // Hands the files out to the episodes in order, giving each one as many as it is owed. Both
+  // orders are the ones already on screen: files top to bottom in the table behind this modal,
+  // episodes in numerical order, so the first block of files becomes the first episode.
+  const assignParts = useCallback(
+    (episodes: Episode[], splitEpisodeIds: number[]) => {
+      const base = Math.floor(selectedCount / episodes.length);
+      const mappedEpisodes: SelectedEpisode[] = [];
+      let fileIndex = 0;
+
+      episodes.forEach((episode) => {
+        const share = splitEpisodeIds.includes(episode.id) ? base + 1 : base;
+
+        for (let part = 1; part <= share; part++) {
+          mappedEpisodes.push({
+            id: selectedIds[fileIndex] as number,
+            episodes: [episode],
+
+            // An episode with one file to itself is not split, so it is left as the whole episode.
+            // Saying so rather than saying nothing also clears a part left over from an earlier go.
+            multipleType: share > 1 ? 'part' : 'none',
+            multipleNumber: share > 1 ? part : 0,
+          });
+
+          fileIndex++;
+        }
+      });
+
+      onEpisodesSelect(mappedEpisodes);
+    },
+    [selectedIds, selectedCount, onEpisodesSelect]
+  );
+
+  const onEpisodePartsSelectWrapper = useCallback(() => {
+    if (!chosenEpisodes.length) {
+      return;
+    }
+
+    if (splitCount === 0) {
+      assignParts(chosenEpisodes, []);
+      return;
+    }
+
+    setSplitStep({ episodes: chosenEpisodes, count: splitCount });
+  }, [chosenEpisodes, splitCount, assignParts, setSplitStep]);
+
+  const onSplitEpisodesConfirm = useCallback(() => {
+    if (!splitStep) {
+      return;
+    }
+
+    assignParts(
+      splitStep.episodes,
+      getSelectedIds(splitSelectState.selectedState)
+    );
+  }, [splitStep, assignParts, splitSelectState]);
+
+  const onSplitSelectedChange = useCallback(
+    ({ id, value, shiftKey = false }: SelectStateInputProps) => {
+      setSplitSelectState({
+        type: 'toggleSelected',
+        items: splitStep?.episodes ?? [],
+        id,
+        isSelected: value,
+        shiftKey,
+      });
+    },
+    [splitStep, setSplitSelectState]
+  );
+
+  const onBackFromSplitsPress = useCallback(() => {
+    setSplitStep(null);
+    setSplitSelectState({ type: 'reset' });
+  }, [setSplitStep, setSplitSelectState]);
+
   useEffect(
     () => {
       dispatch(fetchEpisodes({ seriesId, seasonNumber }));
@@ -203,21 +322,45 @@ function SelectEpisodeModalContent(props: SelectEpisodeModalContentProps) {
         className={styles.modalBody}
         scrollDirection={scrollDirections.NONE}
       >
-        <TextInput
-          className={styles.filterInput}
-          placeholder={translate('FilterEpisodesPlaceholder')}
-          name="filter"
-          value={filter}
-          autoFocus={true}
-          onChange={onFilterChange}
-        />
+        {splitStep ? null : (
+          <TextInput
+            className={styles.filterInput}
+            placeholder={translate('FilterEpisodesPlaceholder')}
+            name="filter"
+            value={filter}
+            autoFocus={true}
+            onChange={onFilterChange}
+          />
+        )}
 
         <Scroller className={styles.scroller} autoFocus={false}>
           {isFetching ? <LoadingIndicator /> : null}
 
           {error ? <div>{errorMessage}</div> : null}
 
-          {isPopulated && !!items.length ? (
+          {splitStep ? (
+            <Table columns={columns}>
+              <TableBody>
+                {splitStep.episodes.map((item) => {
+                  return (
+                    <SelectEpisodeRow
+                      key={item.id}
+                      id={item.id}
+                      episodeNumber={item.episodeNumber}
+                      absoluteEpisodeNumber={item.absoluteEpisodeNumber}
+                      title={item.title}
+                      airDate={item.airDate}
+                      isAnime={isAnime}
+                      isSelected={splitSelectState.selectedState[item.id]}
+                      onSelectedChange={onSplitSelectedChange}
+                    />
+                  );
+                })}
+              </TableBody>
+            </Table>
+          ) : null}
+
+          {!splitStep && isPopulated && !!items.length ? (
             <Table
               columns={columns}
               selectAll={true}
@@ -256,18 +399,52 @@ function SelectEpisodeModalContent(props: SelectEpisodeModalContentProps) {
       </ModalBody>
 
       <ModalFooter className={styles.footer}>
-        <div className={styles.details}>{details}</div>
+        <div className={styles.details}>
+          {splitStep
+            ? translate('SelectSplitEpisodesDetails', {
+                splitCount: splitStep.count,
+              })
+            : details}
+        </div>
 
         <div className={styles.buttons}>
-          <Button onPress={onModalClose}>{translate('Cancel')}</Button>
+          {splitStep ? (
+            <>
+              <Button onPress={onBackFromSplitsPress}>
+                {translate('Back')}
+              </Button>
 
-          <Button
-            kind={kinds.SUCCESS}
-            isDisabled={!selectionIsValid}
-            onPress={onEpisodesSelectWrapper}
-          >
-            {translate('SelectEpisodes')}
-          </Button>
+              <Button
+                kind={kinds.SUCCESS}
+                isDisabled={splitSelectedCount !== splitStep.count}
+                onPress={onSplitEpisodesConfirm}
+              >
+                {translate('SelectEpisodeParts')}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button onPress={onModalClose}>{translate('Cancel')}</Button>
+
+              <Button
+                kind={kinds.SUCCESS}
+                isDisabled={!selectionIsValid}
+                onPress={onEpisodesSelectWrapper}
+              >
+                {translate('SelectEpisodes')}
+              </Button>
+
+              {isMultipleEnabled && partSelectionIsValid ? (
+                <Button
+                  kind={kinds.SUCCESS}
+                  title={translate('SelectEpisodePartsHelpText')}
+                  onPress={onEpisodePartsSelectWrapper}
+                >
+                  {translate('SelectEpisodeParts')}
+                </Button>
+              ) : null}
+            </>
+          )}
         </div>
       </ModalFooter>
     </ModalContent>

@@ -1,3 +1,8 @@
+.edition {
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
 .cell {
   composes: cell from '~Components/Table/Cells/VirtualTableRowCell.css';
 

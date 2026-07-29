@@ -1,0 +1,18 @@
+/* Only the pill itself. Where it sits is the caller's business, so the same badge works over a
+   poster, beside a title, or in a list row. Its own colour, though: over artwork nothing neutral
+   stays readable, and an edition should be recognisable at a glance wherever it turns up. */
+.badge {
+  display: inline-block;
+  overflow: hidden;
+  padding: 2px 6px;
+  max-width: 100%;
+  border-radius: 3px;
+  background-color: var(--purple);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  color: var(--white);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: bold;
+  font-size: 12px;
+  line-height: 16px;
+}

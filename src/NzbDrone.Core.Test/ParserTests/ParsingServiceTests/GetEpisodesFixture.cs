@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using FizzWare.NBuilder;
 using FluentAssertions;
@@ -33,7 +34,7 @@ namespace NzbDrone.Core.Test.ParserTests.ParsingServiceTests
 
             _episodes = Builder<Episode>.CreateListOfSize(1)
                                         .All()
-                                        .With(e => e.AirDate = DateTime.Today.ToString(Episode.AIR_DATE_FORMAT))
+                                        .With(e => e.AirDate = DateTime.Today.ToString(Episode.AIR_DATE_FORMAT, CultureInfo.InvariantCulture))
                                         .Build()
                                         .ToList();
 
@@ -66,7 +67,7 @@ namespace NzbDrone.Core.Test.ParserTests.ParsingServiceTests
 
         private void GivenDailyParseResult()
         {
-            _parsedEpisodeInfo.AirDate = DateTime.Today.ToString(Episode.AIR_DATE_FORMAT);
+            _parsedEpisodeInfo.AirDate = DateTime.Today.ToString(Episode.AIR_DATE_FORMAT, CultureInfo.InvariantCulture);
         }
 
         private void GivenSceneNumberingSeries()
@@ -113,7 +114,7 @@ namespace NzbDrone.Core.Test.ParserTests.ParsingServiceTests
         public void should_fallback_to_daily_episode_lookup_when_search_criteria_episode_doesnt_match()
         {
             GivenDailySeries();
-            _parsedEpisodeInfo.AirDate = DateTime.Today.AddDays(-5).ToString(Episode.AIR_DATE_FORMAT);
+            _parsedEpisodeInfo.AirDate = DateTime.Today.AddDays(-5).ToString(Episode.AIR_DATE_FORMAT, CultureInfo.InvariantCulture);
 
             Subject.Map(_parsedEpisodeInfo, _series.TvdbId, _series.TvRageId, _series.ImdbId, _singleEpisodeSearchCriteria);
 

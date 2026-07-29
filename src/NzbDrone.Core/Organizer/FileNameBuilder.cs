@@ -29,6 +29,7 @@ namespace NzbDrone.Core.Organizer
         string GetSeriesFolder(Series series, NamingConfig namingConfig = null);
         string GetSeasonFolder(Series series, int seasonNumber, NamingConfig namingConfig = null);
         bool RequiresEpisodeTitle(Series series, List<Episode> episodes);
+        bool SupportsMultipleFiles(Series series, List<Episode> episodes);
         bool RequiresAbsoluteEpisodeNumber();
     }
 
@@ -278,6 +279,17 @@ namespace NzbDrone.Core.Organizer
             folderName = ReplaceReservedDeviceNames(folderName);
             folderName = folderName.Replace("{ellipsis}", "...");
 
+            // Editions of the same series share their title, so the folder has to carry the edition name
+            // to stay unique. Plex reads the same token to tell the editions apart.
+            if (!SeriesEditions.IsMainEdition(series.EditionName))
+            {
+                // AddSeriesService stores the cleaned name, cleaning again is a no-op there and keeps
+                // series edited straight through the API from producing an unusable folder.
+                var editionName = CleanFileName(SeriesEditions.NormalizeEditionName(series.EditionName));
+
+                folderName = $"{folderName} {{edition-{editionName}}}";
+            }
+
             return folderName;
         }
 
@@ -438,6 +450,38 @@ namespace NzbDrone.Core.Organizer
 
                 return false;
             });
+        }
+
+        /// <summary>
+        /// Whether more than one file can be kept for an episode of this series. Two conditions, and both
+        /// are about the name: {Multiple} has to be in the format that applies here, and renaming has to
+        /// be on for that format to be used at all. Miss either and every part of an episode computes the
+        /// same path, so the second one lands on top of the first and the import fails on a file that is
+        /// already there.
+        /// </summary>
+        public bool SupportsMultipleFiles(Series series, List<Episode> episodes)
+        {
+            var namingConfig = _namingConfigService.GetConfig();
+
+            if (!namingConfig.RenameEpisodes)
+            {
+                return false;
+            }
+
+            var pattern = namingConfig.StandardEpisodeFormat;
+
+            if (series.SeriesType == SeriesTypes.Daily)
+            {
+                pattern = namingConfig.DailyEpisodeFormat;
+            }
+
+            if (series.SeriesType == SeriesTypes.Anime && episodes.All(e => e.AbsoluteEpisodeNumber.HasValue))
+            {
+                pattern = namingConfig.AnimeEpisodeFormat;
+            }
+
+            return pattern.IsNotNullOrWhiteSpace() &&
+                   pattern.Contains("{Multiple", StringComparison.InvariantCultureIgnoreCase);
         }
 
         public bool RequiresAbsoluteEpisodeNumber()
@@ -632,6 +676,29 @@ namespace NzbDrone.Core.Organizer
             tokenHandlers["{Original Filename}"] = m => GetOriginalFileName(episodeFile, useCurrentFilenameAsFallback);
             tokenHandlers["{Release Group}"] = m => episodeFile.ReleaseGroup.IsNullOrWhiteSpace() ? m.DefaultValue("Sonarr") : Truncate(episodeFile.ReleaseGroup, m.CustomFormat);
             tokenHandlers["{Release Hash}"] = m => episodeFile.ReleaseHash ?? string.Empty;
+
+            // Empty for a file that is the whole episode, so one naming format serves every case. Plex
+            // stacks files on a "-pt1" style suffix, which is what this produces; versions use "v1".
+            tokenHandlers["{Multiple}"] = m => GetMultipleMarker(episodeFile);
+        }
+
+        /// <summary>
+        /// The marker that says which of an episode's files this is. It is also what the next disk scan
+        /// reads back, so the prefixes here and the ones the parser accepts have to stay in step.
+        /// </summary>
+        public static string GetMultipleMarker(EpisodeFile episodeFile)
+        {
+            if (episodeFile.MultipleNumber <= 0)
+            {
+                return string.Empty;
+            }
+
+            return episodeFile.MultipleType switch
+            {
+                EpisodeFileMultipleType.Part => $"pt{episodeFile.MultipleNumber}",
+                EpisodeFileMultipleType.Version => $"v{episodeFile.MultipleNumber}",
+                _ => string.Empty
+            };
         }
 
         private void AddQualityTokens(Dictionary<string, Func<TokenMatch, string>> tokenHandlers, Series series, EpisodeFile episodeFile)

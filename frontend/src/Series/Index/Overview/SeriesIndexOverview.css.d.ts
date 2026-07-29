@@ -5,6 +5,7 @@ interface CssExports {
   'content': string;
   'deleted': string;
   'details': string;
+  'edition': string;
   'ended': string;
   'info': string;
   'link': string;

@@ -22,6 +22,9 @@ import SelectEpisodeModal from 'InteractiveImport/Episode/SelectEpisodeModal';
 import { SelectedEpisode } from 'InteractiveImport/Episode/SelectEpisodeModalContent';
 import SelectIndexerFlagsModal from 'InteractiveImport/IndexerFlags/SelectIndexerFlagsModal';
 import SelectLanguageModal from 'InteractiveImport/Language/SelectLanguageModal';
+import getMultipleMarker from 'InteractiveImport/Multiple/getMultipleMarker';
+import SelectMultipleModal from 'InteractiveImport/Multiple/SelectMultipleModal';
+import MultipleType from 'InteractiveImport/MultipleType';
 import SelectNamingLanguagesModal from 'InteractiveImport/NamingLanguages/SelectNamingLanguagesModal';
 import SelectQualityModal from 'InteractiveImport/Quality/SelectQualityModal';
 import SelectReleaseGroupModal from 'InteractiveImport/ReleaseGroup/SelectReleaseGroupModal';
@@ -37,6 +40,7 @@ import {
   reprocessInteractiveImportItems,
   updateInteractiveImportItem,
 } from 'Store/Actions/interactiveImportActions';
+import createMultipleFilesEnabledSelector from 'Store/Selectors/createMultipleFilesEnabledSelector';
 import CustomFormat from 'typings/CustomFormat';
 import { SelectStateInputProps } from 'typings/props';
 import Rejection from 'typings/Rejection';
@@ -56,7 +60,8 @@ type SelectType =
   | 'indexerFlags'
   | 'releaseType'
   | 'namingLanguages'
-  | 'customFormats';
+  | 'customFormats'
+  | 'multiple';
 
 type SelectedChangeProps = SelectStateInputProps & {
   hasEpisodeFileId: boolean;
@@ -78,6 +83,8 @@ interface InteractiveImportRowProps {
   detectedSubtitleLanguages?: Language[];
   size: number;
   releaseType: ReleaseType;
+  multipleType: MultipleType;
+  multipleNumber: number;
   customFormats?: CustomFormat[];
   manualCustomFormats?: number[];
   excludedCustomFormats?: number[];
@@ -110,6 +117,8 @@ function InteractiveImportRow(props: InteractiveImportRowProps) {
     releaseGroup,
     size,
     releaseType,
+    multipleType,
+    multipleNumber,
     customFormats = [],
     manualCustomFormats,
     excludedCustomFormats,
@@ -377,9 +386,6 @@ function InteractiveImportRow(props: InteractiveImportRowProps) {
     [id, dispatch, setSelectModalOpen, selectRowAfterChange]
   );
 
-  // What the tokens will actually say: the override where there is one, what MediaInfo read where
-  // there is not. Showing only overrides would leave the column blank on every file nobody has
-  // touched, which is most of them; showing them the same way would hide which is which.
   const namingParts = [
     { chosen: namingAudioLanguages, detected: detectedAudioLanguages },
     { chosen: namingSubtitleLanguages, detected: detectedSubtitleLanguages },
@@ -453,6 +459,44 @@ function InteractiveImportRow(props: InteractiveImportRowProps) {
                 id: episodeFileId,
                 manualCustomFormats: added,
                 excludedCustomFormats: excluded,
+              },
+            ],
+          })
+        );
+      }
+
+      setSelectModalOpen(null);
+    },
+    [id, episodeFileId, dispatch, setSelectModalOpen]
+  );
+
+  const multipleMarker = getMultipleMarker(multipleType, multipleNumber);
+  const isMultipleEnabled = useSelector(createMultipleFilesEnabledSelector());
+
+  const onSelectMultiplePress = useCallback(() => {
+    setSelectModalOpen('multiple');
+  }, [setSelectModalOpen]);
+
+  const onMultipleSelect = useCallback(
+    (newType: MultipleType, newNumber: number) => {
+      dispatch(
+        updateInteractiveImportItem({
+          id,
+          multipleType: newType,
+          multipleNumber: newNumber,
+        })
+      );
+
+      // A file already in the library is not waiting to be imported, so pressing Import would add a
+      // second row for the same file rather than change this one. Save it against the file instead.
+      if (episodeFileId) {
+        dispatch(
+          updateEpisodeFiles({
+            files: [
+              {
+                id: episodeFileId,
+                multipleType: newType,
+                multipleNumber: newNumber,
               },
             ],
           })
@@ -665,6 +709,26 @@ function InteractiveImportRow(props: InteractiveImportRowProps) {
         {getReleaseTypeName(releaseType)}
       </TableRowCellButton>
 
+      {/* A marker already set stays visible whatever the naming format says now, but it can only be
+          changed while the format can tell parts apart - otherwise the import is refused anyway. */}
+      {isMultipleEnabled ? (
+        <TableRowCellButton
+          className={styles.multiple}
+          title={translate('ClickToChangeMultiple')}
+          onPress={onSelectMultiplePress}
+        >
+          {multipleMarker ? (
+            multipleMarker
+          ) : (
+            <InteractiveImportRowCellPlaceholder isOptional={true} />
+          )}
+        </TableRowCellButton>
+      ) : (
+        <TableRowCell className={styles.multiple}>
+          {multipleMarker}
+        </TableRowCell>
+      )}
+
       <TableRowCellButton
         title={translate('ClickToChangeCustomFormats')}
         onPress={onSelectCustomFormatsPress}
@@ -818,6 +882,15 @@ function InteractiveImportRow(props: InteractiveImportRowProps) {
         indexerFlags={indexerFlags ?? 0}
         modalTitle={modalTitle}
         onIndexerFlagsSelect={onIndexerFlagsSelect}
+        onModalClose={onSelectModalClose}
+      />
+
+      <SelectMultipleModal
+        isOpen={selectModalOpen === 'multiple'}
+        multipleType={multipleType ?? 'none'}
+        multipleNumber={multipleNumber ?? 0}
+        modalTitle={modalTitle}
+        onMultipleSelect={onMultipleSelect}
         onModalClose={onSelectModalClose}
       />
     </TableRow>
