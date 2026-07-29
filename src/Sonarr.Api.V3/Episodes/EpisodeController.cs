@@ -3,6 +3,7 @@ using System.Linq;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.CustomFormats;
 using NzbDrone.Core.DecisionEngine.Specifications;
+using NzbDrone.Core.MediaFiles;
 using NzbDrone.Core.Tv;
 using NzbDrone.SignalR;
 using Sonarr.Http;
@@ -18,8 +19,9 @@ namespace Sonarr.Api.V3.Episodes
                              IEpisodeService episodeService,
                              IUpgradableSpecification upgradableSpecification,
                              ICustomFormatCalculationService formatCalculator,
+                             IEpisodeFileLinkService episodeFileLinkService,
                              IBroadcastSignalRMessage signalRBroadcaster)
-            : base(episodeService, seriesService, upgradableSpecification, formatCalculator, signalRBroadcaster)
+            : base(episodeService, seriesService, upgradableSpecification, formatCalculator, episodeFileLinkService, signalRBroadcaster)
         {
         }
 

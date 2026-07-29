@@ -1,4 +1,5 @@
 import ModelBase from 'App/ModelBase';
+import MultipleType from 'InteractiveImport/MultipleType';
 import ReleaseType from 'InteractiveImport/ReleaseType';
 import Language from 'Language/Language';
 import { QualityModel } from 'Quality/Quality';
@@ -20,6 +21,9 @@ export interface EpisodeFile extends ModelBase {
   customFormatScore: number;
   indexerFlags: number;
   releaseType: ReleaseType;
+  // Which of the episode's files this one is. Both are absent when the file is the whole episode.
+  multipleType?: MultipleType;
+  multipleNumber?: number;
   mediaInfo: MediaInfo;
   qualityCutoffNotMet: boolean;
 }

@@ -638,6 +638,29 @@ namespace NzbDrone.Core.Organizer
             tokenHandlers["{Original Filename}"] = m => GetOriginalFileName(episodeFile, useCurrentFilenameAsFallback);
             tokenHandlers["{Release Group}"] = m => episodeFile.ReleaseGroup.IsNullOrWhiteSpace() ? m.DefaultValue("Sonarr") : Truncate(episodeFile.ReleaseGroup, m.CustomFormat);
             tokenHandlers["{Release Hash}"] = m => episodeFile.ReleaseHash ?? string.Empty;
+
+            // Empty for a file that is the whole episode, so one naming format serves every case. Plex
+            // stacks files on a "-pt1" style suffix, which is what this produces; versions use "v1".
+            tokenHandlers["{Multiple}"] = m => GetMultipleMarker(episodeFile);
+        }
+
+        /// <summary>
+        /// The marker that says which of an episode's files this is. It is also what the next disk scan
+        /// reads back, so the prefixes here and the ones the parser accepts have to stay in step.
+        /// </summary>
+        public static string GetMultipleMarker(EpisodeFile episodeFile)
+        {
+            if (episodeFile.MultipleNumber <= 0)
+            {
+                return string.Empty;
+            }
+
+            return episodeFile.MultipleType switch
+            {
+                EpisodeFileMultipleType.Part => $"pt{episodeFile.MultipleNumber}",
+                EpisodeFileMultipleType.Version => $"v{episodeFile.MultipleNumber}",
+                _ => string.Empty
+            };
         }
 
         private void AddQualityTokens(Dictionary<string, Func<TokenMatch, string>> tokenHandlers, Series series, EpisodeFile episodeFile)

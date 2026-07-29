@@ -285,6 +285,18 @@ namespace NzbDrone.Core.Tv
         {
             foreach (var episode in message.EpisodeFile.Episodes.Value)
             {
+                // The episode already has a file that this one did not replace, and this file says which
+                // part or version of the episode it is. The primary pointer stays where it is —
+                // ImportApprovedEpisodes records the extra file against the episode.
+                if (message.IsAdditionalFile &&
+                    episode.EpisodeFileId > 0 &&
+                    episode.EpisodeFileId != message.EpisodeFile.Id)
+                {
+                    _logger.Debug("Keeping [{0}] as an additional file for [{1}]", message.EpisodeFile.RelativePath, episode);
+
+                    continue;
+                }
+
                 _episodeRepository.SetFileId(episode, message.EpisodeFile.Id);
 
                 lock (_cache)

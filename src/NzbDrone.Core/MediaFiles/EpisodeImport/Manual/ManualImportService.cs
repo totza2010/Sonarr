@@ -40,6 +40,7 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Manual
         private readonly ITrackedDownloadService _trackedDownloadService;
         private readonly IDownloadedEpisodesImportService _downloadedEpisodesImportService;
         private readonly IMediaFileService _mediaFileService;
+        private readonly IEpisodeFileLinkService _episodeFileLinkService;
         private readonly ICustomFormatCalculationService _formatCalculator;
         private readonly IEventAggregator _eventAggregator;
         private readonly Logger _logger;
@@ -55,6 +56,7 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Manual
                                    ITrackedDownloadService trackedDownloadService,
                                    IDownloadedEpisodesImportService downloadedEpisodesImportService,
                                    IMediaFileService mediaFileService,
+                                   IEpisodeFileLinkService episodeFileLinkService,
                                    ICustomFormatCalculationService formatCalculator,
                                    IEventAggregator eventAggregator,
                                    Logger logger)
@@ -70,6 +72,7 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Manual
             _trackedDownloadService = trackedDownloadService;
             _downloadedEpisodesImportService = downloadedEpisodesImportService;
             _mediaFileService = mediaFileService;
+            _episodeFileLinkService = episodeFileLinkService;
             _formatCalculator = formatCalculator;
             _eventAggregator = eventAggregator;
             _logger = logger;
@@ -82,7 +85,11 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Manual
             var seriesFiles = seasonNumber.HasValue ? _mediaFileService.GetFilesBySeason(seriesId, seasonNumber.Value) : _mediaFileService.GetFilesBySeries(seriesId);
             var episodes = _episodeService.GetEpisodeBySeries(series.Id);
 
-            var items = seriesFiles.Select(episodeFile => MapItem(episodeFile, series, directoryInfo.Name, episodes)).ToList();
+            // Extra parts and versions are not pointed at by Episode.EpisodeFileId, so the link table is the
+            // only way to work out which episode they belong to.
+            var linkedEpisodeIds = _episodeFileLinkService.GetEpisodeIdsByFileIds(seriesFiles.Select(f => f.Id).ToList());
+
+            var items = seriesFiles.Select(episodeFile => MapItem(episodeFile, series, directoryInfo.Name, episodes, linkedEpisodeIds)).ToList();
 
             if (!seasonNumber.HasValue)
             {
@@ -464,6 +471,8 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Manual
             item.Rejections = decision.Rejections;
             item.IndexerFlags = (int)decision.LocalEpisode.IndexerFlags;
             item.ReleaseType = decision.LocalEpisode.ReleaseType;
+            item.MultipleType = decision.LocalEpisode.MultipleType;
+            item.MultipleNumber = decision.LocalEpisode.MultipleNumber;
 
             if (decision.LocalEpisode.Series != null)
             {
@@ -476,9 +485,11 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Manual
             return item;
         }
 
-        private ManualImportItem MapItem(EpisodeFile episodeFile, Series series, string folderName, List<Episode> episodes)
+        private ManualImportItem MapItem(EpisodeFile episodeFile, Series series, string folderName, List<Episode> episodes, Dictionary<int, List<int>> linkedEpisodeIds)
         {
             var item = new ManualImportItem();
+
+            var linkedIds = linkedEpisodeIds.GetValueOrDefault(episodeFile.Id) ?? new List<int>();
 
             item.Path = Path.Combine(series.Path, episodeFile.RelativePath);
             item.FolderName = folderName;
@@ -486,12 +497,14 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Manual
             item.Name = Path.GetFileNameWithoutExtension(episodeFile.Path);
             item.Series = series;
             item.SeasonNumber = episodeFile.SeasonNumber;
-            item.Episodes = episodes.Where(e => e.EpisodeFileId == episodeFile.Id).ToList();
+            item.Episodes = episodes.Where(e => e.EpisodeFileId == episodeFile.Id || linkedIds.Contains(e.Id)).ToList();
             item.ReleaseGroup = episodeFile.ReleaseGroup;
             item.Quality = episodeFile.Quality;
             item.Languages = episodeFile.Languages;
             item.IndexerFlags = (int)episodeFile.IndexerFlags;
             item.ReleaseType = episodeFile.ReleaseType;
+            item.MultipleType = episodeFile.MultipleType;
+            item.MultipleNumber = episodeFile.MultipleNumber;
             item.Size = _diskProvider.GetFileSize(item.Path);
             item.Rejections = Enumerable.Empty<ImportRejection>();
             item.EpisodeFileId = episodeFile.Id;
@@ -530,6 +543,8 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Manual
                     Languages = file.Languages,
                     IndexerFlags = (IndexerFlags)file.IndexerFlags,
                     ReleaseType = file.ReleaseType,
+                    MultipleType = file.MultipleType,
+                    MultipleNumber = file.MultipleNumber,
                     Series = series,
                     Size = 0
                 };

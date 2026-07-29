@@ -27,6 +27,7 @@ namespace NzbDrone.Core.MediaFiles
     public class EpisodeFileMovingService : IMoveEpisodeFiles
     {
         private readonly IEpisodeService _episodeService;
+        private readonly IEpisodeFileLinkService _episodeFileLinkService;
         private readonly IUpdateEpisodeFileService _updateEpisodeFileService;
         private readonly IBuildFileNames _buildFileNames;
         private readonly IDiskTransferService _diskTransferService;
@@ -39,6 +40,7 @@ namespace NzbDrone.Core.MediaFiles
         private readonly Logger _logger;
 
         public EpisodeFileMovingService(IEpisodeService episodeService,
+                                IEpisodeFileLinkService episodeFileLinkService,
                                 IUpdateEpisodeFileService updateEpisodeFileService,
                                 IBuildFileNames buildFileNames,
                                 IDiskTransferService diskTransferService,
@@ -51,6 +53,7 @@ namespace NzbDrone.Core.MediaFiles
                                 Logger logger)
         {
             _episodeService = episodeService;
+            _episodeFileLinkService = episodeFileLinkService;
             _updateEpisodeFileService = updateEpisodeFileService;
             _buildFileNames = buildFileNames;
             _diskTransferService = diskTransferService;
@@ -65,7 +68,20 @@ namespace NzbDrone.Core.MediaFiles
 
         public EpisodeFile MoveEpisodeFile(EpisodeFile episodeFile, Series series)
         {
+            // An extra part or version is not pointed at by Episode.EpisodeFileId, so on its own it would
+            // resolve to no episodes and there would be nothing to build a name from.
             var episodes = _episodeService.GetEpisodesByFileId(episodeFile.Id);
+
+            if (episodes.Empty())
+            {
+                var linkedIds = _episodeFileLinkService.GetLinkedEpisodeIds(episodeFile.Id);
+
+                if (linkedIds.Any())
+                {
+                    episodes = _episodeService.GetEpisodes(linkedIds);
+                }
+            }
+
             return MoveEpisodeFile(episodeFile, series, episodes);
         }
 

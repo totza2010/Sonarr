@@ -26,6 +26,7 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport
     {
         private readonly IUpgradeMediaFiles _episodeFileUpgrader;
         private readonly IMediaFileService _mediaFileService;
+        private readonly IEpisodeFileLinkService _episodeFileLinkService;
         private readonly IExtraService _extraService;
         private readonly IExistingExtraFiles _existingExtraFiles;
         private readonly IDiskProvider _diskProvider;
@@ -36,6 +37,7 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport
 
         public ImportApprovedEpisodes(IUpgradeMediaFiles episodeFileUpgrader,
                                       IMediaFileService mediaFileService,
+                                      IEpisodeFileLinkService episodeFileLinkService,
                                       IExtraService extraService,
                                       IExistingExtraFiles existingExtraFiles,
                                       IDiskProvider diskProvider,
@@ -46,6 +48,7 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport
         {
             _episodeFileUpgrader = episodeFileUpgrader;
             _mediaFileService = mediaFileService;
+            _episodeFileLinkService = episodeFileLinkService;
             _extraService = extraService;
             _existingExtraFiles = existingExtraFiles;
             _diskProvider = diskProvider;
@@ -98,6 +101,10 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport
                     episodeFile.ReleaseGroup = localEpisode.ReleaseGroup;
                     episodeFile.ReleaseHash = localEpisode.ReleaseHash;
                     episodeFile.Languages = localEpisode.Languages;
+
+                    // Which of the episode's files this one is, when the import said so.
+                    episodeFile.MultipleType = localEpisode.MultipleType;
+                    episodeFile.MultipleNumber = localEpisode.MultipleNumber;
 
                     // Prefer the release type from the download client, folder and finally the file so we have the most accurate information.
                     episodeFile.ReleaseType = localEpisode.DownloadClientEpisodeInfo?.ReleaseType ??
@@ -171,7 +178,18 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport
                         }
                     }
 
-                    episodeFile = _mediaFileService.Add(episodeFile);
+                    episodeFile = _mediaFileService.Add(episodeFile, localEpisode.IsAdditionalFile);
+
+                    // Adding the file leaves Episodes.EpisodeFileId pointing at the file the episode
+                    // already had, so the extra one is recorded here instead.
+                    if (localEpisode.IsAdditionalFile)
+                    {
+                        foreach (var episode in localEpisode.Episodes.Where(e => e.EpisodeFileId != episodeFile.Id))
+                        {
+                            _episodeFileLinkService.Link(episode.Id, episodeFile.Id);
+                        }
+                    }
+
                     importResults.Add(new ImportResult(importDecision, episodeFile));
 
                     if (newDownload)

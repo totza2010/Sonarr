@@ -18,6 +18,8 @@ interface Episode extends ModelBase {
   overview: string;
   title: string;
   episodeFile?: object;
+  // The extra parts and versions of this episode. episodeFileId stays the primary file.
+  additionalEpisodeFileIds?: number[];
   hasFile: boolean;
   monitored: boolean;
   grabbed?: boolean;

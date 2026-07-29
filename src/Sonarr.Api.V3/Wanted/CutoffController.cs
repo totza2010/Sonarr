@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.CustomFormats;
 using NzbDrone.Core.Datastore;
 using NzbDrone.Core.DecisionEngine.Specifications;
+using NzbDrone.Core.MediaFiles;
 using NzbDrone.Core.Tv;
 using NzbDrone.SignalR;
 using Sonarr.Api.V3.Episodes;
@@ -22,8 +23,9 @@ namespace Sonarr.Api.V3.Wanted
                             ISeriesService seriesService,
                             IUpgradableSpecification upgradableSpecification,
                             ICustomFormatCalculationService formatCalculator,
+                            IEpisodeFileLinkService episodeFileLinkService,
                             IBroadcastSignalRMessage signalRBroadcaster)
-            : base(episodeService, seriesService, upgradableSpecification, formatCalculator, signalRBroadcaster)
+            : base(episodeService, seriesService, upgradableSpecification, formatCalculator, episodeFileLinkService, signalRBroadcaster)
         {
             _episodeCutoffService = episodeCutoffService;
         }

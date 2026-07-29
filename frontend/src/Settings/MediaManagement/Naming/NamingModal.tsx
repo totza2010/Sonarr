@@ -240,6 +240,9 @@ const otherTokens = [
   { token: '{Release Group}', example: 'Rls Grp', footNote: true },
   { token: '{Custom Formats}', example: 'iNTERNAL' },
   { token: '{Custom Format:FormatName}', example: 'AMZN' },
+  // Empty unless the file is one of several the episode owns. Including it is also what allows the
+  // part or version to be read back out of the name on the next disk scan.
+  { token: '{Multiple}', example: 'pt2' },
 ];
 
 const otherAnimeTokens = [{ token: '{Release Hash}', example: 'ABCDEFGH' }];

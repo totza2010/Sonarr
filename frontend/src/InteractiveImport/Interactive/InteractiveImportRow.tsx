@@ -19,6 +19,9 @@ import SelectEpisodeModal from 'InteractiveImport/Episode/SelectEpisodeModal';
 import { SelectedEpisode } from 'InteractiveImport/Episode/SelectEpisodeModalContent';
 import SelectIndexerFlagsModal from 'InteractiveImport/IndexerFlags/SelectIndexerFlagsModal';
 import SelectLanguageModal from 'InteractiveImport/Language/SelectLanguageModal';
+import getMultipleMarker from 'InteractiveImport/Multiple/getMultipleMarker';
+import SelectMultipleModal from 'InteractiveImport/Multiple/SelectMultipleModal';
+import MultipleType from 'InteractiveImport/MultipleType';
 import SelectQualityModal from 'InteractiveImport/Quality/SelectQualityModal';
 import SelectReleaseGroupModal from 'InteractiveImport/ReleaseGroup/SelectReleaseGroupModal';
 import ReleaseType from 'InteractiveImport/ReleaseType';
@@ -28,6 +31,7 @@ import SelectSeriesModal from 'InteractiveImport/Series/SelectSeriesModal';
 import Language from 'Language/Language';
 import { QualityModel } from 'Quality/Quality';
 import Series from 'Series/Series';
+import { updateEpisodeFiles } from 'Store/Actions/episodeFileActions';
 import {
   reprocessInteractiveImportItems,
   updateInteractiveImportItem,
@@ -49,7 +53,8 @@ type SelectType =
   | 'quality'
   | 'language'
   | 'indexerFlags'
-  | 'releaseType';
+  | 'releaseType'
+  | 'multiple';
 
 type SelectedChangeProps = SelectStateInputProps & {
   hasEpisodeFileId: boolean;
@@ -67,6 +72,8 @@ interface InteractiveImportRowProps {
   languages?: Language[];
   size: number;
   releaseType: ReleaseType;
+  multipleType: MultipleType;
+  multipleNumber: number;
   customFormats?: CustomFormat[];
   customFormatScore?: number;
   indexerFlags: number;
@@ -93,6 +100,8 @@ function InteractiveImportRow(props: InteractiveImportRowProps) {
     releaseGroup,
     size,
     releaseType,
+    multipleType,
+    multipleNumber,
     customFormats = [],
     customFormatScore,
     indexerFlags,
@@ -323,6 +332,46 @@ function InteractiveImportRow(props: InteractiveImportRowProps) {
     [id, dispatch, setSelectModalOpen, selectRowAfterChange]
   );
 
+  // A part number says this file is one part of the episode rather than the whole of it, so importing
+  // it keeps the other parts instead of replacing them. It changes nothing about acceptance, so there
+  // is no need to reprocess the row.
+  const multipleMarker = getMultipleMarker(multipleType, multipleNumber);
+
+  const onSelectMultiplePress = useCallback(() => {
+    setSelectModalOpen('multiple');
+  }, [setSelectModalOpen]);
+
+  const onMultipleSelect = useCallback(
+    (newType: MultipleType, newNumber: number) => {
+      dispatch(
+        updateInteractiveImportItem({
+          id,
+          multipleType: newType,
+          multipleNumber: newNumber,
+        })
+      );
+
+      // A file already in the library is not waiting to be imported, so pressing Import would add a
+      // second row for the same file rather than change this one. Save it against the file instead.
+      if (episodeFileId) {
+        dispatch(
+          updateEpisodeFiles({
+            files: [
+              {
+                id: episodeFileId,
+                multipleType: newType,
+                multipleNumber: newNumber,
+              },
+            ],
+          })
+        );
+      }
+
+      setSelectModalOpen(null);
+    },
+    [id, episodeFileId, dispatch, setSelectModalOpen]
+  );
+
   const onSelectReleaseTypePress = useCallback(() => {
     setSelectModalOpen('releaseType');
   }, [setSelectModalOpen]);
@@ -497,6 +546,18 @@ function InteractiveImportRow(props: InteractiveImportRowProps) {
         {getReleaseTypeName(releaseType)}
       </TableRowCellButton>
 
+      <TableRowCellButton
+        className={styles.multiple}
+        title={translate('ClickToChangeMultiple')}
+        onPress={onSelectMultiplePress}
+      >
+        {multipleMarker ? (
+          multipleMarker
+        ) : (
+          <InteractiveImportRowCellPlaceholder isOptional={true} />
+        )}
+      </TableRowCellButton>
+
       <TableRowCell>
         {customFormats?.length ? (
           <Popover
@@ -621,6 +682,15 @@ function InteractiveImportRow(props: InteractiveImportRowProps) {
         indexerFlags={indexerFlags ?? 0}
         modalTitle={modalTitle}
         onIndexerFlagsSelect={onIndexerFlagsSelect}
+        onModalClose={onSelectModalClose}
+      />
+
+      <SelectMultipleModal
+        isOpen={selectModalOpen === 'multiple'}
+        multipleType={multipleType ?? 'none'}
+        multipleNumber={multipleNumber ?? 0}
+        modalTitle={modalTitle}
+        onMultipleSelect={onMultipleSelect}
         onModalClose={onSelectModalClose}
       />
     </TableRow>
