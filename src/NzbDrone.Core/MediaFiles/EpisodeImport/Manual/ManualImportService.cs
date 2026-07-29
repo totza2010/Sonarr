@@ -259,6 +259,8 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Manual
                 {
                     _logger.Warn(e, "Unable to find series from title");
                 }
+
+                series = GetEditionForPath(series, baseFolder);
             }
 
             if (downloadId.IsNotNullOrWhiteSpace())
@@ -302,6 +304,25 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Manual
             return decisions.Select(decision => MapItem(decision, rootFolder, downloadId, directoryInfo.Name)).ToList();
         }
 
+        // Title matching resolves to the main edition, but a file that already sits in an edition's
+        // folder belongs to that edition. Re-importing a library folder has to keep it where it is.
+        private Series GetEditionForPath(Series series, string path)
+        {
+            if (series == null || path.IsNullOrWhiteSpace())
+            {
+                return series;
+            }
+
+            var editions = _seriesService.FindAllByTvdbId(series.TvdbId);
+
+            if (editions.Count <= 1)
+            {
+                return series;
+            }
+
+            return editions.FirstOrDefault(s => s.Path.IsParentPath(path) || s.Path.PathEquals(path)) ?? series;
+        }
+
         private ManualImportItem ProcessFile(string rootFolder, string baseFolder, string file, string downloadId, Series series = null)
         {
             try
@@ -333,6 +354,8 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Manual
                         series = _seriesService.FindByTitle(relativeParseInfo.SeriesTitle);
                     }
                 }
+
+                series = GetEditionForPath(series, file);
 
                 if (series == null)
                 {

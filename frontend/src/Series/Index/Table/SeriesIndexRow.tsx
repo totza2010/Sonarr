@@ -19,6 +19,7 @@ import EditSeriesModal from 'Series/Edit/EditSeriesModal';
 import createSeriesIndexItemSelector from 'Series/Index/createSeriesIndexItemSelector';
 import { Statistics } from 'Series/Series';
 import SeriesBanner from 'Series/SeriesBanner';
+import seriesEditionTitle from 'Series/seriesEditionTitle';
 import SeriesTitleLink from 'Series/SeriesTitleLink';
 import { executeCommand } from 'Store/Actions/commandActions';
 import { SelectStateInputProps } from 'typings/props';
@@ -53,7 +54,8 @@ function SeriesIndexRow(props: SeriesIndexRowProps) {
   const { showBanners, showSearchAction } = useSelector(selectTableOptions);
 
   const {
-    title,
+    title: seriesTitle,
+    editionName,
     monitored,
     monitorNewItems,
     status,
@@ -77,6 +79,9 @@ function SeriesIndexRow(props: SeriesIndexRowProps) {
     tags = [],
     isSaving = false,
   } = series;
+
+  // Editions share the metadata title, the edition name is what tells them apart.
+  const title = seriesEditionTitle(seriesTitle, editionName);
 
   const {
     seasonCount = 0,

@@ -15,10 +15,17 @@ import ModalFooter from 'Components/Modal/ModalFooter';
 import ModalHeader from 'Components/Modal/ModalHeader';
 import Popover from 'Components/Tooltip/Popover';
 import { icons, inputTypes, kinds, tooltipPositions } from 'Helpers/Props';
+import seriesEditionSuggestions from 'Series/seriesEditionSuggestions';
 import SeriesPoster from 'Series/SeriesPoster';
 import * as seriesTypes from 'Utilities/Series/seriesTypes';
 import translate from 'Utilities/String/translate';
 import styles from './AddNewSeriesModalContent.css';
+
+// The edition suggestions are a menu to pick from, so they show on focus instead of waiting for
+// the first character to be typed.
+function alwaysRenderSuggestions() {
+  return true;
+}
 
 class AddNewSeriesModalContent extends Component {
 
@@ -31,7 +38,8 @@ class AddNewSeriesModalContent extends Component {
     this.state = {
       seriesType: props.initialSeriesType === seriesTypes.STANDARD ?
         props.seriesType.value :
-        props.initialSeriesType
+        props.initialSeriesType,
+      editionName: ''
     };
   }
 
@@ -48,13 +56,19 @@ class AddNewSeriesModalContent extends Component {
     this.props.onInputChange({ name: 'qualityProfileId', value: parseInt(value) });
   };
 
+  onEditionNameChange = ({ value }) => {
+    this.setState({ editionName: value });
+  };
+
   onAddSeriesPress = () => {
     const {
-      seriesType
+      seriesType,
+      editionName
     } = this.state;
 
     this.props.onAddSeriesPress(
-      seriesType
+      seriesType,
+      editionName.trim()
     );
   };
 
@@ -77,12 +91,21 @@ class AddNewSeriesModalContent extends Component {
       searchForCutoffUnmetEpisodes,
       folder,
       tags,
+      isAddingEdition,
       isSmallScreen,
       isWindows,
       onModalClose,
       onInputChange,
       ...otherProps
     } = this.props;
+
+    const { editionName } = this.state;
+    const trimmedEditionName = editionName.trim();
+
+    // Mirrors the folder GetSeriesFolder builds for an edition, so the preview matches what is created.
+    const editionFolder = trimmedEditionName ?
+      `${folder} {edition-${trimmedEditionName}}` :
+      folder;
 
     return (
       <ModalContent onModalClose={onModalClose}>
@@ -119,6 +142,24 @@ class AddNewSeriesModalContent extends Component {
               }
 
               <Form {...otherProps}>
+                {
+                  isAddingEdition ?
+                    <FormGroup>
+                      <FormLabel>{translate('Edition')}</FormLabel>
+
+                      <FormInputGroup
+                        type={inputTypes.AUTO_COMPLETE}
+                        name="editionName"
+                        value={editionName}
+                        values={seriesEditionSuggestions}
+                        shouldRenderSuggestions={alwaysRenderSuggestions}
+                        helpText={translate('SeriesEditionHelpText')}
+                        onChange={this.onEditionNameChange}
+                      />
+                    </FormGroup> :
+                    null
+                }
+
                 <FormGroup>
                   <FormLabel>{translate('RootFolder')}</FormLabel>
 
@@ -126,14 +167,14 @@ class AddNewSeriesModalContent extends Component {
                     type={inputTypes.ROOT_FOLDER_SELECT}
                     name="rootFolderPath"
                     valueOptions={{
-                      seriesFolder: folder,
+                      seriesFolder: editionFolder,
                       isWindows
                     }}
                     selectedValueOptions={{
-                      seriesFolder: folder,
+                      seriesFolder: editionFolder,
                       isWindows
                     }}
-                    helpText={translate('AddNewSeriesRootFolderHelpText', { folder })}
+                    helpText={translate('AddNewSeriesRootFolderHelpText', { folder: editionFolder })}
                     onChange={onInputChange}
                     {...rootFolderPath}
                   />
@@ -263,6 +304,7 @@ class AddNewSeriesModalContent extends Component {
             className={styles.addButton}
             kind={kinds.SUCCESS}
             isSpinning={isAdding}
+            isDisabled={isAddingEdition && !editionName.trim()}
             onPress={this.onAddSeriesPress}
           >
             {translate('AddSeriesWithTitle', { title })}
@@ -289,6 +331,7 @@ AddNewSeriesModalContent.propTypes = {
   searchForMissingEpisodes: PropTypes.object.isRequired,
   searchForCutoffUnmetEpisodes: PropTypes.object.isRequired,
   folder: PropTypes.string.isRequired,
+  isAddingEdition: PropTypes.bool,
   tags: PropTypes.object.isRequired,
   isSmallScreen: PropTypes.bool.isRequired,
   isWindows: PropTypes.bool.isRequired,

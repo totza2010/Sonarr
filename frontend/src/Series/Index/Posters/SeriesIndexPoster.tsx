@@ -13,6 +13,7 @@ import EditSeriesModal from 'Series/Edit/EditSeriesModal';
 import SeriesIndexProgressBar from 'Series/Index/ProgressBar/SeriesIndexProgressBar';
 import SeriesIndexPosterSelect from 'Series/Index/Select/SeriesIndexPosterSelect';
 import { Statistics } from 'Series/Series';
+import seriesEditionTitle from 'Series/seriesEditionTitle';
 import SeriesPoster from 'Series/SeriesPoster';
 import { executeCommand } from 'Store/Actions/commandActions';
 import createUISettingsSelector from 'Store/Selectors/createUISettingsSelector';
@@ -51,7 +52,8 @@ function SeriesIndexPoster(props: SeriesIndexPosterProps) {
     useSelector(createUISettingsSelector());
 
   const {
-    title,
+    title: seriesTitle,
+    editionName,
     monitored,
     status,
     path,
@@ -65,6 +67,9 @@ function SeriesIndexPoster(props: SeriesIndexPosterProps) {
     images,
     tags,
   } = series;
+
+  // Editions share the metadata title, the edition name is what tells them apart.
+  const title = seriesEditionTitle(seriesTitle, editionName);
 
   const {
     seasonCount = 0,

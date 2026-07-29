@@ -12,10 +12,32 @@ update method. From hotio specifically: `libintl` alongside the other two, `Pack
 as. Their s6-overlay base image is not used, but `PUID`/`PGID` are: every Sonarr compose file already
 sets them, so a small entrypoint does the same job with `su-exec`.
 
-The image is published by a `docker` job in `.github/workflows/build.yml`, which reuses the
-artifacts that workflow already produces rather than building a second time. It hangs off the
-`backend` and `frontend` jobs alone: the integration tests reach external services and fail on a
-fork, so gating on the whole workflow would mean no image ever gets published.
+The image is published by a `docker` job in `.github/workflows/release.yml`, alongside the archives
+and the GitHub release — everything this fork publishes waits on the same tests and carries the same
+version. It reuses the artifacts the build workflow already produces rather than building a second
+time.
+
+## Tags
+
+A fork's version only means something against the upstream release it was built from, so that is
+what the tags say. `VERSION` in the workflow is upstream's own number — their release commits change
+that line and nothing else — so merging from them keeps these honest with nothing to remember.
+
+| Tag | Points at | Moves |
+| --- | --- | --- |
+| `4.0.19.812` | one build | never — pin this |
+| `4.0.19` | newest build of that upstream release | every build on `main` |
+| `latest` | newest build on `main` | every build on `main` |
+| `main`, `develop` | newest build of that branch | every build on it |
+
+Only `main` and `develop` are built, the same two branches upstream builds. A feature branch is
+tried by merging it into `main`, not by publishing an image of its own.
+
+The commit is not a tag; it is in the image labels:
+
+```
+docker inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' IMAGE
+```
 
 ## What the image is
 
@@ -65,7 +87,7 @@ is one Plex library, and holds the main edition plus any editions of the same se
 ```yaml
 services:
   sonarr-hd:
-    image: ghcr.io/OWNER/sonarr:feature-episode-multi-part-v4
+    image: ghcr.io/OWNER/sonarr:4.0.19
     container_name: sonarr-hd
     environment:
       - PUID=1000
@@ -82,7 +104,7 @@ services:
     restart: unless-stopped
 
   sonarr-4k:
-    image: ghcr.io/OWNER/sonarr:feature-episode-multi-part-v4
+    image: ghcr.io/OWNER/sonarr:4.0.19
     container_name: sonarr-4k
     environment:
       - PUID=1000
@@ -149,8 +171,8 @@ docker run --rm -v sonarr-hd-config:/config alpine chown -R 1000:1000 /config
 
 ```
 ./build.sh --backend --frontend --packages --runtime linux-musl-x64 --framework net6.0
-docker build -t sonarr-editions .
-docker run --rm -p 8989:8989 -v "$PWD/config:/config" sonarr-editions
+docker build -t sonarr-fork .
+docker run --rm -p 8989:8989 -v "$PWD/config:/config" sonarr-fork
 ```
 
 The `COPY` expects `_artifacts/<runtime>/<framework>/Sonarr`, which is where `build.sh` puts it.
@@ -192,8 +214,8 @@ local build cannot produce a working package yet:
 - `PUID=1000 PGID=1000` puts the process on that uid and leaves `/config` owned by it
 - `--user 1000:1000` against a pre-chowned volume works as well, so the recursive chmod does its job
 
-What that does **not** cover: the image has never been built from this fork's own code, so nothing
-about the edition feature has been exercised in a container. The workflow has not run either.
+What that does **not** cover: the image has never been built from this fork's own code, so none of
+this fork's features have been exercised in a container.
 
 ## Not covered yet
 
