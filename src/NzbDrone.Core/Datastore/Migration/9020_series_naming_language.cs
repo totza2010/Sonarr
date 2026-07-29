@@ -4,7 +4,10 @@ using NzbDrone.Core.Languages;
 
 namespace NzbDrone.Core.Datastore.Migration
 {
-    [Migration(218)]
+    // 9000 and up is reserved for this fork. Taking upstream's next number would either collide with
+    // theirs outright or, worse, make a database that ran ours skip theirs without a word, since
+    // FluentMigrator tracks progress by number alone.
+    [Migration(9020)]
     public class series_naming_language : NzbDroneMigrationBase
     {
         protected override void MainDbUpgrade()

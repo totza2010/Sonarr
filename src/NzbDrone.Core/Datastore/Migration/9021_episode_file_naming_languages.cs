@@ -3,7 +3,7 @@ using NzbDrone.Core.Datastore.Migration.Framework;
 
 namespace NzbDrone.Core.Datastore.Migration
 {
-    [Migration(219)]
+    [Migration(9021)]
     public class episode_file_naming_languages : NzbDroneMigrationBase
     {
         protected override void MainDbUpgrade()

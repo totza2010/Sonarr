@@ -3,7 +3,7 @@ using NzbDrone.Core.Datastore.Migration.Framework;
 
 namespace NzbDrone.Core.Datastore.Migration
 {
-    [Migration(221)]
+    [Migration(9023)]
     public class episode_file_excluded_custom_formats : NzbDroneMigrationBase
     {
         protected override void MainDbUpgrade()
