@@ -8,7 +8,7 @@ FROM alpine:3.21
 
 ARG RUNTIME=linux-musl-x64
 ARG FRAMEWORK=net6.0
-ARG BRANCH=feature/series-editions-v4
+ARG BRANCH=main
 ARG REPOSITORY=totza2010/Sonarr
 ARG VERSION=0.0.0
 

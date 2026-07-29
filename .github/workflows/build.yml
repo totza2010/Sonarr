@@ -5,8 +5,6 @@ on:
     branches:
       - develop
       - main
-      # This fork's line, so the Docker workflow has a build to publish.
-      - feature/series-editions-v4
     paths-ignore:
       - "src/Sonarr.Api.*/openapi.json"
   pull_request:
@@ -180,6 +178,10 @@ jobs:
           use_postgres: true
 
   integration_test:
+    # The cloudflare cookie test is excluded: it asserts that httpbin.servarr.com echoes back a
+    # Cookie header, and the proxy in front of that service strips it, so it fails for reasons that
+    # have nothing to do with this code. Everything else here runs, including the real integration
+    # suite.
     needs: backend
     strategy:
       fail-fast: false
@@ -188,17 +190,17 @@ jobs:
         include:
           - os: ubuntu-latest
             artifact: tests-linux-x64
-            filter: TestCategory!=ManualTest&TestCategory!=WINDOWS&TestCategory=IntegrationTest
+            filter: TestCategory!=ManualTest&TestCategory!=WINDOWS&TestCategory=IntegrationTest&FullyQualifiedName!~should_parse_malformed_cloudflare_cookie
             binary_artifact: build_linux
             binary_path: linux-x64/${{ needs.backend.outputs.framework }}/Sonarr
           - os: macos-latest
             artifact: tests-osx-arm64
-            filter: TestCategory!=ManualTest&TestCategory!=WINDOWS&TestCategory=IntegrationTest
+            filter: TestCategory!=ManualTest&TestCategory!=WINDOWS&TestCategory=IntegrationTest&FullyQualifiedName!~should_parse_malformed_cloudflare_cookie
             binary_artifact: build_macos
             binary_path: osx-arm64/${{ needs.backend.outputs.framework }}/Sonarr
           - os: windows-latest
             artifact: tests-win-x64
-            filter: TestCategory!=ManualTest&TestCategory!=LINUX&TestCategory=IntegrationTest
+            filter: TestCategory!=ManualTest&TestCategory!=LINUX&TestCategory=IntegrationTest&FullyQualifiedName!~should_parse_malformed_cloudflare_cookie
             binary_artifact: build_windows
             binary_path: win-x64/${{ needs.backend.outputs.framework }}/Sonarr
     runs-on: ${{ matrix.os }}
@@ -217,68 +219,25 @@ jobs:
           binary_artifact: ${{ matrix.binary_artifact }}
           binary_path: ${{ matrix.binary_path }}
 
-  docker:
-    # Only the artifacts matter, so this hangs off the jobs that produce them rather than the whole
-    # workflow. The integration tests depend on external services and fail on a fork, which would
-    # otherwise mean an image is never published.
-    needs: [backend, frontend]
-    runs-on: ubuntu-latest
+  deploy:
+    if: ${{ github.ref_name == 'develop' || github.ref_name == 'main' }}
+    needs: [backend, frontend, unit_test, unit_test_postgres, integration_test]
+    # A called workflow cannot ask for more than its caller holds, and the caller holds only what
+    # the repository hands out by default, which is read. Without this the run does not start at
+    # all: the nested job's write access is refused while the workflow is still being read.
     permissions:
-      contents: read
+      contents: write
       packages: write
+    # This fork's own copy of upstream's deploy. Theirs declares SERVICES_API_KEY as a required
+    # secret, and a required secret that does not exist fails the whole workflow before the `if`
+    # above is ever read. Ours packages and releases the same way, minus the step that reports the
+    # build to Sonarr's own update service, and publishes the container image alongside them.
+    uses: ./.github/workflows/release.yml
+    with:
+      framework: ${{ needs.backend.outputs.framework }}
+      branch: ${{ github.ref_name }}
+      major_version: ${{ needs.backend.outputs.major_version }}
+      version: ${{ needs.backend.outputs.version }}
 
-    env:
-      RUNTIME: linux-musl-x64
-
-    steps:
-      - name: Check out
-        uses: actions/checkout@v4
-
-      - name: Download package
-        uses: actions/download-artifact@v4
-        with:
-          name: build_linux
-          path: _artifacts
-
-      # The backend job builds without --frontend, so the UI ships as its own artifact.
-      - name: Download UI
-        uses: actions/download-artifact@v4
-        with:
-          name: build_ui
-          path: _artifacts/${{ env.RUNTIME }}/${{ needs.backend.outputs.framework }}/Sonarr/UI
-
-      - name: Log in to ghcr.io
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Docker meta
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository_owner }}/sonarr
-          tags: |
-            type=raw,value=editions
-            type=sha,format=long
-
-      - name: Build and push
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          build-args: |
-            RUNTIME=${{ env.RUNTIME }}
-            FRAMEWORK=${{ needs.backend.outputs.framework }}
-            VERSION=${{ needs.backend.outputs.version }}
-            REPOSITORY=${{ github.repository }}
-            BRANCH=${{ github.ref_name }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-
-  # Upstream's deploy and notify jobs are dropped on this fork. deploy.yml declares
-  # SERVICES_API_KEY as a required secret, and a required secret that does not exist fails the whole
-  # workflow at startup — before the `if` that would have skipped the job is ever evaluated. Neither
-  # job can do anything useful here: one publishes to Sonarr's release services, the other posts to
-  # their Discord.
+  # Upstream's notify job is dropped: it posts to Sonarr's own Discord, which this fork has no
+  # webhook for and no reason to write to.
