@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -209,13 +210,13 @@ namespace NzbDrone.Core.Extras.Metadata.Consumers.Xbmc
 
                 if (series.FirstAired.HasValue)
                 {
-                    tvShow.Add(new XElement("premiered", series.FirstAired.Value.ToString("yyyy-MM-dd")));
+                    tvShow.Add(new XElement("premiered", series.FirstAired.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)));
                 }
 
                 // Add support for Jellyfin's "enddate" tag
                 if (series.Status == SeriesStatusType.Ended && series.LastAired.HasValue)
                 {
-                    tvShow.Add(new XElement("enddate", series.LastAired.Value.ToString("yyyy-MM-dd")));
+                    tvShow.Add(new XElement("enddate", series.LastAired.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)));
                 }
 
                 tvShow.Add(new XElement("studio", series.Network));

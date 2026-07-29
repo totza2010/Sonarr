@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using NLog;
 using NzbDrone.Common.Extensions;
@@ -220,7 +221,7 @@ namespace NzbDrone.Core.Tv
                 foreach (var episode in allEpisodes)
                 {
                     episode.AirDateUtc = series.FirstAired;
-                    episode.AirDate = series.FirstAired.Value.ToString("yyyy-MM-dd");
+                    episode.AirDate = series.FirstAired.Value.ToString(Episode.AIR_DATE_FORMAT, CultureInfo.InvariantCulture);
                 }
             }
         }

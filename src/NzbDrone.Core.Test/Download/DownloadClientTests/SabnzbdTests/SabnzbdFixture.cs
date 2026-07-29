@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using FizzWare.NBuilder;
@@ -363,7 +364,7 @@ namespace NzbDrone.Core.Test.Download.DownloadClientTests.SabnzbdTests
             var remoteEpisode = CreateRemoteEpisode();
             remoteEpisode.Episodes = Builder<Episode>.CreateListOfSize(1)
                                                       .All()
-                                                      .With(e => e.AirDate = DateTime.Today.ToString(Episode.AIR_DATE_FORMAT))
+                                                      .With(e => e.AirDate = DateTime.Today.ToString(Episode.AIR_DATE_FORMAT, CultureInfo.InvariantCulture))
                                                       .Build()
                                                       .ToList();
 

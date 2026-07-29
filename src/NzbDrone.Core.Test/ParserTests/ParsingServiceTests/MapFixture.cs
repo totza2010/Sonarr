@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using FizzWare.NBuilder;
 using FluentAssertions;
@@ -33,7 +34,7 @@ namespace NzbDrone.Core.Test.ParserTests.ParsingServiceTests
 
             _episodes = Builder<Episode>.CreateListOfSize(1)
                                         .All()
-                                        .With(e => e.AirDate = DateTime.Today.ToString(Episode.AIR_DATE_FORMAT))
+                                        .With(e => e.AirDate = DateTime.Today.ToString(Episode.AIR_DATE_FORMAT, CultureInfo.InvariantCulture))
                                         .Build()
                                         .ToList();
 
