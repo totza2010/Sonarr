@@ -41,7 +41,7 @@ namespace NzbDrone.Core.Test.Datastore.Migration
                 });
             });
 
-            var series = db.Query<Series218>("SELECT \"TvdbId\", \"EditionName\" FROM \"Series\"");
+            var series = db.Query<Series9001>("SELECT \"TvdbId\", \"EditionName\" FROM \"Series\"");
 
             series.Should().HaveCount(1);
             series.First().EditionName.Should().BeEmpty();
@@ -102,7 +102,7 @@ namespace NzbDrone.Core.Test.Datastore.Migration
         private static bool IsPostgres => PostgresDatabase.GetTestOptions().Host.IsNotNullOrWhiteSpace();
     }
 
-    public class Series218
+    public class Series9001
     {
         public int TvdbId { get; set; }
         public string EditionName { get; set; }
