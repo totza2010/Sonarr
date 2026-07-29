@@ -1,0 +1,88 @@
+name: Release
+
+# This fork's replacement for upstream's deploy.yml, which cannot run here: it declares
+# SERVICES_API_KEY as a required secret, and a required secret that does not exist fails the calling
+# workflow before any `if` is read. The packaging is upstream's, unchanged — it is the same action
+# the official builds use. What is gone is the final step, which reports the build to
+# services.sonarr.tv so their updater offers it. That service is theirs, and this fork's images and
+# archives are not something it should be handing out.
+#
+# Release notes are left to GitHub rather than generated against the previous release the way
+# upstream does, so the first run works on a repository that has no releases yet.
+
+on:
+  workflow_call:
+    inputs:
+      framework:
+        description: '.net framework'
+        type: string
+        required: true
+      branch:
+        description: 'Git branch used for this build'
+        type: string
+        required: true
+      major_version:
+        description: 'Sonarr major version'
+        type: string
+        required: true
+      version:
+        description: 'Sonarr version'
+        type: string
+        required: true
+
+jobs:
+  package:
+    strategy:
+      matrix:
+        platform: [freebsd, linux, macos, windows]
+        include:
+          - platform: freebsd
+            os: ubuntu-latest
+          - platform: linux
+            os: ubuntu-latest
+          - platform: macos
+            os: ubuntu-latest
+          - platform: windows
+            os: windows-latest
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Package
+        uses: ./.github/actions/package
+        with:
+          framework: ${{ inputs.framework }}
+          platform: ${{ matrix.platform }}
+          artifact: build_${{ matrix.platform }}
+          branch: ${{ inputs.branch }}
+          major_version: ${{ inputs.major_version }}
+          version: ${{ inputs.version }}
+
+  release:
+    needs: package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: _artifacts
+          pattern: release_*
+          merge-multiple: true
+
+      - name: Create release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: _artifacts/Sonarr.*
+          commit: ${{ github.sha }}
+          generateReleaseNotes: true
+          name: ${{ inputs.version }}
+          prerelease: ${{ inputs.branch != 'main' }}
+          skipIfReleaseExists: true
+          tag: v${{ inputs.version }}
