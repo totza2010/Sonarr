@@ -23,6 +23,7 @@ import {
   setEpisodesSort,
 } from 'Store/Actions/episodeSelectionActions';
 import createClientSideCollectionSelector from 'Store/Selectors/createClientSideCollectionSelector';
+import createMultipleFilesEnabledSelector from 'Store/Selectors/createMultipleFilesEnabledSelector';
 import { CheckInputChanged, InputChanged } from 'typings/inputs';
 import { SelectStateInputProps } from 'typings/props';
 import getErrorMessage from 'Utilities/Object/getErrorMessage';
@@ -91,6 +92,10 @@ function SelectEpisodeModalContent(props: SelectEpisodeModalContentProps) {
 
   const [filter, setFilter] = useState('');
   const [selectState, setSelectState] = useSelectState();
+
+  // Offering to split an episode into parts that the naming format cannot tell apart would only lead
+  // to an import the server refuses. The modal that opened this one loads the setting.
+  const isMultipleEnabled = useSelector(createMultipleFilesEnabledSelector());
   const [splitSelectState, setSplitSelectState] = useSelectState();
 
   // The second step works from a snapshot taken when it is entered rather than from the live
@@ -429,7 +434,7 @@ function SelectEpisodeModalContent(props: SelectEpisodeModalContentProps) {
                 {translate('SelectEpisodes')}
               </Button>
 
-              {partSelectionIsValid ? (
+              {isMultipleEnabled && partSelectionIsValid ? (
                 <Button
                   kind={kinds.SUCCESS}
                   title={translate('SelectEpisodePartsHelpText')}

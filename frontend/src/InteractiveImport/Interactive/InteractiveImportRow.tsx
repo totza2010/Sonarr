@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import Icon from 'Components/Icon';
 import LoadingIndicator from 'Components/Loading/LoadingIndicator';
 import TableRowCell from 'Components/Table/Cells/TableRowCell';
@@ -36,6 +36,7 @@ import {
   reprocessInteractiveImportItems,
   updateInteractiveImportItem,
 } from 'Store/Actions/interactiveImportActions';
+import createMultipleFilesEnabledSelector from 'Store/Selectors/createMultipleFilesEnabledSelector';
 import CustomFormat from 'typings/CustomFormat';
 import { SelectStateInputProps } from 'typings/props';
 import Rejection from 'typings/Rejection';
@@ -336,6 +337,7 @@ function InteractiveImportRow(props: InteractiveImportRowProps) {
   // it keeps the other parts instead of replacing them. It changes nothing about acceptance, so there
   // is no need to reprocess the row.
   const multipleMarker = getMultipleMarker(multipleType, multipleNumber);
+  const isMultipleEnabled = useSelector(createMultipleFilesEnabledSelector());
 
   const onSelectMultiplePress = useCallback(() => {
     setSelectModalOpen('multiple');
@@ -546,17 +548,25 @@ function InteractiveImportRow(props: InteractiveImportRowProps) {
         {getReleaseTypeName(releaseType)}
       </TableRowCellButton>
 
-      <TableRowCellButton
-        className={styles.multiple}
-        title={translate('ClickToChangeMultiple')}
-        onPress={onSelectMultiplePress}
-      >
-        {multipleMarker ? (
-          multipleMarker
-        ) : (
-          <InteractiveImportRowCellPlaceholder isOptional={true} />
-        )}
-      </TableRowCellButton>
+      {/* A marker already set stays visible whatever the naming format says now, but it can only be
+          changed while the format can tell parts apart - otherwise the import is refused anyway. */}
+      {isMultipleEnabled ? (
+        <TableRowCellButton
+          className={styles.multiple}
+          title={translate('ClickToChangeMultiple')}
+          onPress={onSelectMultiplePress}
+        >
+          {multipleMarker ? (
+            multipleMarker
+          ) : (
+            <InteractiveImportRowCellPlaceholder isOptional={true} />
+          )}
+        </TableRowCellButton>
+      ) : (
+        <TableRowCell className={styles.multiple}>
+          {multipleMarker}
+        </TableRowCell>
+      )}
 
       <TableRowCell>
         {customFormats?.length ? (

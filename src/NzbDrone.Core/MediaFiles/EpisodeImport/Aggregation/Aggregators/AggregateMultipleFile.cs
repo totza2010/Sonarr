@@ -1,7 +1,6 @@
 using System;
 using System.IO;
 using System.Text.RegularExpressions;
-using NzbDrone.Common.Extensions;
 using NzbDrone.Core.Download;
 using NzbDrone.Core.Organizer;
 using NzbDrone.Core.Parser.Model;
@@ -22,11 +21,11 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Aggregation.Aggregators
         private static readonly Regex MultipleRegex = new Regex(@"(?<![a-z0-9])(?<kind>pt|v)(?<number>\d{1,2})(?![a-z0-9])",
                                                                 RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-        private readonly INamingConfigService _namingConfigService;
+        private readonly IBuildFileNames _fileNameBuilder;
 
-        public AggregateMultipleFile(INamingConfigService namingConfigService)
+        public AggregateMultipleFile(IBuildFileNames fileNameBuilder)
         {
-            _namingConfigService = namingConfigService;
+            _fileNameBuilder = fileNameBuilder;
         }
 
         // After AggregateQuality, which is what decides whether a "v2" in the name was a repack marker.
@@ -43,7 +42,7 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Aggregation.Aggregators
             // Reading these out of names is only safe once the user has opted in by putting {Multiple} in
             // their naming format. Without that the token never wrote anything, so anything matching the
             // pattern came from somewhere else and is not ours to interpret.
-            if (!UsesMultipleToken())
+            if (!_fileNameBuilder.SupportsMultipleFiles(localEpisode.Series, localEpisode.Episodes))
             {
                 return localEpisode;
             }
@@ -70,20 +69,6 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Aggregation.Aggregators
             localEpisode.MultipleNumber = number;
 
             return localEpisode;
-        }
-
-        private bool UsesMultipleToken()
-        {
-            var config = _namingConfigService.GetConfig();
-
-            return ContainsMultipleToken(config.StandardEpisodeFormat) ||
-                   ContainsMultipleToken(config.DailyEpisodeFormat) ||
-                   ContainsMultipleToken(config.AnimeEpisodeFormat);
-        }
-
-        private bool ContainsMultipleToken(string format)
-        {
-            return format.IsNotNullOrWhiteSpace() && format.Contains("{Multiple", StringComparison.InvariantCultureIgnoreCase);
         }
     }
 }

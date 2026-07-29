@@ -17,16 +17,19 @@ namespace Sonarr.Api.V3.Config
         private readonly INamingConfigService _namingConfigService;
         private readonly IFilenameSampleService _filenameSampleService;
         private readonly IFilenameValidationService _filenameValidationService;
+        private readonly IValidateMultipleFileNaming _multipleFileNamingValidator;
         private readonly IBuildFileNames _filenameBuilder;
 
         public NamingConfigController(INamingConfigService namingConfigService,
                                   IFilenameSampleService filenameSampleService,
                                   IFilenameValidationService filenameValidationService,
+                                  IValidateMultipleFileNaming multipleFileNamingValidator,
                                   IBuildFileNames filenameBuilder)
         {
             _namingConfigService = namingConfigService;
             _filenameSampleService = filenameSampleService;
             _filenameValidationService = filenameValidationService;
+            _multipleFileNamingValidator = multipleFileNamingValidator;
             _filenameBuilder = filenameBuilder;
 
             SharedValidator.RuleFor(c => c.MultiEpisodeStyle).InclusiveBetween(0, 5);
@@ -137,6 +140,10 @@ namespace Sonarr.Api.V3.Config
             validationFailures.AddIfNotNull(dailyEpisodeValidationResult);
             validationFailures.AddIfNotNull(animeEpisodeValidationResult);
             validationFailures.AddIfNotNull(animeMultiEpisodeValidationResult);
+
+            // Episodes already split across several files put their own demands on the format, and unlike
+            // the checks above these depend on what is in the library rather than on the format alone.
+            validationFailures.AddRange(_multipleFileNamingValidator.Validate(nameSpec));
 
             if (validationFailures.Any())
             {

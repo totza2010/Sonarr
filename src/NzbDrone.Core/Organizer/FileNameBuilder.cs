@@ -27,6 +27,7 @@ namespace NzbDrone.Core.Organizer
         string GetSeriesFolder(Series series, NamingConfig namingConfig = null);
         string GetSeasonFolder(Series series, int seasonNumber, NamingConfig namingConfig = null);
         bool RequiresEpisodeTitle(Series series, List<Episode> episodes);
+        bool SupportsMultipleFiles(Series series, List<Episode> episodes);
         bool RequiresAbsoluteEpisodeNumber();
     }
 
@@ -444,6 +445,38 @@ namespace NzbDrone.Core.Organizer
 
                 return false;
             });
+        }
+
+        /// <summary>
+        /// Whether more than one file can be kept for an episode of this series. Two conditions, and both
+        /// are about the name: {Multiple} has to be in the format that applies here, and renaming has to
+        /// be on for that format to be used at all. Miss either and every part of an episode computes the
+        /// same path, so the second one lands on top of the first and the import fails on a file that is
+        /// already there.
+        /// </summary>
+        public bool SupportsMultipleFiles(Series series, List<Episode> episodes)
+        {
+            var namingConfig = _namingConfigService.GetConfig();
+
+            if (!namingConfig.RenameEpisodes)
+            {
+                return false;
+            }
+
+            var pattern = namingConfig.StandardEpisodeFormat;
+
+            if (series.SeriesType == SeriesTypes.Daily)
+            {
+                pattern = namingConfig.DailyEpisodeFormat;
+            }
+
+            if (series.SeriesType == SeriesTypes.Anime && episodes.All(e => e.AbsoluteEpisodeNumber.HasValue))
+            {
+                pattern = namingConfig.AnimeEpisodeFormat;
+            }
+
+            return pattern.IsNotNullOrWhiteSpace() &&
+                   pattern.Contains("{Multiple", StringComparison.InvariantCultureIgnoreCase);
         }
 
         public bool RequiresAbsoluteEpisodeNumber()

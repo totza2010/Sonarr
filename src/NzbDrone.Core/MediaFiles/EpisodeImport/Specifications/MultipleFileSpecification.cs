@@ -3,6 +3,7 @@ using NLog;
 using NzbDrone.Common.Extensions;
 using NzbDrone.Core.DecisionEngine;
 using NzbDrone.Core.Download;
+using NzbDrone.Core.Organizer;
 using NzbDrone.Core.Parser.Model;
 
 namespace NzbDrone.Core.MediaFiles.EpisodeImport.Specifications
@@ -14,10 +15,12 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Specifications
     /// </summary>
     public class MultipleFileSpecification : IImportDecisionEngineSpecification
     {
+        private readonly IBuildFileNames _fileNameBuilder;
         private readonly Logger _logger;
 
-        public MultipleFileSpecification(Logger logger)
+        public MultipleFileSpecification(IBuildFileNames fileNameBuilder, Logger logger)
         {
+            _fileNameBuilder = fileNameBuilder;
             _logger = logger;
         }
 
@@ -25,6 +28,24 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Specifications
 
         public ImportSpecDecision IsSatisfiedBy(LocalEpisode localEpisode, DownloadClientItem downloadClientItem)
         {
+            if (localEpisode.MultipleType == EpisodeFileMultipleType.None)
+            {
+                return ImportSpecDecision.Accept();
+            }
+
+            // Without a name that can tell the files apart they all land on the same path, and the import
+            // fails partway through with a file already at the destination. Refusing here says why, before
+            // anything has been moved.
+            if (!_fileNameBuilder.SupportsMultipleFiles(localEpisode.Series, localEpisode.Episodes))
+            {
+                _logger.Debug("Naming format cannot tell parts apart, refusing to import {0} {1}",
+                              localEpisode.MultipleType,
+                              localEpisode.MultipleNumber);
+
+                return ImportSpecDecision.Reject(ImportRejectionReason.MultipleNotSupportedByNaming,
+                                                 "Parts and versions need Rename Episodes turned on and {Multiple} in the episode format, otherwise every part gets the same file name.");
+            }
+
             // The first of a kind replaces whatever whole-episode file is there and needs nothing to sit
             // beside, so only a second or later one has to find the episode already marked up.
             if (!localEpisode.IsAdditionalFile || localEpisode.MultipleNumber <= 1)

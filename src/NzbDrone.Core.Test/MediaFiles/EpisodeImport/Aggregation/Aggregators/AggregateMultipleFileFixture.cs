@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using FluentAssertions;
+using Moq;
 using NUnit.Framework;
 using NzbDrone.Core.MediaFiles;
 using NzbDrone.Core.MediaFiles.EpisodeImport.Aggregation.Aggregators;
@@ -6,6 +8,7 @@ using NzbDrone.Core.Organizer;
 using NzbDrone.Core.Parser.Model;
 using NzbDrone.Core.Qualities;
 using NzbDrone.Core.Test.Framework;
+using NzbDrone.Core.Tv;
 using NzbDrone.Test.Common;
 
 namespace NzbDrone.Core.Test.MediaFiles.EpisodeImport.Aggregation.Aggregators
@@ -20,17 +23,19 @@ namespace NzbDrone.Core.Test.MediaFiles.EpisodeImport.Aggregation.Aggregators
         {
             _localEpisode = new LocalEpisode
             {
+                Series = new Series(),
+                Episodes = new List<Episode>(),
                 Quality = new QualityModel(Quality.HDTV720p)
             };
 
-            GivenNamingFormat("{Series Title} - S{season:00}E{episode:00} - {Multiple} {Quality Full}");
+            GivenNamingSupportsMultipleFiles(true);
         }
 
-        private void GivenNamingFormat(string standardFormat)
+        private void GivenNamingSupportsMultipleFiles(bool supported)
         {
-            Mocker.GetMock<INamingConfigService>()
-                  .Setup(s => s.GetConfig())
-                  .Returns(new NamingConfig { StandardEpisodeFormat = standardFormat });
+            Mocker.GetMock<IBuildFileNames>()
+                  .Setup(v => v.SupportsMultipleFiles(It.IsAny<Series>(), It.IsAny<List<Episode>>()))
+                  .Returns(supported);
         }
 
         private LocalEpisode AggregateFor(string fileName)
@@ -68,10 +73,11 @@ namespace NzbDrone.Core.Test.MediaFiles.EpisodeImport.Aggregation.Aggregators
         }
 
         [Test]
-        public void should_do_nothing_when_the_naming_format_has_no_multiple_token()
+        public void should_do_nothing_when_the_naming_cannot_keep_multiple_files()
         {
-            // Nothing wrote the marker, so anything that looks like one came from somewhere else.
-            GivenNamingFormat("{Series Title} - S{season:00}E{episode:00} - {Quality Full}");
+            // Nothing wrote the marker, so anything that looks like one came from somewhere else. This
+            // covers renaming being off as well, since then no format is used at all.
+            GivenNamingSupportsMultipleFiles(false);
 
             var result = AggregateFor("Series Title - S01E01 - pt2 WEBDL-1080p.mkv");
 

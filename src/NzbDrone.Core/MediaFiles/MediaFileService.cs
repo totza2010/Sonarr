@@ -24,6 +24,7 @@ namespace NzbDrone.Core.MediaFiles
         EpisodeFile Get(int id);
         List<EpisodeFile> Get(IEnumerable<int> ids);
         List<EpisodeFile> GetFilesWithRelativePath(int seriesId, string relativePath);
+        List<int> SeriesIdsWithMultipleFiles();
     }
 
     public class MediaFileService : IMediaFileService, IHandleAsync<SeriesDeletedEvent>
@@ -106,6 +107,11 @@ namespace NzbDrone.Core.MediaFiles
         public List<EpisodeFile> GetFilesWithRelativePath(int seriesId, string relativePath)
         {
             return _mediaFileRepository.GetFilesWithRelativePath(seriesId, relativePath);
+        }
+
+        public List<int> SeriesIdsWithMultipleFiles()
+        {
+            return _mediaFileRepository.SeriesIdsWithMultipleFiles();
         }
 
         public void HandleAsync(SeriesDeletedEvent message)

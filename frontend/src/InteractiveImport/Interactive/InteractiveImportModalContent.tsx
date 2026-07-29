@@ -56,7 +56,9 @@ import {
   updateInteractiveImportItem,
   updateInteractiveImportItems,
 } from 'Store/Actions/interactiveImportActions';
+import { fetchNamingSettings } from 'Store/Actions/settingsActions';
 import createClientSideCollectionSelector from 'Store/Selectors/createClientSideCollectionSelector';
+import createMultipleFilesEnabledSelector from 'Store/Selectors/createMultipleFilesEnabledSelector';
 import { SortCallback } from 'typings/callbacks';
 import { SelectStateInputProps } from 'typings/props';
 import getErrorMessage from 'Utilities/Object/getErrorMessage';
@@ -75,8 +77,7 @@ type SelectType =
   | 'quality'
   | 'language'
   | 'indexerFlags'
-  | 'releaseType'
-  | 'parts';
+  | 'releaseType';
 
 type FilterExistingFiles = 'all' | 'new';
 
@@ -281,6 +282,7 @@ function InteractiveImportModalContent(
 
   const { isDeleting, deleteError } = useSelector(episodeFilesInfoSelector);
   const importMode = useSelector(importModeSelector);
+  const isMultipleEnabled = useSelector(createMultipleFilesEnabledSelector());
 
   const [invalidRowsSelected, setInvalidRowsSelected] = useState<number[]>([]);
   const [
@@ -412,13 +414,6 @@ function InteractiveImportModalContent(
       },
     ];
 
-    if (partGroups.length) {
-      options.push({
-        key: 'parts',
-        value: translate('MarkAsParts'),
-      });
-    }
-
     if (allowSeriesChange) {
       options.splice(1, 0, {
         key: 'series',
@@ -427,7 +422,7 @@ function InteractiveImportModalContent(
     }
 
     return options;
-  }, [allowSeriesChange, items, selectedIds, partGroups]);
+  }, [allowSeriesChange, items, selectedIds]);
 
   useEffect(
     () => {
@@ -442,6 +437,10 @@ function InteractiveImportModalContent(
 
         dispatch(setInteractiveImportSort(sortProps));
       }
+
+      // Needed to know whether parts can be named apart, which decides whether marking them is
+      // offered at all. Nothing else in this view has a reason to have loaded it.
+      dispatch(fetchNamingSettings());
 
       dispatch(
         fetchInteractiveImportItems({
@@ -714,25 +713,24 @@ function InteractiveImportModalContent(
     ({ value }: { value: SelectType }) => void
   >(
     ({ value }) => {
-      if (value !== 'parts') {
-        setSelectModalOpen(value);
-        return;
-      }
-
-      partGroups.forEach((ids) => {
-        ids.forEach((id, index) => {
-          dispatch(
-            updateInteractiveImportItem({
-              id,
-              multipleType: 'part',
-              multipleNumber: index + 1,
-            })
-          );
-        });
-      });
+      setSelectModalOpen(value);
     },
-    [partGroups, setSelectModalOpen, dispatch]
+    [setSelectModalOpen]
   );
+
+  const onMarkAsPartsPress = useCallback(() => {
+    partGroups.forEach((ids) => {
+      ids.forEach((id, index) => {
+        dispatch(
+          updateInteractiveImportItem({
+            id,
+            multipleType: 'part',
+            multipleNumber: index + 1,
+          })
+        );
+      });
+    });
+  }, [partGroups, dispatch]);
 
   const onSelectModalClose = useCallback(() => {
     setSelectModalOpen(null);
@@ -1010,6 +1008,16 @@ function InteractiveImportModalContent(
             isDisabled={!selectedIds.length}
             onChange={onSelectModalSelect}
           />
+
+          {/* Its own button rather than an entry in the list above: everything in that list opens a
+              modal to choose something, while this one acts on the selection there and then. It
+              appears only when the selection divides evenly into parts and the naming format can
+              tell them apart. */}
+          {isMultipleEnabled && partGroups.length ? (
+            <Button onPress={onMarkAsPartsPress}>
+              {translate('MarkAsParts')}
+            </Button>
+          ) : null}
         </div>
 
         <div className={styles.rightButtons}>
