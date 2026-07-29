@@ -8541,6 +8541,36 @@
             },
             "nullable": true
           },
+          "namingAudioLanguages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Language"
+            },
+            "nullable": true
+          },
+          "namingSubtitleLanguages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Language"
+            },
+            "nullable": true
+          },
+          "manualCustomFormats": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "nullable": true
+          },
+          "excludedCustomFormats": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "nullable": true
+          },
           "quality": {
             "$ref": "#/components/schemas/QualityModel"
           },
@@ -9823,6 +9853,20 @@
             },
             "nullable": true
           },
+          "detectedAudioLanguages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Language"
+            },
+            "nullable": true
+          },
+          "detectedSubtitleLanguages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Language"
+            },
+            "nullable": true
+          },
           "releaseGroup": {
             "type": "string",
             "nullable": true
@@ -9917,6 +9961,50 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/Language"
+            },
+            "nullable": true
+          },
+          "namingAudioLanguages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Language"
+            },
+            "nullable": true
+          },
+          "namingSubtitleLanguages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Language"
+            },
+            "nullable": true
+          },
+          "detectedAudioLanguages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Language"
+            },
+            "nullable": true
+          },
+          "detectedSubtitleLanguages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Language"
+            },
+            "nullable": true
+          },
+          "manualCustomFormats": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "nullable": true
+          },
+          "excludedCustomFormats": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
             },
             "nullable": true
           },
@@ -11799,6 +11887,9 @@
             "nullable": true
           },
           "originalLanguage": {
+            "$ref": "#/components/schemas/Language"
+          },
+          "namingLanguage": {
             "$ref": "#/components/schemas/Language"
           },
           "remotePoster": {
