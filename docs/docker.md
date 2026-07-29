@@ -46,15 +46,23 @@ published package extracted into it. Sonarr publishes self-contained, so there i
 install — which also means the **musl** build belongs here, not the glibc one.
 
 Installed on top: `icu-libs`, which backs `libSystem.Globalization.Native.so`, `sqlite-libs`,
-because the package binds to the system SQLite rather than carrying it, and `libintl`. `ffprobe` is
+because the package binds to the system SQLite rather than carrying it, `libintl`, and `tzdata`,
+without which Alpine has no zone database at all and `TZ` in a compose file does nothing. `ffprobe` is
 bundled (`Openur.FFprobeStatic`), and v4 no longer shells out to `mediainfo` — migration 163 moved
 media analysis to ffprobe — so neither is installed, and neither of the two reference images
 installs them either.
 
-`Sonarr.Update` is deleted, as linuxserver does: the built-in updater would replace the contents of
-the image and the next pull would throw the result away. That removes a third of the size. A
-`package_info` file next to the bin directory reports Docker as the update method, so the UI explains
-how to update instead of offering to do it.
+`Sonarr.Update` never reaches the image, as with both reference images: the built-in updater would
+replace the contents of the image and the next pull would throw the result away. It is excluded in
+`.dockerignore` rather than deleted in the Dockerfile, because deleting a file in a later layer does
+not make an image smaller - the layer that brought it in still carries it, and it is still
+downloaded. That is 30MB, and hotio avoids it by downloading and deleting in one `RUN`, which is not
+open to us since the package arrives by `COPY`. A `package_info` file next to the bin directory
+reports Docker as the update method, so the UI explains how to update instead of offering to do it.
+
+s6-overlay, which both reference images use, is not. It supervises services, reaps orphans and
+sequences init steps; here Sonarr is the only process, `restart: unless-stopped` covers it dying, and
+running as PID 1 means `docker stop` reaches it directly rather than through a supervisor.
 
 The data directory is `/config`, set on the entrypoint rather than left to the caller, so a plain
 `docker run` lands somewhere sensible.

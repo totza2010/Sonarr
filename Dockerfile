@@ -14,19 +14,20 @@ ARG VERSION=0.0.0
 
 # icu-libs backs libSystem.Globalization.Native.so and sqlite-libs is the database driver the package
 # binds to rather than carrying; libintl is what hotio installs alongside them. su-exec is for the
-# entrypoint to drop privileges, standing in for the s6-overlay their base image brings. ffprobe is bundled
+# entrypoint to drop privileges, standing in for the s6-overlay their base image brings. tzdata is
+# what makes TZ mean anything: Alpine carries no zone database, so without it a compose file setting
+# TZ is quietly ignored and everything stays on UTC. ffprobe is bundled
 # (Openur.FFprobeStatic) and v4 no longer shells out to mediainfo — migration 163 moved media
 # analysis to ffprobe — so neither is installed.
-RUN apk add --no-cache icu-libs libintl sqlite-libs su-exec
+RUN apk add --no-cache icu-libs libintl sqlite-libs su-exec tzdata
 
 COPY _artifacts/${RUNTIME}/${FRAMEWORK}/Sonarr /app/bin
 
-# The built-in updater would replace the contents of the image, which the next pull throws away.
-# Removing it drops a third of the image and takes the option off the table rather than letting it
-# half-work. package_info sits next to the bin directory and tells Sonarr to report Docker as the
-# update method, so the UI explains how to update instead of offering to do it itself.
-RUN rm -rf /app/bin/Sonarr.Update \
-    && printf 'PackageVersion=%s\nPackageAuthor=[%s](https://github.com/%s)\nUpdateMethod=Docker\nBranch=%s\n' \
+# The built-in updater is kept out by .dockerignore rather than deleted here: a file deleted in a
+# later layer is still carried by the one that brought it in, so the image would be no smaller and
+# the 30MB would still be downloaded. package_info sits next to the bin directory and tells Sonarr to
+# report Docker as the update method, so the UI explains how to update instead of offering to do it.
+RUN printf 'PackageVersion=%s\nPackageAuthor=[%s](https://github.com/%s)\nUpdateMethod=Docker\nBranch=%s\n' \
         "${VERSION}" "${REPOSITORY}" "${REPOSITORY}" "${BRANCH}" > /app/package_info \
     && chmod -R u=rwX,go=rX /app \
     && chmod +x /app/bin/Sonarr /app/bin/ffprobe

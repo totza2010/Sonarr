@@ -4,3 +4,9 @@
 
 !_artifacts/**
 !docker-entrypoint.sh
+
+# The built-in updater has no business in an image, and deleting it after the COPY would not make the
+# image any smaller: the layer that brought it in still carries it, so it is still downloaded. Kept
+# out of the build context instead, where it can never land in a layer at all.
+_artifacts/**/Sonarr.Update
+_artifacts/**/Sonarr.Update/**
