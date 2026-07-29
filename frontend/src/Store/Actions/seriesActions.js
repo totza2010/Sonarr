@@ -536,7 +536,14 @@ function getSaveAjaxOptions({ ajaxOptions, payload }) {
 
 export const actionHandlers = handleThunks({
 
-  [FETCH_SERIES]: createFetchHandler(section, '/series'),
+  // The API leaves editions out by default, so that a client written for Sonarr sees one series per
+  // show. This is not such a client: it is the one place that has to show them all.
+  [FETCH_SERIES]: (getState, payload, dispatch) =>
+    createFetchHandler(section, '/series')(
+      getState,
+      { ...payload, includeEditions: true },
+      dispatch
+    ),
   [SAVE_SERIES]: createSaveProviderHandler(section, '/series', { getAjaxOptions: getSaveAjaxOptions }),
   [DELETE_SERIES]: createRemoveItemHandler(section, '/series'),
 

@@ -58,7 +58,15 @@ const deleteEpisodeFileHelper = createRemoveItemHandler(section, '/episodeFile')
 
 export const actionHandlers = handleThunks({
   [FETCH_EPISODE_FILE]: createFetchHandler(section, '/episodeFile'),
-  [FETCH_EPISODE_FILES]: createFetchHandler(section, '/episodeFile'),
+
+  // Same as the series list: the API returns one file per episode unless asked otherwise, and this
+  // is the view that has to show the parts as well.
+  [FETCH_EPISODE_FILES]: (getState, payload, dispatch) =>
+    createFetchHandler(section, '/episodeFile')(
+      getState,
+      { ...payload, includeMultiples: true },
+      dispatch
+    ),
 
   [DELETE_EPISODE_FILE]: function(getState, payload, dispatch) {
     const {

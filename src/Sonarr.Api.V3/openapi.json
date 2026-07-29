@@ -2102,6 +2102,14 @@
                 "format": "int32"
               }
             }
+          },
+          {
+            "name": "includeMultiples",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
           }
         ],
         "responses": {
@@ -6741,6 +6749,14 @@
           },
           {
             "name": "includeSeasonImages",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "includeEditions",
             "in": "query",
             "schema": {
               "type": "boolean",
@@ -11972,6 +11988,10 @@
           "tvdbId": {
             "type": "integer",
             "format": "int32"
+          },
+          "editionName": {
+            "type": "string",
+            "nullable": true
           },
           "tvRageId": {
             "type": "integer",

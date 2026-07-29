@@ -27,6 +27,7 @@ namespace Sonarr.Api.V3.EpisodeFiles
         private readonly IMediaFileService _mediaFileService;
         private readonly IDeleteMediaFiles _mediaFileDeletionService;
         private readonly ISeriesService _seriesService;
+        private readonly IEpisodeService _episodeService;
         private readonly ICustomFormatCalculationService _formatCalculator;
         private readonly IUpgradableSpecification _upgradableSpecification;
 
@@ -34,6 +35,7 @@ namespace Sonarr.Api.V3.EpisodeFiles
                              IMediaFileService mediaFileService,
                              IDeleteMediaFiles mediaFileDeletionService,
                              ISeriesService seriesService,
+                             IEpisodeService episodeService,
                              ICustomFormatCalculationService formatCalculator,
                              IUpgradableSpecification upgradableSpecification)
             : base(signalRBroadcaster)
@@ -41,6 +43,7 @@ namespace Sonarr.Api.V3.EpisodeFiles
             _mediaFileService = mediaFileService;
             _mediaFileDeletionService = mediaFileDeletionService;
             _seriesService = seriesService;
+            _episodeService = episodeService;
             _formatCalculator = formatCalculator;
             _upgradableSpecification = upgradableSpecification;
         }
@@ -55,9 +58,18 @@ namespace Sonarr.Api.V3.EpisodeFiles
             return resource;
         }
 
+        /// <summary>
+        /// The extra files an episode holds - its other parts or versions - are left out unless they
+        /// are asked for. An episode had exactly one file before this fork existed, and a client that
+        /// still believes that would count the same episode twice. The one kept is the one the episode
+        /// itself points at, which is the file such a client would have seen.
+        ///
+        /// Asking for files by id returns what was asked for, editions and parts alike: naming them
+        /// means already knowing about them.
+        /// </summary>
         [HttpGet]
         [Produces("application/json")]
-        public List<EpisodeFileResource> GetEpisodeFiles(int? seriesId, [FromQuery] List<int> episodeFileIds)
+        public List<EpisodeFileResource> GetEpisodeFiles(int? seriesId, [FromQuery] List<int> episodeFileIds, bool includeMultiples = false)
         {
             if (!seriesId.HasValue && !episodeFileIds.Any())
             {
@@ -72,6 +84,15 @@ namespace Sonarr.Api.V3.EpisodeFiles
                 if (files == null)
                 {
                     return new List<EpisodeFileResource>();
+                }
+
+                if (!includeMultiples)
+                {
+                    var primaryFileIds = _episodeService.GetEpisodeBySeries(seriesId.Value)
+                                                        .Select(e => e.EpisodeFileId)
+                                                        .ToHashSet();
+
+                    files = files.Where(f => primaryFileIds.Contains(f.Id)).ToList();
                 }
 
                 return files.ConvertAll(e => e.ToResource(series, _upgradableSpecification, _formatCalculator))

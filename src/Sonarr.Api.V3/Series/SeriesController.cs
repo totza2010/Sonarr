@@ -105,9 +105,15 @@ namespace Sonarr.Api.V3.Series
             PostValidator.RuleFor(s => s.TvdbId).GreaterThan(0).SetValidator(seriesExistsValidator);
         }
 
+        /// <summary>
+        /// Editions are left out unless they are asked for. Everything reading this list expects one
+        /// series per show, and an edition shares its title and its TVDB id with the main one, so a
+        /// client that has never heard of editions would see the same show several times and have no
+        /// way to tell which is which. Asking by TVDB id already answers with the main edition.
+        /// </summary>
         [HttpGet]
         [Produces("application/json")]
-        public List<SeriesResource> AllSeries(int? tvdbId, bool includeSeasonImages = false)
+        public List<SeriesResource> AllSeries(int? tvdbId, bool includeSeasonImages = false, bool includeEditions = false)
         {
             var seriesStats = _seriesStatisticsService.SeriesStatistics();
             var seriesResources = new List<SeriesResource>();
@@ -118,7 +124,14 @@ namespace Sonarr.Api.V3.Series
             }
             else
             {
-                seriesResources.AddRange(_seriesService.GetAllSeries().Select(s => s.ToResource(includeSeasonImages)));
+                var series = _seriesService.GetAllSeries();
+
+                if (!includeEditions)
+                {
+                    series = series.Where(s => SeriesEditions.IsMainEdition(s.EditionName)).ToList();
+                }
+
+                seriesResources.AddRange(series.Select(s => s.ToResource(includeSeasonImages)));
             }
 
             MapCoversToLocal(seriesResources.ToArray());
