@@ -3,7 +3,10 @@ using NzbDrone.Core.Datastore.Migration.Framework;
 
 namespace NzbDrone.Core.Datastore.Migration
 {
-    [Migration(219)]
+    // 9000 and up is reserved for this fork. Taking upstream's next number would either collide with
+    // theirs outright or, worse, make a database that ran ours skip theirs without a word, since
+    // FluentMigrator tracks progress by number alone.
+    [Migration(9010)]
     public class add_episode_file_parts : NzbDroneMigrationBase
     {
         protected override void MainDbUpgrade()

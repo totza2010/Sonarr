@@ -39,7 +39,7 @@ namespace NzbDrone.Core.Test.Datastore.Migration
                 c.Insert.IntoTable("EpisodeFiles").Row(Row(2, string.Empty));
             });
 
-            var items = db.Query<EpisodeFile220>("SELECT \"Id\", \"MultipleType\", \"MultipleNumber\" FROM \"EpisodeFiles\"");
+            var items = db.Query<EpisodeFile9011>("SELECT \"Id\", \"MultipleType\", \"MultipleNumber\" FROM \"EpisodeFiles\"");
 
             items.Should().HaveCount(1);
             items.First().MultipleType.Should().Be((int)EpisodeFileMultipleType.Part);
@@ -56,7 +56,7 @@ namespace NzbDrone.Core.Test.Datastore.Migration
                 c.Insert.IntoTable("EpisodeFiles").Row(Row(0, "Alternate Ending"));
             });
 
-            var items = db.Query<EpisodeFile220>("SELECT \"Id\", \"MultipleType\", \"MultipleNumber\" FROM \"EpisodeFiles\"");
+            var items = db.Query<EpisodeFile9011>("SELECT \"Id\", \"MultipleType\", \"MultipleNumber\" FROM \"EpisodeFiles\"");
 
             items.Should().HaveCount(1);
             items.First().MultipleType.Should().Be((int)EpisodeFileMultipleType.Version);
@@ -71,7 +71,7 @@ namespace NzbDrone.Core.Test.Datastore.Migration
                 c.Insert.IntoTable("EpisodeFiles").Row(Row(0, string.Empty));
             });
 
-            var items = db.Query<EpisodeFile220>("SELECT \"Id\", \"MultipleType\", \"MultipleNumber\" FROM \"EpisodeFiles\"");
+            var items = db.Query<EpisodeFile9011>("SELECT \"Id\", \"MultipleType\", \"MultipleNumber\" FROM \"EpisodeFiles\"");
 
             items.Should().HaveCount(1);
             items.First().MultipleType.Should().Be((int)EpisodeFileMultipleType.None);
@@ -86,14 +86,14 @@ namespace NzbDrone.Core.Test.Datastore.Migration
                 c.Insert.IntoTable("EpisodeFiles").Row(Row(3, "Alternate Ending"));
             });
 
-            var items = db.Query<EpisodeFile220>("SELECT \"Id\", \"MultipleType\", \"MultipleNumber\" FROM \"EpisodeFiles\"");
+            var items = db.Query<EpisodeFile9011>("SELECT \"Id\", \"MultipleType\", \"MultipleNumber\" FROM \"EpisodeFiles\"");
 
             items.Should().HaveCount(1);
             items.First().MultipleType.Should().Be((int)EpisodeFileMultipleType.Part);
             items.First().MultipleNumber.Should().Be(3);
         }
 
-        public class EpisodeFile220
+        public class EpisodeFile9011
         {
             public int Id { get; set; }
             public int MultipleType { get; set; }
