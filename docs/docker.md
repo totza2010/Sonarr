@@ -17,6 +17,12 @@ and the GitHub release — everything this fork publishes waits on the same test
 version. It reuses the artifacts the build workflow already produces rather than building a second
 time.
 
+## Going back to official Sonarr
+
+A database this fork has touched can go back, and needs no preparation at all unless editions or
+multiple files per episode were used — see [rollback-to-official.md](rollback-to-official.md), which
+comes with a script that checks and, where it can, does it.
+
 ## Tags
 
 A fork's version only means something against the upstream release it was built from, so that is
