@@ -80,7 +80,14 @@ namespace NzbDrone.Core.Tv
         public void ApplyChanges(Series otherSeries)
         {
             TvdbId = otherSeries.TvdbId;
-            EditionName = SeriesEditions.NormalizeEditionName(otherSeries.EditionName);
+
+            // A client that has never heard of editions sends nothing here. Reading that as "make this
+            // the main edition" would promote an edition behind the user's back and then fail the save
+            // against the unique index it now collides with.
+            if (otherSeries.EditionName != null)
+            {
+                EditionName = SeriesEditions.NormalizeEditionName(otherSeries.EditionName);
+            }
 
             Seasons = otherSeries.Seasons;
             Path = otherSeries.Path;

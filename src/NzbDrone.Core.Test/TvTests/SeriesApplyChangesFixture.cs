@@ -30,5 +30,38 @@ namespace NzbDrone.Core.Test.TvTests
 
             series.NamingLanguage.Should().Be(Language.Thai);
         }
+
+        [Test]
+        public void should_apply_an_edition_that_was_sent()
+        {
+            var series = new Series { EditionName = "Uncut" };
+
+            series.ApplyChanges(new Series { EditionName = " Uncensored " });
+
+            series.EditionName.Should().Be("Uncensored");
+        }
+
+        [Test]
+        public void should_apply_an_edition_that_was_cleared_on_purpose()
+        {
+            var series = new Series { EditionName = "Uncut" };
+
+            series.ApplyChanges(new Series { EditionName = string.Empty });
+
+            series.EditionName.Should().Be(SeriesEditions.MainEdition);
+        }
+
+        [Test]
+        public void should_keep_the_edition_when_none_was_sent()
+        {
+            // A client that has never heard of editions sends nothing, which deserialises to null.
+            // Reading that as the main edition would promote this row and then collide with the main
+            // edition that already holds that TVDB id.
+            var series = new Series { EditionName = "Uncut" };
+
+            series.ApplyChanges(new Series { EditionName = null });
+
+            series.EditionName.Should().Be("Uncut");
+        }
     }
 }

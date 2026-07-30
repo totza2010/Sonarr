@@ -50,7 +50,7 @@ namespace Sonarr.Api.V3.Series
         public bool UseSceneNumbering { get; set; }
         public int Runtime { get; set; }
         public int TvdbId { get; set; }
-        public string EditionName { get; set; } = SeriesEditions.MainEdition;
+        public string EditionName { get; set; }
         public int TvRageId { get; set; }
         public int TvMazeId { get; set; }
         public int TmdbId { get; set; }
@@ -195,7 +195,10 @@ namespace Sonarr.Api.V3.Series
                        UseSceneNumbering = resource.UseSceneNumbering,
                        Runtime = resource.Runtime,
                        TvdbId = resource.TvdbId,
-                       EditionName = SeriesEditions.NormalizeEditionName(resource.EditionName),
+
+                       // Left null when the client did not send it, the same as NamingLanguage above.
+                       // The add path normalizes it; ApplyChanges leaves it alone.
+                       EditionName = resource.EditionName,
                        TvRageId = resource.TvRageId,
                        TvMazeId = resource.TvMazeId,
                        TmdbId = resource.TmdbId,
