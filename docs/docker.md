@@ -17,6 +17,12 @@ and the GitHub release — everything this fork publishes waits on the same test
 version. It reuses the artifacts the build workflow already produces rather than building a second
 time.
 
+## What the media servers read
+
+The part marker, the version marker and the edition folder this fork writes were each chosen against
+what Plex, Jellyfin, Emby and Silo actually parse — see
+[media-server-naming.md](media-server-naming.md).
+
 ## Going back to official Sonarr
 
 A database this fork has touched can go back, and needs no preparation at all unless editions or
