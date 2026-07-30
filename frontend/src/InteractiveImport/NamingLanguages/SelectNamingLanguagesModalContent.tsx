@@ -136,8 +136,6 @@ function SelectNamingLanguagesModalContent(
                 name="namingAudioLanguages"
                 value={audioIds}
                 values={values}
-                // Every language on first click, narrowed only once something is typed.
-                minQueryLength={0}
                 onChange={onAudioChange}
               />
             </FormGroup>
@@ -150,7 +148,6 @@ function SelectNamingLanguagesModalContent(
                 name="namingSubtitleLanguages"
                 value={subtitleIds}
                 values={values}
-                minQueryLength={0}
                 onChange={onSubtitleChange}
               />
             </FormGroup>

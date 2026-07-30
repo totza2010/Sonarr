@@ -110,7 +110,6 @@ function SelectCustomFormatModalContent(
                 name="manualCustomFormats"
                 value={formatIds}
                 values={values}
-                minQueryLength={0}
                 onChange={onChange}
               />
             </FormGroup>

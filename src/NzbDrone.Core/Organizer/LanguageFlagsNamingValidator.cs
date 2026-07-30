@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Linq;
 using FluentValidation.Results;
 using NzbDrone.Core.Tv;
 
@@ -55,7 +54,7 @@ namespace NzbDrone.Core.Organizer
 
             // Only the formats that are actually reached. Asking for the token in the anime format of a
             // library with no anime in it would be a rule about nothing.
-            var types = _seriesService.GetAllSeries().Select(s => s.SeriesType).Distinct().ToList();
+            var types = _seriesService.AllSeriesTypes();
 
             foreach (var type in types)
             {

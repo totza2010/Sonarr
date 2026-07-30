@@ -28,6 +28,7 @@ namespace NzbDrone.Core.Tv
         List<Series> GetAllSeries();
         List<int> AllSeriesTvdbIds();
         Dictionary<int, List<string>> AllSeriesEditions();
+        List<SeriesTypes> AllSeriesTypes();
         Dictionary<int, string> GetAllSeriesPaths();
         Dictionary<int, List<int>> GetAllSeriesTags();
         List<Series> AllForTag(int tagId);
@@ -191,6 +192,11 @@ namespace NzbDrone.Core.Tv
         public List<int> AllSeriesTvdbIds()
         {
             return _seriesRepository.AllSeriesTvdbIds().ToList();
+        }
+
+        public List<SeriesTypes> AllSeriesTypes()
+        {
+            return _seriesRepository.AllSeriesTypes();
         }
 
         public Dictionary<int, List<string>> AllSeriesEditions()

@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Linq;
-using FizzWare.NBuilder;
 using FluentAssertions;
 using NUnit.Framework;
 using NzbDrone.Core.Organizer;
@@ -31,15 +30,9 @@ namespace NzbDrone.Core.Test.OrganizerTests
 
         private void GivenLibraryOf(params SeriesTypes[] types)
         {
-            var series = types.Select((t, i) => Builder<Series>.CreateNew()
-                                                              .With(s => s.Id = i + 1)
-                                                              .With(s => s.SeriesType = t)
-                                                              .Build())
-                              .ToList();
-
             Mocker.GetMock<ISeriesService>()
-                  .Setup(v => v.GetAllSeries())
-                  .Returns(series);
+                  .Setup(v => v.AllSeriesTypes())
+                  .Returns(types.ToList());
         }
 
         [Test]

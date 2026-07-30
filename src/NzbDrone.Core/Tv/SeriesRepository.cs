@@ -20,6 +20,7 @@ namespace NzbDrone.Core.Tv
         Series FindByPath(string path);
         List<int> AllSeriesTvdbIds();
         Dictionary<int, List<string>> AllSeriesEditions();
+        List<SeriesTypes> AllSeriesTypes();
         Dictionary<int, string> AllSeriesPaths();
         Dictionary<int, List<int>> AllSeriesTags();
     }
@@ -116,6 +117,17 @@ namespace NzbDrone.Core.Tv
             using (var conn = _database.OpenConnection())
             {
                 return conn.Query<int>("SELECT \"TvdbId\" FROM \"Series\"").ToList();
+            }
+        }
+
+        // Which kinds of series the library holds, for the naming rules that only apply to the formats
+        // actually reached. One small column rather than every series row, since this is asked on every
+        // save of the naming config.
+        public List<SeriesTypes> AllSeriesTypes()
+        {
+            using (var conn = _database.OpenConnection())
+            {
+                return conn.Query<SeriesTypes>("SELECT DISTINCT \"SeriesType\" FROM \"Series\"").ToList();
             }
         }
 
