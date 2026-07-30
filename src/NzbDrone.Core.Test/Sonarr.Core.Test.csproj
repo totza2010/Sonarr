@@ -21,4 +21,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
+  <ItemGroup>
+    <!-- The rollback plan is checked against the migrations by ForkMigrationRollbackPlanFixture, so
+         the tests need the real file rather than a copy that can drift. -->
+    <None Include="$(MSBuildThisFileDirectory)../../tools/rollback-plan.json" Link="rollback-plan.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

@@ -1,0 +1,83 @@
+{
+  "_comment": [
+    "What every migration this fork added did, and what has to happen for official Sonarr to run on",
+    "a database that has seen it. tools/rollback-to-official.py reads this and acts only on the",
+    "migrations a given database actually recorded in VersionInfo.",
+    "",
+    "Adding a migration means adding it here. ForkMigrationRollbackPlanFixture fails the build",
+    "otherwise, so this cannot quietly fall behind.",
+    "",
+    "Fields:",
+    "  adds        what the migration created, for the record",
+    "  inert       true when official Sonarr can run with it left in place, which is the case for",
+    "              every plain column: they are NOT NULL with a default, and Sonarr names the",
+    "              columns it knows when it inserts",
+    "  blocks      a query that must return no rows before rollback, with the reason and what to do",
+    "  undo        statements to run, in order, once nothing blocks"
+  ],
+
+  "migrations": {
+    "9001": {
+      "name": "add_series_edition",
+      "adds": ["Series.EditionName", "unique index IX_Series_TvdbId_EditionName"],
+      "inert": false,
+      "blocks": {
+        "query": "SELECT Id, Title, EditionName, Path FROM Series WHERE EditionName <> ''",
+        "label": "editions",
+        "reason": "This migration dropped IX_Series_TvdbId, which official Sonarr relies on: it looks a series up with SingleOrDefault, and that throws the moment two rows share a TVDB id - during a metadata refresh, a release parse, an import.",
+        "resolution": "Delete each of these from Sonarr itself. A series has rows in a dozen tables and only Sonarr removes it properly; deleting the series does not have to delete its files."
+      },
+      "undo": [
+        "DROP INDEX IF EXISTS \"IX_Series_TvdbId_EditionName\"",
+        "CREATE UNIQUE INDEX IF NOT EXISTS \"IX_Series_TvdbId\" ON \"Series\" (\"TvdbId\" ASC)"
+      ]
+    },
+
+    "9010": {
+      "name": "add_episode_file_parts",
+      "adds": ["EpisodeFiles.PartNumber", "EpisodeFiles.VersionName", "table EpisodeFileLinks"],
+      "inert": false,
+      "note": "9011 renamed PartNumber to MultipleNumber and dropped VersionName, so only the table is left to deal with.",
+      "undo": ["DELETE FROM EpisodeFileLinks"]
+    },
+
+    "9011": {
+      "name": "episode_file_multiples",
+      "adds": ["EpisodeFiles.MultipleType", "EpisodeFiles.MultipleNumber (renamed from PartNumber)"],
+      "inert": false,
+      "warns": {
+        "query": "SELECT Id, SeriesId, RelativePath FROM EpisodeFiles WHERE MultipleType <> 0 AND Id NOT IN (SELECT EpisodeFileId FROM Episodes)",
+        "label": "extra part files",
+        "reason": "Official Sonarr deletes any file row no episode points at, then finds the file still on disk and imports it again on top of the part that was already there.",
+        "resolution": "The rows go below. The files stay on disk - move them elsewhere first if they should not come back as ordinary files."
+      },
+      "undo": [
+        "DELETE FROM EpisodeFiles WHERE MultipleType <> 0 AND Id NOT IN (SELECT EpisodeFileId FROM Episodes)"
+      ]
+    },
+
+    "9020": {
+      "name": "series_naming_language",
+      "adds": ["Series.NamingLanguage"],
+      "inert": true
+    },
+
+    "9021": {
+      "name": "episode_file_naming_languages",
+      "adds": ["EpisodeFiles.NamingAudioLanguages", "EpisodeFiles.NamingSubtitleLanguages"],
+      "inert": true
+    },
+
+    "9022": {
+      "name": "episode_file_manual_custom_formats",
+      "adds": ["EpisodeFiles.ManualCustomFormats"],
+      "inert": true
+    },
+
+    "9023": {
+      "name": "episode_file_excluded_custom_formats",
+      "adds": ["EpisodeFiles.ExcludedCustomFormats"],
+      "inert": true
+    }
+  }
+}
