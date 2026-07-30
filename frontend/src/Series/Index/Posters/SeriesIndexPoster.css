@@ -104,11 +104,11 @@ $hoverScale: 1.05;
 /* Above the hover buttons, which own the bottom left corner, so neither has to give way. */
 .languages {
   position: absolute;
-  justify-content: space-between;
   right: 4px;
   bottom: 34px;
   left: 4px;
   z-index: 2;
+  justify-content: space-between;
 }
 
 .controls {
