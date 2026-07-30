@@ -9,6 +9,8 @@ const seriesEditionSuggestions = [
   "Director's Cut",
   'Extended',
   'Uncut',
+  'Uncensored',
+  'Unrated',
   'Theatrical',
   'Original Broadcast',
 
@@ -22,6 +24,7 @@ const seriesEditionSuggestions = [
   'Black & White',
   'Colorized',
   'Open Matte',
+  'IMAX',
   '4:3',
   '16:9',
 
@@ -30,6 +33,9 @@ const seriesEditionSuggestions = [
   'Subbed',
   'Original Audio',
   'Commentary',
+
+  // Put together from more than one source
+  'Hybrid',
 
   // Episode order
   'Broadcast Order',
