@@ -317,6 +317,18 @@ function Naming() {
             />
           </FormGroup>
 
+          <FormGroup size={sizes.MEDIUM}>
+            <FormLabel>{translate('ShowLanguageFlags')}</FormLabel>
+
+            <FormInputGroup
+              type={inputTypes.CHECK}
+              name="showLanguageFlags"
+              helpText={translate('ShowLanguageFlagsHelpText')}
+              onChange={handleInputChange}
+              {...settings.showLanguageFlags}
+            />
+          </FormGroup>
+
           {replaceIllegalCharacters ? (
             <FormGroup size={sizes.MEDIUM}>
               <FormLabel>{translate('ColonReplacement')}</FormLabel>

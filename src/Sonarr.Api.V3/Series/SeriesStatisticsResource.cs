@@ -13,6 +13,11 @@ namespace Sonarr.Api.V3.Series
         public long SizeOnDisk { get; set; }
         public List<string> ReleaseGroups { get; set; }
 
+        // What the file names say this series' audio and subtitle languages are. Absent unless the
+        // language flags are switched on, so nothing that has never heard of them sees anything new.
+        public List<string> AudioLanguages { get; set; }
+        public List<string> SubtitleLanguages { get; set; }
+
         public decimal PercentOfEpisodes
         {
             get
@@ -43,7 +48,9 @@ namespace Sonarr.Api.V3.Series
                 EpisodeCount = model.EpisodeCount,
                 TotalEpisodeCount = model.TotalEpisodeCount,
                 SizeOnDisk = model.SizeOnDisk,
-                ReleaseGroups = model.ReleaseGroups
+                ReleaseGroups = model.ReleaseGroups,
+                AudioLanguages = model.AudioLanguages?.Any() == true ? model.AudioLanguages : null,
+                SubtitleLanguages = model.SubtitleLanguages?.Any() == true ? model.SubtitleLanguages : null
             };
         }
     }

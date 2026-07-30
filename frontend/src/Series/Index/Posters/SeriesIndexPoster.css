@@ -101,6 +101,16 @@ $hoverScale: 1.05;
   max-width: calc(100% - 32px);
 }
 
+/* Above the hover buttons, which own the bottom left corner, so neither has to give way. */
+.languages {
+  position: absolute;
+  justify-content: space-between;
+  right: 4px;
+  bottom: 34px;
+  left: 4px;
+  z-index: 2;
+}
+
 .controls {
   position: absolute;
   bottom: 10px;

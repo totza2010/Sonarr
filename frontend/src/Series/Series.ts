@@ -34,6 +34,10 @@ export interface Statistics {
   percentOfEpisodes: number;
   previousAiring?: Date;
   releaseGroups: string[];
+  // What the file names say the languages are. Only sent while the naming config says to show them,
+  // so their absence is the switch being off.
+  audioLanguages?: string[];
+  subtitleLanguages?: string[];
   sizeOnDisk: number;
   totalEpisodeCount: number;
 }

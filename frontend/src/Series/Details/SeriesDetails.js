@@ -7,6 +7,7 @@ import Alert from 'Components/Alert';
 import HeartRating from 'Components/HeartRating';
 import Icon from 'Components/Icon';
 import Label from 'Components/Label';
+import LanguageFlags from 'Components/LanguageFlags/LanguageFlags';
 import IconButton from 'Components/Link/IconButton';
 import LoadingIndicator from 'Components/Loading/LoadingIndicator';
 import Measure from 'Components/Measure';
@@ -215,7 +216,9 @@ class SeriesDetails extends Component {
 
     const {
       episodeFileCount = 0,
-      sizeOnDisk = 0
+      sizeOnDisk = 0,
+      audioLanguages,
+      subtitleLanguages
     } = statistics;
 
     const {
@@ -368,6 +371,12 @@ class SeriesDetails extends Component {
                     <SeriesEditionBadge
                       className={styles.edition}
                       editionName={editionName}
+                    />
+
+                    <LanguageFlags
+                      spaced={true}
+                      audioLanguages={audioLanguages}
+                      subtitleLanguages={subtitleLanguages}
                     />
 
                     {

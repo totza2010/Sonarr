@@ -32,7 +32,8 @@ namespace Sonarr.Api.V3.Config
                 AnimeEpisodeFormat = model.AnimeEpisodeFormat,
                 SeriesFolderFormat = model.SeriesFolderFormat,
                 SeasonFolderFormat = model.SeasonFolderFormat,
-                SpecialsFolderFormat = model.SpecialsFolderFormat
+                SpecialsFolderFormat = model.SpecialsFolderFormat,
+                ShowLanguageFlags = model.ShowLanguageFlags
             };
         }
 
@@ -52,7 +53,8 @@ namespace Sonarr.Api.V3.Config
                 AnimeEpisodeFormat = resource.AnimeEpisodeFormat,
                 SeriesFolderFormat = resource.SeriesFolderFormat,
                 SeasonFolderFormat = resource.SeasonFolderFormat,
-                SpecialsFolderFormat = resource.SpecialsFolderFormat
+                SpecialsFolderFormat = resource.SpecialsFolderFormat,
+                ShowLanguageFlags = resource.ShowLanguageFlags
             };
         }
     }

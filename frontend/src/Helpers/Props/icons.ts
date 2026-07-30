@@ -45,6 +45,7 @@ import {
   faCirclePause as fasCirclePause,
   faCirclePlay as fasCirclePlay,
   faCircleStop as fasCircleStop,
+  faClosedCaptioning as fasClosedCaptioning,
   faCloud as fasCloud,
   faCloudDownloadAlt as fasCloudDownloadAlt,
   faCog as fasCog,
@@ -110,6 +111,7 @@ import {
   faUser as fasUser,
   faUserPlus as fasUserPlus,
   faVial as fasVial,
+  faVolumeHigh as fasVolumeHigh,
   faWrench as fasWrench,
 } from '@fortawesome/free-solid-svg-icons';
 
@@ -123,6 +125,7 @@ export const ALTERNATE_TITLES = farClone;
 export const ADVANCED_SETTINGS = fasCog;
 export const ARROW_LEFT = fasArrowCircleLeft;
 export const ARROW_RIGHT = fasArrowCircleRight;
+export const AUDIO = fasVolumeHigh;
 export const BACKUP = farFileArchive;
 export const BUG = fasBug;
 export const CALENDAR = fasCalendarAlt;
@@ -222,6 +225,7 @@ export const SORT_DESCENDING = fasSortDown;
 export const SPINNER = fasSpinner;
 export const SQUARE = farSquare;
 export const SQUARE_MINUS = fasSquareMinus;
+export const SUBTITLE = fasClosedCaptioning;
 export const SUBTRACT = fasMinus;
 export const SYSTEM = fasLaptop;
 export const TABLE = fasTable;

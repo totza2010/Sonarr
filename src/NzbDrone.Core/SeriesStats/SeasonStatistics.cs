@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Linq;
 using NzbDrone.Common.Extensions;
 using NzbDrone.Core.Datastore;
+using NzbDrone.Core.Organizer;
 
 namespace NzbDrone.Core.SeriesStats
 {
@@ -20,6 +21,11 @@ namespace NzbDrone.Core.SeriesStats
         public int TotalEpisodeCount { get; set; }
         public long SizeOnDisk { get; set; }
         public string ReleaseGroupsString { get; set; }
+
+        // The file names of this season, joined the same way the release groups are. Only asked for when
+        // the language flags are being shown - they are read out of these names, and nothing else here
+        // needs them. Never mapped onto a resource.
+        public string FileNamesString { get; set; }
 
         public DateTime? NextAiring
         {
@@ -107,6 +113,19 @@ namespace NzbDrone.Core.SeriesStats
                 }
 
                 return releasegroups;
+            }
+        }
+
+        public List<List<string>> LanguageGroups
+        {
+            get
+            {
+                if (FileNamesString.IsNullOrWhiteSpace())
+                {
+                    return new List<List<string>>();
+                }
+
+                return FileNameLanguages.Union(FileNamesString.Split('|'));
             }
         }
     }

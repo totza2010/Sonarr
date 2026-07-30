@@ -1936,6 +1936,8 @@
   "ShowEpisodeInformation": "Show Episode Information",
   "ShowEpisodeInformationHelpText": "Show episode title and number",
   "ShowEpisodes": "Show episodes",
+  "ShowLanguageFlags": "Show Language Flags",
+  "ShowLanguageFlagsHelpText": "Show the language groups written into file names next to each series. The episode format has to contain a MediaInfo AudioLanguages or MediaInfo SubtitleLanguages token, since that is where they are read from",
   "ShowMonitored": "Show Monitored",
   "ShowMonitoredHelpText": "Show monitored status under poster",
   "ShowNetwork": "Show Network",

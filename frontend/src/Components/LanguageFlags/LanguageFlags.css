@@ -1,0 +1,95 @@
+/* Two groups - audio then subtitles - and where they sit is the caller's business: pushed to opposite
+   corners of a poster, or following a title on one line. Nothing here claims a width. */
+.flags {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+/*
+ * A group is one enclosed pill - its icon in front, then its flags - so the two read as two things
+ * rather than as one run of flags. A solid grey rather than a translucent black, because these turn
+ * up over poster artwork, over a white table row and over the near-black series header, and only
+ * something opaque is visible against all three.
+ *
+ * The pill is sized like the edition badge it stands beside, since a series often wears both.
+ */
+.group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 2px 4px;
+  border-radius: 3px;
+  background-color: var(--darkGray);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.subtitles {
+  align-items: flex-end;
+}
+
+.subtitles .chip {
+  flex-direction: row-reverse;
+}
+
+.icon {
+  flex-shrink: 0;
+  color: var(--white);
+}
+
+/* On a poster the icon heads its own column, because a poster is tall and narrow and a row of
+   languages runs off the side of it long before it runs out of height. */
+.codes {
+  display: flex;
+  flex-direction: column;
+  align-items: inherit;
+  gap: 1px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--white);
+  white-space: nowrap;
+  font-weight: bold;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.flag {
+  display: block;
+  width: 21px;
+  height: 14px;
+  border-radius: 1px;
+}
+
+/* Following a title on one line, where a column would push the row open. */
+.spaced {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.spaced .group {
+  flex-direction: row;
+  align-items: center;
+  gap: 5px;
+}
+
+.spaced .codes {
+  flex-direction: row;
+  align-items: center;
+  gap: 5px;
+}
+
+.spaced .subtitles .chip {
+  flex-direction: row;
+}
+
+.spaced .flag {
+  width: 15px;
+  height: 10px;
+}

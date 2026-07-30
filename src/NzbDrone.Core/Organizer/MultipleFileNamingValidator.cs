@@ -86,8 +86,7 @@ namespace NzbDrone.Core.Organizer
 
         private static bool ContainsMultipleToken(string format)
         {
-            return format.IsNotNullOrWhiteSpace() &&
-                   format.Contains("{Multiple", System.StringComparison.InvariantCultureIgnoreCase);
+            return NamingTokens.Contains(format, "Multiple");
         }
     }
 }

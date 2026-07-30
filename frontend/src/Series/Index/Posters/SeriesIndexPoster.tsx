@@ -3,6 +3,7 @@ import React, { useCallback, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { REFRESH_SERIES, SERIES_SEARCH } from 'Commands/commandNames';
 import Label from 'Components/Label';
+import LanguageFlags from 'Components/LanguageFlags/LanguageFlags';
 import IconButton from 'Components/Link/IconButton';
 import Link from 'Components/Link/Link';
 import SpinnerIconButton from 'Components/Link/SpinnerIconButton';
@@ -78,6 +79,8 @@ function SeriesIndexPoster(props: SeriesIndexPosterProps) {
     episodeFileCount = 0,
     totalEpisodeCount = 0,
     sizeOnDisk = 0,
+    audioLanguages,
+    subtitleLanguages,
   } = statistics;
 
   const dispatch = useDispatch();
@@ -184,6 +187,12 @@ function SeriesIndexPoster(props: SeriesIndexPosterProps) {
         <SeriesEditionBadge
           className={styles.edition}
           editionName={editionName}
+        />
+
+        <LanguageFlags
+          className={styles.languages}
+          audioLanguages={audioLanguages}
+          subtitleLanguages={subtitleLanguages}
         />
 
         <Link className={styles.link} style={elementStyle} to={link}>

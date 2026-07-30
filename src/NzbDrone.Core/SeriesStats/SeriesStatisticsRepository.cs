@@ -10,8 +10,8 @@ namespace NzbDrone.Core.SeriesStats
 {
     public interface ISeriesStatisticsRepository
     {
-        List<SeasonStatistics> SeriesStatistics();
-        List<SeasonStatistics> SeriesStatistics(int seriesId);
+        List<SeasonStatistics> SeriesStatistics(bool includeFileNames = false);
+        List<SeasonStatistics> SeriesStatistics(int seriesId, bool includeFileNames = false);
     }
 
     public class SeriesStatisticsRepository : ISeriesStatisticsRepository
@@ -26,19 +26,19 @@ namespace NzbDrone.Core.SeriesStats
             _database = database;
         }
 
-        public List<SeasonStatistics> SeriesStatistics()
+        public List<SeasonStatistics> SeriesStatistics(bool includeFileNames = false)
         {
             var time = DateTime.UtcNow;
             return MapResults(Query(EpisodesBuilder(time), _selectEpisodesTemplate),
-                Query(EpisodeFilesBuilder(), _selectEpisodeFilesTemplate));
+                Query(EpisodeFilesBuilder(includeFileNames), _selectEpisodeFilesTemplate));
         }
 
-        public List<SeasonStatistics> SeriesStatistics(int seriesId)
+        public List<SeasonStatistics> SeriesStatistics(int seriesId, bool includeFileNames = false)
         {
             var time = DateTime.UtcNow;
 
             return MapResults(Query(EpisodesBuilder(time).Where<Episode>(x => x.SeriesId == seriesId), _selectEpisodesTemplate),
-                Query(EpisodeFilesBuilder().Where<EpisodeFile>(x => x.SeriesId == seriesId), _selectEpisodeFilesTemplate));
+                Query(EpisodeFilesBuilder(includeFileNames).Where<EpisodeFile>(x => x.SeriesId == seriesId), _selectEpisodeFilesTemplate));
         }
 
         private List<SeasonStatistics> MapResults(List<SeasonStatistics> episodesResult, List<SeasonStatistics> filesResult)
@@ -49,6 +49,7 @@ namespace NzbDrone.Core.SeriesStats
 
                 e.SizeOnDisk = file?.SizeOnDisk ?? 0;
                 e.ReleaseGroupsString = file?.ReleaseGroupsString;
+                e.FileNamesString = file?.FileNamesString;
             });
 
             return episodesResult;
@@ -86,24 +87,23 @@ namespace NzbDrone.Core.SeriesStats
             .GroupBy<Episode>(x => x.SeasonNumber);
         }
 
-        private SqlBuilder EpisodeFilesBuilder()
+        private SqlBuilder EpisodeFilesBuilder(bool includeFileNames)
         {
-            if (_database.DatabaseType == DatabaseType.SQLite)
-            {
-                return new SqlBuilder(_database.DatabaseType)
-                .Select(@"""SeriesId"",
-                            ""SeasonNumber"",
-                            SUM(COALESCE(""Size"", 0)) AS SizeOnDisk,
-                            GROUP_CONCAT(""ReleaseGroup"", '|') AS ReleaseGroupsString")
-                .GroupBy<EpisodeFile>(x => x.SeriesId)
-                .GroupBy<EpisodeFile>(x => x.SeasonNumber);
-            }
+            var isSqlite = _database.DatabaseType == DatabaseType.SQLite;
+            var concat = isSqlite ? "GROUP_CONCAT" : "string_agg";
+
+            // Every file name of the series is a lot of text to carry for a feature that is off by
+            // default, so it is only asked for when something is going to read it.
+            var fileNames = includeFileNames
+                ? $@",
+                            {concat}(""RelativePath"", '|') AS FileNamesString"
+                : string.Empty;
 
             return new SqlBuilder(_database.DatabaseType)
-                .Select(@"""SeriesId"",
+                .Select($@"""SeriesId"",
                             ""SeasonNumber"",
                             SUM(COALESCE(""Size"", 0)) AS SizeOnDisk,
-                            string_agg(""ReleaseGroup"", '|') AS ReleaseGroupsString")
+                            {concat}(""ReleaseGroup"", '|') AS ReleaseGroupsString{fileNames}")
                 .GroupBy<EpisodeFile>(x => x.SeriesId)
                 .GroupBy<EpisodeFile>(x => x.SeasonNumber);
         }

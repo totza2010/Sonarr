@@ -1,0 +1,95 @@
+// Which flag stands for which language.
+//
+// A language is not a country, so there is no correct answer here - only a convention. This one is
+// Kometa's, from its Audio/Subtitle Language Flags overlays. Following it means the flags Sonarr
+// shows for a series are the flags the same series wears in Plex, which is worth more than any
+// mapping of our own would be.
+//
+// The values are ISO 3166 country codes, which is what every standard flag set is keyed by, so the
+// drawings in flags.tsx can be swapped for a proper set without touching this file.
+//
+// Anything not listed gets no flag and shows as its code alone. That is deliberate: a language code
+// is not safe to use as a country code by default - 'ne' is Nepali and Niger, 'uk' is Ukrainian and
+// looks like the United Kingdom - so a language only gets a flag once somebody has decided which.
+
+const languageCountries: Record<string, string> = {
+  AF: 'ZA',
+  AM: 'ET',
+  AR: 'EG',
+  AY: 'BO',
+  BG: 'BG',
+  BM: 'ML',
+  BN: 'BD',
+  BS: 'BA',
+  CA: 'AD',
+  CS: 'CZ',
+  CY: 'GB',
+  DA: 'DK',
+  DE: 'DE',
+  EL: 'GR',
+  EN: 'US',
+  ES: 'ES',
+  ET: 'EE',
+  EU: 'ES',
+  FA: 'IR',
+  FI: 'FI',
+  FR: 'FR',
+  GA: 'IE',
+  GL: 'ES',
+  HE: 'IL',
+  HI: 'IN',
+  HR: 'HR',
+  HU: 'HU',
+  ID: 'ID',
+  IS: 'IS',
+  IT: 'IT',
+  IU: 'CA',
+  JA: 'JP',
+  KA: 'GE',
+  KK: 'KZ',
+  KM: 'KH',
+  KN: 'IN',
+  KO: 'KR',
+  LA: 'IT',
+  LB: 'LU',
+  LI: 'BE',
+  LN: 'CD',
+  LO: 'LA',
+  LT: 'LT',
+  LV: 'LV',
+  MK: 'MK',
+  ML: 'IN',
+  MN: 'MN',
+  MR: 'IN',
+  MS: 'MY',
+  NB: 'NO',
+  NL: 'NL',
+  NN: 'NO',
+  NO: 'NO',
+  PA: 'IN',
+  PL: 'PL',
+  PT: 'PT',
+  RO: 'RO',
+  RU: 'RU',
+  SK: 'SK',
+  SL: 'SI',
+  SO: 'SO',
+  SQ: 'AL',
+  SR: 'RS',
+  SU: 'ID',
+  SV: 'SE',
+  SW: 'TZ',
+  TA: 'IN',
+  TE: 'IN',
+  TH: 'TH',
+  TL: 'PH',
+  TR: 'TR',
+  UK: 'UA',
+  UR: 'PK',
+  VI: 'VN',
+  WO: 'SN',
+  ZH: 'CN',
+  ZU: 'ZA',
+};
+
+export default languageCountries;

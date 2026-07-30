@@ -15,6 +15,11 @@ namespace NzbDrone.Core.SeriesStats
         public int TotalEpisodeCount { get; set; }
         public long SizeOnDisk { get; set; }
         public List<string> ReleaseGroups { get; set; }
+
+        // What this series' file names say its audio and subtitle languages are. Empty unless the
+        // language flags are being shown.
+        public List<string> AudioLanguages { get; set; } = new List<string>();
+        public List<string> SubtitleLanguages { get; set; } = new List<string>();
         public List<SeasonStatistics> SeasonStatistics { get; set; }
     }
 }

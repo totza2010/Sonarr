@@ -15,5 +15,8 @@ namespace Sonarr.Api.V3.Config
         public string SeriesFolderFormat { get; set; }
         public string SeasonFolderFormat { get; set; }
         public string SpecialsFolderFormat { get; set; }
+
+        // Optional, and false is what every existing client sends by not sending it at all.
+        public bool ShowLanguageFlags { get; set; }
     }
 }

@@ -56,6 +56,16 @@ namespace NzbDrone.Core.Test.OrganizerTests
                   .Returns(series);
         }
 
+        [TestCase("{Series Title}{.Multiple}")]
+        [TestCase("{Series Title} {Multiple}")]
+        public void should_accept_a_token_carrying_a_separator(string format)
+        {
+            GivenSeriesWithMultipleFiles(SeriesTypes.Standard);
+            _namingConfig.StandardEpisodeFormat = format;
+
+            Subject.Validate(_namingConfig).Should().BeEmpty();
+        }
+
         [Test]
         public void should_require_nothing_of_a_library_that_has_no_parts()
         {

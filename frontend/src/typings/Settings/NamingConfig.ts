@@ -10,4 +10,5 @@ export default interface NamingConfig {
   seriesFolderFormat: string;
   seasonFolderFormat: string;
   specialsFolderFormat: string;
+  showLanguageFlags: boolean;
 }

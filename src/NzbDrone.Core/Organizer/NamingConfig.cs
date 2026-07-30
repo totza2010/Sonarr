@@ -16,7 +16,8 @@ namespace NzbDrone.Core.Organizer
             AnimeEpisodeFormat = "{Series Title} - S{season:00}E{episode:00} - {Episode Title} {Quality Full}",
             SeriesFolderFormat = "{Series Title}",
             SeasonFolderFormat = "Season {season}",
-            SpecialsFolderFormat = "Specials"
+            SpecialsFolderFormat = "Specials",
+            ShowLanguageFlags = false
         };
 
         public bool RenameEpisodes { get; set; }
@@ -30,5 +31,11 @@ namespace NzbDrone.Core.Organizer
         public string SeriesFolderFormat { get; set; }
         public string SeasonFolderFormat { get; set; }
         public string SpecialsFolderFormat { get; set; }
+
+        // Show the language groups the formats write into file names next to the series they belong to.
+        // Reading them back out of the name is what keeps what is on screen and what is on disk the
+        // same thing, so this cannot be on unless a format actually writes them - see
+        // LanguageFlagsNamingValidator.
+        public bool ShowLanguageFlags { get; set; }
     }
 }

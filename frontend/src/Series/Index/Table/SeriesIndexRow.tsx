@@ -5,6 +5,7 @@ import { useSelect } from 'App/SelectContext';
 import { REFRESH_SERIES, SERIES_SEARCH } from 'Commands/commandNames';
 import CheckInput from 'Components/Form/CheckInput';
 import HeartRating from 'Components/HeartRating';
+import LanguageFlags from 'Components/LanguageFlags/LanguageFlags';
 import IconButton from 'Components/Link/IconButton';
 import Link from 'Components/Link/Link';
 import SpinnerIconButton from 'Components/Link/SpinnerIconButton';
@@ -91,6 +92,8 @@ function SeriesIndexRow(props: SeriesIndexRowProps) {
     totalEpisodeCount = 0,
     sizeOnDisk = 0,
     releaseGroups = [],
+    audioLanguages,
+    subtitleLanguages,
   } = statistics;
 
   const dispatch = useDispatch();
@@ -223,6 +226,12 @@ function SeriesIndexRow(props: SeriesIndexRowProps) {
                   <SeriesEditionBadge
                     className={styles.edition}
                     editionName={editionName}
+                  />
+
+                  <LanguageFlags
+                    spaced={true}
+                    audioLanguages={audioLanguages}
+                    subtitleLanguages={subtitleLanguages}
                   />
                 </>
               )}

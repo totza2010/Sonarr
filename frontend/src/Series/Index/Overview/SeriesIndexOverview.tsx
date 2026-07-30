@@ -3,6 +3,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import TextTruncate from 'react-text-truncate';
 import { REFRESH_SERIES, SERIES_SEARCH } from 'Commands/commandNames';
+import LanguageFlags from 'Components/LanguageFlags/LanguageFlags';
 import IconButton from 'Components/Link/IconButton';
 import Link from 'Components/Link/Link';
 import SpinnerIconButton from 'Components/Link/SpinnerIconButton';
@@ -84,6 +85,8 @@ function SeriesIndexOverview(props: SeriesIndexOverviewProps) {
     episodeFileCount = 0,
     totalEpisodeCount = 0,
     sizeOnDisk = 0,
+    audioLanguages,
+    subtitleLanguages,
   } = statistics;
 
   const dispatch = useDispatch();
@@ -198,6 +201,12 @@ function SeriesIndexOverview(props: SeriesIndexOverviewProps) {
                 editionName={editionName}
               />
             </Link>
+
+            <LanguageFlags
+              spaced={true}
+              audioLanguages={audioLanguages}
+              subtitleLanguages={subtitleLanguages}
+            />
 
             <div className={styles.actions}>
               <SpinnerIconButton
