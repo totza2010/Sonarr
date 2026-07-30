@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using Dapper;
 using NzbDrone.Core.Datastore;
 using NzbDrone.Core.Messaging.Events;
 
@@ -43,12 +44,15 @@ namespace NzbDrone.Core.MediaFiles
                         .ToList();
         }
 
+        // Straight to the database rather than through Query, whose Select runs after the rows have
+        // already been built - which would mean loading every part and version in the library, MediaInfo
+        // and all, to read one integer off each. This is asked on every save of the naming config.
         public List<int> SeriesIdsWithMultipleFiles()
         {
-            return Query(c => c.MultipleType != EpisodeFileMultipleType.None)
-                        .Select(c => c.SeriesId)
-                        .Distinct()
-                        .ToList();
+            using (var conn = _database.OpenConnection())
+            {
+                return conn.Query<int>("SELECT DISTINCT \"SeriesId\" FROM \"EpisodeFiles\" WHERE \"MultipleType\" <> 0").ToList();
+            }
         }
 
         public void DeleteForSeries(List<int> seriesIds)
