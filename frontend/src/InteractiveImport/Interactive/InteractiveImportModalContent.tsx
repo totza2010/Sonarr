@@ -26,6 +26,7 @@ import { EpisodeFile } from 'EpisodeFile/EpisodeFile';
 import usePrevious from 'Helpers/Hooks/usePrevious';
 import useSelectState from 'Helpers/Hooks/useSelectState';
 import { align, icons, kinds, scrollDirections } from 'Helpers/Props';
+import SelectCustomFormatModal from 'InteractiveImport/CustomFormat/SelectCustomFormatModal';
 import SelectEpisodeModal from 'InteractiveImport/Episode/SelectEpisodeModal';
 import { SelectedEpisode } from 'InteractiveImport/Episode/SelectEpisodeModalContent';
 import ImportMode from 'InteractiveImport/ImportMode';
@@ -34,6 +35,7 @@ import InteractiveImport, {
   InteractiveImportCommandOptions,
 } from 'InteractiveImport/InteractiveImport';
 import SelectLanguageModal from 'InteractiveImport/Language/SelectLanguageModal';
+import SelectNamingLanguagesModal from 'InteractiveImport/NamingLanguages/SelectNamingLanguagesModal';
 import SelectQualityModal from 'InteractiveImport/Quality/SelectQualityModal';
 import SelectReleaseGroupModal from 'InteractiveImport/ReleaseGroup/SelectReleaseGroupModal';
 import SelectReleaseTypeModal from 'InteractiveImport/ReleaseType/SelectReleaseTypeModal';
@@ -76,6 +78,8 @@ type SelectType =
   | 'releaseGroup'
   | 'quality'
   | 'language'
+  | 'namingLanguages'
+  | 'customFormats'
   | 'indexerFlags'
   | 'releaseType';
 
@@ -408,6 +412,14 @@ function InteractiveImportModalContent(
       {
         key: 'language',
         value: translate('SelectLanguage'),
+      },
+      {
+        key: 'namingLanguages',
+        value: translate('SelectNamingLanguages'),
+      },
+      {
+        key: 'customFormats',
+        value: translate('SelectCustomFormats'),
       },
       {
         key: 'indexerFlags',
@@ -844,6 +856,73 @@ function InteractiveImportModalContent(
     [selectedIds, dispatch]
   );
 
+  // The rows waiting to be imported carry this until Import is pressed, but rows that are already in
+  // the library are not waiting for anything - pressing Import would add a second row for the same
+  // file - so those are written straight to the file, exactly as the row-level editor does.
+  const selectedEpisodeFileIds = useMemo(
+    () =>
+      items
+        .filter((item) => selectedIds.includes(item.id) && item.episodeFileId)
+        .map((item) => item.episodeFileId as number),
+    [items, selectedIds]
+  );
+
+  // Neither of these changes what a release is, so unlike the fields above there is nothing for the
+  // server to reprocess - and a reprocess would only throw the choice away.
+  const onNamingLanguagesSelect = useCallback(
+    (audio: Language[], subtitles: Language[]) => {
+      dispatch(
+        updateInteractiveImportItems({
+          ids: selectedIds,
+          namingAudioLanguages: audio,
+          namingSubtitleLanguages: subtitles,
+        })
+      );
+
+      if (selectedEpisodeFileIds.length) {
+        dispatch(
+          updateEpisodeFiles({
+            files: selectedEpisodeFileIds.map((id) => ({
+              id,
+              namingAudioLanguages: audio,
+              namingSubtitleLanguages: subtitles,
+            })),
+          })
+        );
+      }
+
+      setSelectModalOpen(null);
+    },
+    [selectedIds, selectedEpisodeFileIds, dispatch]
+  );
+
+  const onCustomFormatsSelect = useCallback(
+    (added: number[], excluded: number[]) => {
+      dispatch(
+        updateInteractiveImportItems({
+          ids: selectedIds,
+          manualCustomFormats: added,
+          excludedCustomFormats: excluded,
+        })
+      );
+
+      if (selectedEpisodeFileIds.length) {
+        dispatch(
+          updateEpisodeFiles({
+            files: selectedEpisodeFileIds.map((id) => ({
+              id,
+              manualCustomFormats: added,
+              excludedCustomFormats: excluded,
+            })),
+          })
+        );
+      }
+
+      setSelectModalOpen(null);
+    },
+    [selectedIds, selectedEpisodeFileIds, dispatch]
+  );
+
   const onQualitySelect = useCallback(
     (quality: QualityModel) => {
       dispatch(
@@ -1094,6 +1173,26 @@ function InteractiveImportModalContent(
         languageIds={[0]}
         modalTitle={modalTitle}
         onLanguagesSelect={onLanguagesSelect}
+        onModalClose={onSelectModalClose}
+      />
+
+      <SelectNamingLanguagesModal
+        isOpen={selectModalOpen === 'namingLanguages'}
+        audioLanguages={[]}
+        subtitleLanguages={[]}
+        detectedAudioLanguages={[]}
+        detectedSubtitleLanguages={[]}
+        modalTitle={modalTitle}
+        onNamingLanguagesSelect={onNamingLanguagesSelect}
+        onModalClose={onSelectModalClose}
+      />
+
+      <SelectCustomFormatModal
+        isOpen={selectModalOpen === 'customFormats'}
+        selectedIds={[]}
+        matchedIds={[]}
+        modalTitle={modalTitle}
+        onCustomFormatsSelect={onCustomFormatsSelect}
         onModalClose={onSelectModalClose}
       />
 

@@ -1,16 +1,17 @@
 # Moving a series' identity, and moving its files
 
-Four things a library eventually needs and Sonarr cannot do: change which TVDB series a row points at,
-rename an edition, swap which edition is the main one, and hand a series' files to a season of a
-different series.
+Five things a library eventually needs and Sonarr cannot do: change which TVDB series a row points at,
+rename an edition, swap which edition is the main one, hand a series' files to a season of a different
+series, and number a series the way the world names its releases rather than the way it first aired.
 
-None of them is urgent. They come up a few times a year, and the workaround for all four - delete and
-re-add - works. What it costs is the history, and that is why they are written down: the cost is
-avoidable, and the reason it is avoidable is the same in every case.
+The first four come up a few times a year, and the workaround for them - delete and re-add - works.
+What it costs is the history, and that is why they are written down: the cost is avoidable, and the
+reason it is avoidable is the same in every case. The fifth is not rare at all and has no good
+workaround, but it belongs here because it is the same screen.
 
 Nothing here is built. This is the analysis, so that whoever picks it up does not have to redo it.
 
-## Why all four are possible at all
+## Why the first four are possible at all
 
 Everything worth keeping keys on `Series.Id`, the internal row id: `EpisodeFiles`, `Episodes`,
 `History`, `Blocklist`, `DownloadHistory`, tags, the date it was added, the custom formats a file was
@@ -129,30 +130,79 @@ What the preview has to cover:
   versions.
 - episodes of A with nowhere to go: say plainly that their files stay where they are, or refuse
 
+## 5. Numbering a series the way its releases are named
+
+*La Casa de Papel* is the case everyone runs into. TheTVDB carries the order the Spanish network aired,
+Netflix bought it and re-cut it into a different episode count, and every release is named the Netflix
+way. Sonarr's own wiki describes the result as season 5 being imported over season 3.
+
+That phrasing is the diagnosis. A release for a season Sonarr does not have would be *rejected*, not
+imported somewhere else. Landing on the wrong season means something is translating the numbers, and
+something is: scene numbering.
+
+Sonarr already models this properly. `Episodes` carries `SceneSeasonNumber`, `SceneEpisodeNumber`,
+`SceneAbsoluteEpisodeNumber` and `UnverifiedSceneNumbering`, and both directions already read them -
+`ParsingService` when a release is matched, `EpisodeRepository.FindEpisodesBySceneNumbering` when one
+is searched for. Give those columns the right values and downloading and importing both come out right
+with no other change.
+
+The problem is that only XEM may write them, and the user has no say at any point:
+
+| | owned by | can the user change it |
+| --- | --- | --- |
+| which order TheTVDB serves | Skyhook - there is no concept of an episode order anywhere in the proxy | no |
+| `Series.UseSceneNumbering` | `XemService`, which sets it to `mappings.Any()` | no - `ApplyChanges` does not even copy it, so the API cannot either |
+| the per-episode scene numbers | `XemService`, which clears and rewrites them on every refresh | no |
+
+So when XEM's mapping reflects an order you did not want, there is no knob to turn. That is why the
+advice is all indirect - ask XEM to change it, import by hand, split the series into several entries.
+Every one of them is a way of working around having no say.
+
+Nothing about XEM or Skyhook has to change to fix this. One thing does: the scene numbers have to
+become the user's, with XEM as a default rather than an owner. That is the same shape as
+`NamingAudioLanguages` - a value from outside that a person may correct, and that the next scan is not
+allowed to overwrite:
+
+- a flag saying this series' mapping is hand-made, which `XemService` has to respect instead of
+  clearing
+- `UseSceneNumbering` settable once that flag is on
+- the mapping table, which is the one below
+
+**This fork has to be more careful here than stock Sonarr.** With one file per episode, a bad mapping
+overwrites something and is noticed. Here an episode may legitimately hold several files, so a bad
+mapping can quietly file the new one alongside the old as another version. The preview is not a
+courtesy; it is what keeps a wrong mapping from being silent.
+
 ## They are one page
 
-Cases 1 and 4 are the same screen with a different destination:
+Cases 1, 4 and 5 are the same screen with a different destination:
 
 ```
 choose destination  ->  fetch its metadata  ->  episode mapping table  ->  preview  ->  confirm
                           |                                                  |
    1: a new TVDB id (same row)                       what moves where, what has nowhere
    4: an existing series and season                  to go, what it collides with
+   5: different numbers, same row
 ```
 
 Underneath they are different operations - case 1 keeps the row and changes what it points at, case 4
-keeps the destination row and moves files into it - but the preview and the mapping table are the same
-work, and they are the bulk of it.
+keeps the destination row and moves files into it, case 5 changes no identity at all and only writes
+the numbers the outside world uses - but the preview and the mapping table are the same work, and they
+are the bulk of it.
 
 They also meet in the middle: the episodes case 1 strands are exactly what case 4 exists to move, so
 stranding them is case 4 offered as a step rather than a dead end.
 
-A fifth case will turn up eventually - a series split in two - and it is the same screen again, with a
+One more will turn up eventually - a series split in two - and it is the same screen again, with a
 destination that does not exist yet.
 
 **Build case 4 first, not case 1.** Case 1 is the special case where the destination happens to be the
 row you started from. Doing it first and fitting case 4 around it afterwards gives two pieces of code
 that do one thing.
+
+**Case 5 is the one with the most people waiting for it**, and it is the cheapest of the three that
+share the table: no files move, no identity changes, nothing can collide with a unique index. If the
+mapping table gets built for anything, build it there and the other two inherit it.
 
 ## Where this fits
 
