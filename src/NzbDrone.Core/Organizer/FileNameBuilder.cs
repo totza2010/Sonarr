@@ -913,6 +913,17 @@ namespace NzbDrone.Core.Organizer
                 }
                 catch
                 {
+                    // ffprobe reports whatever the stream tag says, and some encoders write the
+                    // language's English name rather than its ISO code - "Thai" instead of "tha".
+                    // CultureInfo cannot read those, and the token was then left as the word itself,
+                    // which a filter never matches: the group came out empty and the name lost its
+                    // languages without saying why.
+                    var byName = IsoLanguages.FindByName(tokens[i]);
+
+                    if (byName != null)
+                    {
+                        tokens[i] = byName.TwoLetterCode.ToUpper();
+                    }
                 }
             }
 

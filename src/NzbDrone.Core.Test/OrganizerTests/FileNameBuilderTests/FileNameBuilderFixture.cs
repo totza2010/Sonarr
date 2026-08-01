@@ -848,6 +848,26 @@ namespace NzbDrone.Core.Test.OrganizerTests.FileNameBuilderTests
             }
         }
 
+        // ffprobe hands back whatever the stream tag says. Some encoders write the language's English
+        // name instead of its ISO code, and those have to resolve too or a filter matches nothing.
+        [TestCase("Thai/Japanese", "[TH+JA]")]
+        [TestCase("Thai", "[TH]")]
+        [TestCase("thai/JAPANESE", "[TH+JA]")]
+        public void should_format_audio_language_names_as_well_as_codes(string audioLanguages, string expected)
+        {
+            _episodeFile.RelativePath = "Series.Title.S01E01.1080p.WEB-DL-Sonarr";
+            _episodeFile.MediaInfo = new MediaInfoModel
+            {
+                AudioLanguages = audioLanguages.Split("/").ToList(),
+                Subtitles = new List<string>()
+            };
+
+            _namingConfig.StandardEpisodeFormat = "{MediaInfo AudioLanguagesAll}";
+
+            Subject.BuildFileName(new List<Episode> { _episode1 }, _series, _episodeFile)
+                   .Should().Be(expected);
+        }
+
         [TestCase("eng", "")]
         [TestCase("eng/deu", "[EN+DE]")]
         public void should_format_audio_languages(string audioLanguages, string expected)
