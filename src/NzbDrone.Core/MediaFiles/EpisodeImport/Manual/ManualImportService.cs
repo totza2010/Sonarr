@@ -522,21 +522,33 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Manual
         }
 
         /// <summary>
-        /// MediaInfo reports whatever the streams declare, as iso codes and sometimes as nothing at all.
-        /// Mapped here so the naming languages picker can open on what was detected; codes it cannot
-        /// name are dropped, which is the same thing the naming tokens do with them.
+        /// MediaInfo reports whatever the streams declare, and that is not always an iso code: some
+        /// encoders write the language's English name instead - "Thai" where "tha" belongs - and some
+        /// streams say nothing at all. Both spellings are resolved here so the naming languages picker
+        /// opens on what was actually detected. Anything neither lookup recognises is dropped, which is
+        /// what the naming tokens do with it too.
         /// </summary>
-        private static List<Language> MapDetectedLanguages(List<string> isoCodes)
+        private static List<Language> MapDetectedLanguages(List<string> declared)
         {
-            if (isoCodes == null)
+            if (declared == null)
             {
                 return new List<Language>();
             }
 
-            return isoCodes.Select(c => IsoLanguages.Find(c?.ToLowerInvariant())?.Language)
+            return declared.Select(ResolveDeclaredLanguage)
                            .Where(l => l != null && l != Language.Unknown)
                            .Distinct()
                            .ToList();
+        }
+
+        private static Language ResolveDeclaredLanguage(string declared)
+        {
+            if (declared.IsNullOrWhiteSpace())
+            {
+                return null;
+            }
+
+            return (IsoLanguages.Find(declared.ToLowerInvariant()) ?? IsoLanguages.FindByName(declared))?.Language;
         }
 
         public void Execute(ManualImportCommand message)
