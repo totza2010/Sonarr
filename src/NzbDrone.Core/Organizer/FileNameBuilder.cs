@@ -913,11 +913,18 @@ namespace NzbDrone.Core.Organizer
                 }
                 catch
                 {
-                    // ffprobe reports whatever the stream tag says, and some encoders write the
-                    // language's English name rather than its ISO code - "Thai" instead of "tha".
-                    // CultureInfo cannot read those, and the token was then left as the word itself,
-                    // which a filter never matches: the group came out empty and the name lost its
-                    // languages without saying why.
+                }
+
+                // ffprobe reports whatever the stream tag says, and some encoders write the language's
+                // English name where its ISO code belongs - "Thai" instead of "tha". Left as the word
+                // it is, a filter never matches it, so the group comes out empty and the name loses
+                // its languages with nothing to say why.
+                //
+                // The result has to be checked rather than the exception waited for, because the two
+                // globalization backends disagree: NLS rejects "thai" and throws, ICU accepts it and
+                // hands the same word straight back.
+                if (tokens[i].Length != 2)
+                {
                     var byName = IsoLanguages.FindByName(tokens[i]);
 
                     if (byName != null)

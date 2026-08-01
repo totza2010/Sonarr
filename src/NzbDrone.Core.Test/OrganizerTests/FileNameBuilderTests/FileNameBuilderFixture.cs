@@ -853,6 +853,7 @@ namespace NzbDrone.Core.Test.OrganizerTests.FileNameBuilderTests
         [TestCase("Thai/Japanese", "[TH+JA]")]
         [TestCase("Thai", "[TH]")]
         [TestCase("thai/JAPANESE", "[TH+JA]")]
+        [TestCase("THAI", "[TH]")]
         public void should_format_audio_language_names_as_well_as_codes(string audioLanguages, string expected)
         {
             _episodeFile.RelativePath = "Series.Title.S01E01.1080p.WEB-DL-Sonarr";
