@@ -132,36 +132,106 @@ What the preview has to cover:
 
 ## 5. Numbering a series the way its releases are named
 
-*La Casa de Papel* is the case everyone runs into. TheTVDB carries the order the Spanish network aired,
-Netflix bought it and re-cut it into a different episode count, and every release is named the Netflix
-way. Sonarr's own wiki describes the result as season 5 being imported over season 3.
+*La Casa de Papel* is the case everyone runs into, and it is worth going through in full, because it
+shows both what this would fix and where nothing can.
 
-That phrasing is the diagnosis. A release for a season Sonarr does not have would be *rejected*, not
-imported somewhere else. Landing on the wrong season means something is translating the numbers, and
-something is: scene numbering.
+TheTVDB carries the order the Spanish network aired. Netflix bought the show and re-cut it, and every
+release is named the Netflix way. Sonarr's own wiki describes the result as season 5 being imported
+over season 3. That phrasing is the diagnosis: a release for a season Sonarr does not have would be
+*rejected*, not imported somewhere else. Landing on the wrong season means something is translating
+the numbers, and something is - scene numbering.
 
-Sonarr already models this properly. `Episodes` carries `SceneSeasonNumber`, `SceneEpisodeNumber`,
-`SceneAbsoluteEpisodeNumber` and `UnverifiedSceneNumbering`, and both directions already read them -
-`ParsingService` when a release is matched, `EpisodeRepository.FindEpisodesBySceneNumbering` when one
-is searched for. Give those columns the right values and downloading and importing both come out right
-with no other change.
+### What Sonarr already has
+
+`Episodes` carries `SceneSeasonNumber`, `SceneEpisodeNumber`, `SceneAbsoluteEpisodeNumber` and
+`UnverifiedSceneNumbering`, and both directions already read them - `ParsingService` when a release is
+matched, `EpisodeRepository.FindEpisodesBySceneNumbering` when one is searched for. Give those columns
+the right values and downloading and importing both come out right with no other change.
 
 The problem is that only XEM may write them, and the user has no say at any point:
 
 | | owned by | can the user change it |
 | --- | --- | --- |
-| which order TheTVDB serves | Skyhook - there is no concept of an episode order anywhere in the proxy | no |
+| which order TheTVDB serves | Skyhook | no |
 | `Series.UseSceneNumbering` | `XemService`, which sets it to `mappings.Any()` | no - `ApplyChanges` does not even copy it, so the API cannot either |
 | the per-episode scene numbers | `XemService`, which clears and rewrites them on every refresh | no |
 
-So when XEM's mapping reflects an order you did not want, there is no knob to turn. That is why the
-advice is all indirect - ask XEM to change it, import by hand, split the series into several entries.
-Every one of them is a way of working around having no say.
+XEM is not abandoned - mappings are still added daily. Its maintainers simply do not want to change
+this one. That is their call to make, and it is exactly why the mapping has to be something a person
+can override locally rather than something requested from someone else.
 
-Nothing about XEM or Skyhook has to change to fix this. One thing does: the scene numbers have to
-become the user's, with XEM as a default rather than an owner. That is the same shape as
-`NamingAudioLanguages` - a value from outside that a person may correct, and that the next scan is not
-allowed to overwrite:
+### What the numbers say
+
+Aired order, from Skyhook, against the Netflix order:
+
+| aired | episodes | runtime | Netflix | episodes | runtime |
+| --- | --- | --- | --- | --- | --- |
+| Season 1 | 15 | ~1,025 min, avg 68 | Parte 1 + Parte 2 | 13 + 9 = **22** | ~1,020 min, avg 47 |
+| Season 2 | 16 | ~775 min | Parte 3 + Parte 4 | 8 + 8 = 16 | ~775 min |
+| Season 3 | 10 | ~541 min | Parte 5 | 10 | ~541 min |
+
+**Everything from Parte 3 on is the same episodes.** Those were made for Netflix; the aired order just
+groups Parte 3 and 4 together as its season 2 and calls Parte 5 season 3. Nothing was re-cut, and the
+mapping is a season number and an offset:
+
+```
+aired S02E01..E08  ->  S03E01..E08
+aired S02E09..E16  ->  S04E01..E08
+aired S03E01..E10  ->  S05E01..E10
+```
+
+That is exactly what the scene numbering columns hold. Twenty-six of the forty-eight episodes are
+fixed by a mapping a person can type in.
+
+**Season 1 is a different problem, and not one a mapping can solve.** Fifteen episodes became
+twenty-two and the total runtime is unchanged, so nothing was added - it was re-divided. The question
+is whether the new cuts kept the old ones, and the running times answer it. Laying both orders out as
+cumulative minutes:
+
+```
+aired    80 145 210 275 345 420 485 555 625 690 755 820 890 955   (1,025 total)
+Netflix  45  85 135 185 225 270 320 365 410 465 510 555 610 655 ...  (1,020 total)
+```
+
+Of the fourteen internal boundaries, **one coincides**. The first Netflix episode runs 45 minutes and
+the aired episode it would belong to runs 80; the gap between the two orders opens to around ninety
+minutes before closing again at the end. A Netflix episode there does not correspond to an aired
+episode - it finishes partway through one and carries on into the next.
+
+So no mapping of that half can be *correct*. What people do instead - and it works - is arrange the
+twenty-two files under the fifteen episodes so the order is preserved and the counts come out:
+
+```
+E05 x2   E06 x3   E07 x2   E11 x2   E12 x2   E13 x2   the other nine x1   =  22
+```
+
+Watched in order that gives the whole story with nothing missing or repeated. What it gives up is the
+labelling: the title and synopsis on an episode describe eighty minutes of content while the file
+filed under it holds forty-five of them, and the rest sits under the next episode's name. That is a
+trade worth making with open eyes, not a mapping to be computed.
+
+**This fork already holds that arrangement.** Several files on one episode is what the multiple-file
+feature is, `{Multiple}` writes the `pt1`/`pt2`/`pt3` the arrangement needs, and manual import assigns
+them. Elsewhere this is done by renaming every file by hand and keeping Sonarr away from the series
+entirely. Nothing further is needed here, and nothing further would help: which file belongs under
+which episode is a judgement, and there is no rule to derive it from.
+
+The only thing that would make that half *correct* is the Netflix episode list itself, and Sonarr
+cannot reach it. Asking Skyhook for this series returns 42 episodes - 1 special, 15, 16, 10 - with no
+season type and no alternate list anywhere in the payload. TheTVDB's v4 API does serve it, so getting
+it would mean a second metadata integration with a key each user has to obtain, and then a switch from
+42 episode rows to 48, which is a destructive re-identification of every episode in the series - case
+1 and case 4 over again.
+
+### What to build, and what to say about it
+
+The mapping is worth building for the twenty-six episodes it does fix here - Parte 3 to 5 are a
+season number and an offset, and without a mapping every one of them is filed by hand as it arrives.
+It also fixes outright the many series whose mismatch really is only a renumbering.
+
+What it must not do is pretend to fix a re-cut. Where the counts differ the preview has to be able to
+say "these releases have nowhere to go" and leave them to manual import, rather than finding somewhere
+for them.
 
 - a flag saying this series' mapping is hand-made, which `XemService` has to respect instead of
   clearing
