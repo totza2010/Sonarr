@@ -848,6 +848,23 @@ namespace NzbDrone.Core.Test.OrganizerTests.FileNameBuilderTests
             }
         }
 
+        // Written with a separator in front of it - {.Multiple} - is how most people write a token,
+        // and matching on the opening brace missed those and switched the feature off in silence.
+        [TestCase("{Series Title} - S{season:00}E{episode:00} {Multiple}", true)]
+        [TestCase("{Series Title} - S{season:00}E{episode:00}{.Multiple}", true)]
+        [TestCase("{Series Title} - S{season:00}E{episode:00}{.MULTIPLE}", true)]
+        [TestCase("{Series Title} - S{season:00}E{episode:00}{_Multiple}", true)]
+        [TestCase("{Series Title} - S{season:00}E{episode:00}", false)]
+        [TestCase("{Series Title} - Multiple parts S{season:00}E{episode:00}", false)]
+        public void should_see_the_multiple_token_however_it_is_written(string format, bool expected)
+        {
+            _namingConfig.RenameEpisodes = true;
+            _namingConfig.StandardEpisodeFormat = format;
+
+            Subject.SupportsMultipleFiles(_series, new List<Episode> { _episode1 })
+                   .Should().Be(expected);
+        }
+
         // ffprobe hands back whatever the stream tag says. Some encoders write the language's English
         // name instead of its ISO code, and those have to resolve too or a filter matches nothing.
         [TestCase("Thai/Japanese", "[TH+JA]")]

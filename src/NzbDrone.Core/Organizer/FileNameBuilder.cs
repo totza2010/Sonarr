@@ -480,8 +480,10 @@ namespace NzbDrone.Core.Organizer
                 pattern = namingConfig.AnimeEpisodeFormat;
             }
 
-            return pattern.IsNotNullOrWhiteSpace() &&
-                   pattern.Contains("{Multiple", StringComparison.InvariantCultureIgnoreCase);
+            // Not a plain substring: a token may carry a separator in front of its name, and
+            // {.Multiple} is how most people write it. Matching on the brace missed those, and the
+            // whole feature quietly switched itself off for them.
+            return NamingTokens.Contains(pattern, "Multiple");
         }
 
         public bool RequiresAbsoluteEpisodeNumber()
