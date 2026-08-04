@@ -90,6 +90,71 @@ namespace NzbDrone.Core.Test.MediaFiles.EpisodeImport
                   .Returns(new List<EpisodeFile>());
         }
 
+        // Adding a part reads the file back to link it to the episode, so the mock has to hand it over.
+        private void GivenFileAdded()
+        {
+            Mocker.GetMock<IMediaFileService>()
+                  .Setup(s => s.Add(It.IsAny<EpisodeFile>(), It.IsAny<bool>()))
+                  .Returns<EpisodeFile, bool>((file, additional) => file);
+        }
+
+        // Several files for one episode, each claiming a slot of its own.
+        private List<ImportDecision> GivenFilesForOneEpisode(EpisodeFileMultipleType type, params int[] numbers)
+        {
+            var series = _approvedDecisions.First().LocalEpisode.Series;
+            var episode = _approvedDecisions.First().LocalEpisode.Episodes.First();
+
+            return numbers.Select((number, index) => new ImportDecision(
+                new LocalEpisode
+                {
+                    Series = series,
+                    Episodes = new List<Episode> { episode },
+                    Path = Path.Combine(series.Path, $"30 Rock - S01E01 - Pilot {type} {number} {index}.avi"),
+                    Quality = new QualityModel(Quality.Bluray720p),
+                    Size = 100 - index,
+                    ReleaseGroup = "DRONE",
+                    FileEpisodeInfo = new ParsedEpisodeInfo(),
+                    MultipleType = type,
+                    MultipleNumber = number
+                })).ToList();
+        }
+
+        [Test]
+        public void should_import_every_part_of_an_episode()
+        {
+            GivenExistingFileOnDisk();
+
+            GivenFileAdded();
+
+            Subject.Import(GivenFilesForOneEpisode(EpisodeFileMultipleType.Part, 1, 2, 3), false)
+                   .Count(i => i.Result == ImportResultType.Imported)
+                   .Should().Be(3);
+        }
+
+        [Test]
+        public void should_refuse_a_second_file_claiming_the_same_part()
+        {
+            GivenExistingFileOnDisk();
+
+            GivenFileAdded();
+
+            Subject.Import(GivenFilesForOneEpisode(EpisodeFileMultipleType.Part, 1, 1), false)
+                   .Count(i => i.Result == ImportResultType.Imported)
+                   .Should().Be(1);
+        }
+
+        [Test]
+        public void should_still_refuse_a_second_ordinary_file_for_one_episode()
+        {
+            GivenExistingFileOnDisk();
+
+            GivenFileAdded();
+
+            Subject.Import(GivenFilesForOneEpisode(EpisodeFileMultipleType.None, 0, 0), false)
+                   .Count(i => i.Result == ImportResultType.Imported)
+                   .Should().Be(1);
+        }
+
         [Test]
         public void should_not_import_any_if_there_are_no_approved_decisions()
         {

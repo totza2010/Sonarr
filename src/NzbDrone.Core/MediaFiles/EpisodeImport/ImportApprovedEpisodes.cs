@@ -80,10 +80,23 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport
                 try
                 {
                     // check if already imported
-                    if (importResults.SelectMany(r => r.ImportDecision.LocalEpisode.Episodes)
-                                         .Select(e => e.Id)
-                                         .Intersect(localEpisode.Episodes.Select(e => e.Id))
-                                         .Any())
+                    //
+                    // Parts and versions are several files for one episode on purpose, so the episode
+                    // alone cannot say whether this is a duplicate - it is only the same file when it
+                    // claims the same part, or the same version. Comparing the episode alone threw every
+                    // part after the first away here, before anything downstream that knows about them
+                    // ever ran: a rescan took pt1 and left pt2 and pt3 sitting on disk.
+                    //
+                    // An ordinary file carries None and 0, so two of them still collide exactly as before.
+                    var sameEpisode = importResults
+                        .Where(r => r.ImportDecision.LocalEpisode.Episodes
+                                     .Select(e => e.Id)
+                                     .Intersect(localEpisode.Episodes.Select(e => e.Id))
+                                     .Any())
+                        .ToList();
+
+                    if (sameEpisode.Any(r => r.ImportDecision.LocalEpisode.MultipleType == localEpisode.MultipleType &&
+                                             r.ImportDecision.LocalEpisode.MultipleNumber == localEpisode.MultipleNumber))
                     {
                         importResults.Add(new ImportResult(importDecision, "Episode has already been imported"));
                         continue;
