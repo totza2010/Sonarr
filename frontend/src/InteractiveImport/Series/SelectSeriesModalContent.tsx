@@ -92,7 +92,8 @@ function Row({ index, style, data }: ListChildComponentProps<RowItemData>) {
       <SelectSeriesRow
         key={series.id}
         id={series.id}
-        title={seriesEditionTitle(series.title, series.editionName)}
+        title={series.title}
+        editionName={series.editionName}
         tvdbId={series.tvdbId}
         imdbId={series.imdbId}
         year={series.year}

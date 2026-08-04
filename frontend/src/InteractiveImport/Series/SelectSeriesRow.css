@@ -11,6 +11,13 @@
   flex: 4 0 140px;
 }
 
+/* The same pill the rest of the UI uses, rather than the edition folded into the title as text -
+   two rows reading "Attack on Titan" and "Attack on Titan (Extended)" are easy to skim past. */
+.edition {
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
 .year {
   composes: cell;
 

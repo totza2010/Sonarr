@@ -2,6 +2,7 @@
 // Please do not change this file!
 interface CssExports {
   'alternateTitle': string;
+  'edition': string;
   'poster': string;
   'result': string;
   'tagContainer': string;

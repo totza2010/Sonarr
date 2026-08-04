@@ -18,6 +18,14 @@
   margin-left: 5px;
 }
 
+/* Editions share the title their metadata gives them, so without this the list shows the same words
+   twice with no way to tell which row is which. */
+.edition {
+  margin-left: 5px;
+  vertical-align: middle;
+  font-size: $smallFontSize;
+}
+
 .alternateTitle {
   composes: title;
 

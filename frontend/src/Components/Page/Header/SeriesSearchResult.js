@@ -2,6 +2,7 @@ import PropTypes from 'prop-types';
 import React from 'react';
 import Label from 'Components/Label';
 import { kinds } from 'Helpers/Props';
+import SeriesEditionBadge from 'Series/SeriesEditionBadge';
 import SeriesPoster from 'Series/SeriesPoster';
 import styles from './SeriesSearchResult.css';
 
@@ -11,6 +12,7 @@ function SeriesSearchResult(props) {
     title,
     images,
     alternateTitles,
+    editionName,
     tvdbId,
     tvMazeId,
     imdbId,
@@ -40,6 +42,11 @@ function SeriesSearchResult(props) {
       <div className={styles.titles}>
         <div className={styles.title}>
           {title}
+
+          <SeriesEditionBadge
+            className={styles.edition}
+            editionName={editionName}
+          />
         </div>
 
         {
@@ -103,6 +110,7 @@ SeriesSearchResult.propTypes = {
   title: PropTypes.string.isRequired,
   images: PropTypes.arrayOf(PropTypes.object).isRequired,
   alternateTitles: PropTypes.arrayOf(PropTypes.object).isRequired,
+  editionName: PropTypes.string,
   tvdbId: PropTypes.number,
   tvMazeId: PropTypes.number,
   imdbId: PropTypes.string,
