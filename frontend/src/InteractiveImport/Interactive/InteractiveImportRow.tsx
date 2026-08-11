@@ -35,6 +35,7 @@ import SelectSeriesModal from 'InteractiveImport/Series/SelectSeriesModal';
 import Language from 'Language/Language';
 import { QualityModel } from 'Quality/Quality';
 import Series from 'Series/Series';
+import SeriesEditionBadge from 'Series/SeriesEditionBadge';
 import { updateEpisodeFiles } from 'Store/Actions/episodeFileActions';
 import {
   reprocessInteractiveImportItems,
@@ -601,7 +602,13 @@ function InteractiveImportRow(props: InteractiveImportRowProps) {
           {showSeriesPlaceholder ? (
             <InteractiveImportRowCellPlaceholder />
           ) : (
-            seriesTitle
+            <>
+              {seriesTitle}
+              <SeriesEditionBadge
+                className={styles.edition}
+                editionName={series?.editionName}
+              />
+            </>
           )}
         </TableRowCellButton>
       ) : null}

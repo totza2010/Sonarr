@@ -2,6 +2,7 @@
 // Please do not change this file!
 interface CssExports {
   'customFormatTooltip': string;
+  'edition': string;
   'label': string;
   'languages': string;
   'multiple': string;
