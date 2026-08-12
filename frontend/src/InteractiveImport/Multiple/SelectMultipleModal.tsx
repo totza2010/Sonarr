@@ -7,6 +7,7 @@ interface SelectMultipleModalProps {
   isOpen: boolean;
   multipleType: MultipleType;
   multipleNumber: number;
+  autoNumber?: boolean;
   modalTitle: string;
   onMultipleSelect(multipleType: MultipleType, multipleNumber: number): void;
   onModalClose(): void;
@@ -17,6 +18,7 @@ function SelectMultipleModal(props: SelectMultipleModalProps) {
     isOpen,
     multipleType,
     multipleNumber,
+    autoNumber,
     modalTitle,
     onMultipleSelect,
     onModalClose,
@@ -27,6 +29,7 @@ function SelectMultipleModal(props: SelectMultipleModalProps) {
       <SelectMultipleModalContent
         multipleType={multipleType}
         multipleNumber={multipleNumber}
+        autoNumber={autoNumber}
         modalTitle={modalTitle}
         onMultipleSelect={onMultipleSelect}
         onModalClose={onModalClose}

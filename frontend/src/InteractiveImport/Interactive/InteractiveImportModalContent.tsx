@@ -35,6 +35,8 @@ import InteractiveImport, {
   InteractiveImportCommandOptions,
 } from 'InteractiveImport/InteractiveImport';
 import SelectLanguageModal from 'InteractiveImport/Language/SelectLanguageModal';
+import SelectMultipleModal from 'InteractiveImport/Multiple/SelectMultipleModal';
+import MultipleType from 'InteractiveImport/MultipleType';
 import SelectNamingLanguagesModal from 'InteractiveImport/NamingLanguages/SelectNamingLanguagesModal';
 import SelectQualityModal from 'InteractiveImport/Quality/SelectQualityModal';
 import SelectReleaseGroupModal from 'InteractiveImport/ReleaseGroup/SelectReleaseGroupModal';
@@ -81,7 +83,10 @@ type SelectType =
   | 'namingLanguages'
   | 'customFormats'
   | 'indexerFlags'
-  | 'releaseType';
+  | 'releaseType'
+  // Reached from its own button rather than the Select... list, so it is deliberately absent from
+  // bulkSelectOptions below.
+  | 'multiple';
 
 type FilterExistingFiles = 'all' | 'new';
 
@@ -342,7 +347,7 @@ function InteractiveImportModalContent(
   // Rows whose episodes were worked out from the file name can land on the same episode more than
   // once, which is what a split episode looks like before anyone says so. Grouped here so the action
   // can be offered only when there is something to act on.
-  const partGroups = useMemo(() => {
+  const multipleGroups = useMemo(() => {
     const groups = new Map<string, number[]>();
 
     items.forEach((item) => {
@@ -746,19 +751,30 @@ function InteractiveImportModalContent(
     [setSelectModalOpen]
   );
 
-  const onMarkAsPartsPress = useCallback(() => {
-    partGroups.forEach((ids) => {
-      ids.forEach((id, index) => {
-        dispatch(
-          updateInteractiveImportItem({
-            id,
-            multipleType: 'part',
-            multipleNumber: index + 1,
-          })
-        );
+  const onMarkAsMultiplePress = useCallback(() => {
+    setSelectModalOpen('multiple');
+  }, [setSelectModalOpen]);
+
+  // The numbers come from the order the files sit in the table, so only the type is asked for. A file
+  // already carrying a marker keeps nothing of it: the whole group is renumbered from one.
+  const onMarkAsMultipleSelect = useCallback(
+    (multipleType: MultipleType) => {
+      multipleGroups.forEach((ids) => {
+        ids.forEach((id, index) => {
+          dispatch(
+            updateInteractiveImportItem({
+              id,
+              multipleType,
+              multipleNumber: multipleType === 'none' ? 0 : index + 1,
+            })
+          );
+        });
       });
-    });
-  }, [partGroups, dispatch]);
+
+      setSelectModalOpen(null);
+    },
+    [multipleGroups, dispatch, setSelectModalOpen]
+  );
 
   const onSelectModalClose = useCallback(() => {
     setSelectModalOpen(null);
@@ -1104,13 +1120,13 @@ function InteractiveImportModalContent(
             onChange={onSelectModalSelect}
           />
 
-          {/* Its own button rather than an entry in the list above: everything in that list opens a
-              modal to choose something, while this one acts on the selection there and then. It
-              appears only when the selection divides evenly into parts and the naming format can
-              tell them apart. */}
-          {isMultipleEnabled && partGroups.length ? (
-            <Button onPress={onMarkAsPartsPress}>
-              {translate('MarkAsParts')}
+          {/* Its own button rather than an entry in the list above, which is ordered by column and
+              would bury an action that applies to whole groups rather than to each selected row. It
+              appears only when the selection divides evenly into groups and the naming format can
+              tell the files apart. */}
+          {isMultipleEnabled && multipleGroups.length ? (
+            <Button onPress={onMarkAsMultiplePress}>
+              {translate('MarkAsMultiple')}
             </Button>
           ) : null}
         </div>
@@ -1219,6 +1235,16 @@ function InteractiveImportModalContent(
         releaseType="unknown"
         modalTitle={modalTitle}
         onReleaseTypeSelect={onReleaseTypeSelect}
+        onModalClose={onSelectModalClose}
+      />
+
+      <SelectMultipleModal
+        isOpen={selectModalOpen === 'multiple'}
+        multipleType="part"
+        multipleNumber={0}
+        autoNumber={true}
+        modalTitle={modalTitle}
+        onMultipleSelect={onMarkAsMultipleSelect}
         onModalClose={onSelectModalClose}
       />
 

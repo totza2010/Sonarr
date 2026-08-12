@@ -16,6 +16,7 @@ import Episode from 'Episode/Episode';
 import useSelectState from 'Helpers/Hooks/useSelectState';
 import { kinds, scrollDirections } from 'Helpers/Props';
 import { SortDirection } from 'Helpers/Props/sortDirections';
+import SelectMultipleModal from 'InteractiveImport/Multiple/SelectMultipleModal';
 import MultipleType from 'InteractiveImport/MultipleType';
 import {
   clearEpisodes,
@@ -105,6 +106,12 @@ function SelectEpisodeModalContent(props: SelectEpisodeModalContentProps) {
     count: number;
   } | null>(null);
 
+  // Asked for before anything is assigned, so the answer is still to hand when the split step
+  // finishes and the files are finally handed out.
+  const [isMultipleTypeModalOpen, setIsMultipleTypeModalOpen] = useState(false);
+  const [chosenMultipleType, setChosenMultipleType] =
+    useState<MultipleType>('part');
+
   const { allSelected, allUnselected, selectedState } = selectState;
   const { isFetching, isPopulated, items, error, sortKey, sortDirection } =
     useSelector(episodesSelector());
@@ -133,7 +140,7 @@ function SelectEpisodeModalContent(props: SelectEpisodeModalContentProps) {
   // needs more files than episodes: 12 over 6 is two parts each, 7 over 6 is one episode in two.
   // Counted off the same list the action works from, so the button cannot offer something the
   // action then finds nothing to do with.
-  const partSelectionIsValid =
+  const multipleSelectionIsValid =
     chosenEpisodes.length > 0 && selectedCount > chosenEpisodes.length;
 
   // How many episodes have an extra file when the files do not divide evenly. Nothing can work that
@@ -221,7 +228,11 @@ function SelectEpisodeModalContent(props: SelectEpisodeModalContentProps) {
   // orders are the ones already on screen: files top to bottom in the table behind this modal,
   // episodes in numerical order, so the first block of files becomes the first episode.
   const assignParts = useCallback(
-    (episodes: Episode[], splitEpisodeIds: number[]) => {
+    (
+      episodes: Episode[],
+      splitEpisodeIds: number[],
+      multipleType: MultipleType
+    ) => {
       const base = Math.floor(selectedCount / episodes.length);
       const mappedEpisodes: SelectedEpisode[] = [];
       let fileIndex = 0;
@@ -234,9 +245,10 @@ function SelectEpisodeModalContent(props: SelectEpisodeModalContentProps) {
             id: selectedIds[fileIndex] as number,
             episodes: [episode],
 
-            // An episode with one file to itself is not split, so it is left as the whole episode.
-            // Saying so rather than saying nothing also clears a part left over from an earlier go.
-            multipleType: share > 1 ? 'part' : 'none',
+            // An episode with one file to itself is neither split nor duplicated, so it is left as
+            // the whole episode. Saying so rather than saying nothing also clears a marker left
+            // over from an earlier go.
+            multipleType: share > 1 ? multipleType : 'none',
             multipleNumber: share > 1 ? part : 0,
           });
 
@@ -249,18 +261,42 @@ function SelectEpisodeModalContent(props: SelectEpisodeModalContentProps) {
     [selectedIds, selectedCount, onEpisodesSelect]
   );
 
-  const onEpisodePartsSelectWrapper = useCallback(() => {
-    if (!chosenEpisodes.length) {
-      return;
-    }
+  const onSelectAsMultiplePress = useCallback(() => {
+    setIsMultipleTypeModalOpen(true);
+  }, [setIsMultipleTypeModalOpen]);
 
-    if (splitCount === 0) {
-      assignParts(chosenEpisodes, []);
-      return;
-    }
+  const onMultipleTypeModalClose = useCallback(() => {
+    setIsMultipleTypeModalOpen(false);
+  }, [setIsMultipleTypeModalOpen]);
 
-    setSplitStep({ episodes: chosenEpisodes, count: splitCount });
-  }, [chosenEpisodes, splitCount, assignParts, setSplitStep]);
+  const onMultipleTypeSelect = useCallback(
+    (multipleType: MultipleType) => {
+      setIsMultipleTypeModalOpen(false);
+
+      // Whole Episode is what the plain Select Episode(s) button already does, so there is nothing
+      // for this action to do with it.
+      if (!chosenEpisodes.length || multipleType === 'none') {
+        return;
+      }
+
+      setChosenMultipleType(multipleType);
+
+      if (splitCount === 0) {
+        assignParts(chosenEpisodes, [], multipleType);
+        return;
+      }
+
+      setSplitStep({ episodes: chosenEpisodes, count: splitCount });
+    },
+    [
+      chosenEpisodes,
+      splitCount,
+      assignParts,
+      setSplitStep,
+      setChosenMultipleType,
+      setIsMultipleTypeModalOpen,
+    ]
+  );
 
   const onSplitEpisodesConfirm = useCallback(() => {
     if (!splitStep) {
@@ -269,9 +305,10 @@ function SelectEpisodeModalContent(props: SelectEpisodeModalContentProps) {
 
     assignParts(
       splitStep.episodes,
-      getSelectedIds(splitSelectState.selectedState)
+      getSelectedIds(splitSelectState.selectedState),
+      chosenMultipleType
     );
-  }, [splitStep, assignParts, splitSelectState]);
+  }, [splitStep, assignParts, splitSelectState, chosenMultipleType]);
 
   const onSplitSelectedChange = useCallback(
     ({ id, value, shiftKey = false }: SelectStateInputProps) => {
@@ -419,7 +456,7 @@ function SelectEpisodeModalContent(props: SelectEpisodeModalContentProps) {
                 isDisabled={splitSelectedCount !== splitStep.count}
                 onPress={onSplitEpisodesConfirm}
               >
-                {translate('SelectEpisodeParts')}
+                {translate('SelectAsMultiple')}
               </Button>
             </>
           ) : (
@@ -434,19 +471,29 @@ function SelectEpisodeModalContent(props: SelectEpisodeModalContentProps) {
                 {translate('SelectEpisodes')}
               </Button>
 
-              {isMultipleEnabled && partSelectionIsValid ? (
+              {isMultipleEnabled && multipleSelectionIsValid ? (
                 <Button
                   kind={kinds.SUCCESS}
-                  title={translate('SelectEpisodePartsHelpText')}
-                  onPress={onEpisodePartsSelectWrapper}
+                  title={translate('SelectAsMultipleHelpText')}
+                  onPress={onSelectAsMultiplePress}
                 >
-                  {translate('SelectEpisodeParts')}
+                  {translate('SelectAsMultiple')}
                 </Button>
               ) : null}
             </>
           )}
         </div>
       </ModalFooter>
+
+      <SelectMultipleModal
+        isOpen={isMultipleTypeModalOpen}
+        multipleType={chosenMultipleType}
+        multipleNumber={0}
+        autoNumber={true}
+        modalTitle={modalTitle}
+        onMultipleSelect={onMultipleTypeSelect}
+        onModalClose={onMultipleTypeModalClose}
+      />
     </ModalContent>
   );
 }

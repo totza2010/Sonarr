@@ -36,13 +36,21 @@ const typeOptions = [
 interface SelectMultipleModalContentProps {
   multipleType: MultipleType;
   multipleNumber: number;
+  // Set when the caller numbers the files itself, as the bulk action does by walking each group in
+  // the order it sits in the table. There is nothing for one number to say about many files.
+  autoNumber?: boolean;
   modalTitle: string;
   onMultipleSelect(multipleType: MultipleType, multipleNumber: number): void;
   onModalClose(): void;
 }
 
 function SelectMultipleModalContent(props: SelectMultipleModalContentProps) {
-  const { modalTitle, onMultipleSelect, onModalClose } = props;
+  const {
+    autoNumber = false,
+    modalTitle,
+    onMultipleSelect,
+    onModalClose,
+  } = props;
 
   const [multipleType, setMultipleType] = useState(props.multipleType);
   const [multipleNumber, setMultipleNumber] = useState(props.multipleNumber);
@@ -63,14 +71,15 @@ function SelectMultipleModalContent(props: SelectMultipleModalContentProps) {
 
   const handleSelect = useCallback(() => {
     // Neither half means anything without the other, so picking one and leaving the other blank clears
-    // the file rather than storing a part with no number or a number belonging to nothing.
-    if (multipleType === 'none' || multipleNumber <= 0) {
+    // the file rather than storing a part with no number or a number belonging to nothing. When the
+    // caller supplies the numbers there is no blank half to guard against.
+    if (multipleType === 'none' || (!autoNumber && multipleNumber <= 0)) {
       onMultipleSelect('none', 0);
       return;
     }
 
     onMultipleSelect(multipleType, multipleNumber);
-  }, [multipleType, multipleNumber, onMultipleSelect]);
+  }, [multipleType, multipleNumber, autoNumber, onMultipleSelect]);
 
   return (
     <ModalContent onModalClose={onModalClose}>
@@ -93,7 +102,7 @@ function SelectMultipleModalContent(props: SelectMultipleModalContentProps) {
             />
           </FormGroup>
 
-          {multipleType === 'none' ? null : (
+          {multipleType === 'none' || autoNumber ? null : (
             <FormGroup>
               <FormLabel>{translate('MultipleNumber')}</FormLabel>
 
