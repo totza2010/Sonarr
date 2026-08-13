@@ -147,6 +147,33 @@ namespace NzbDrone.Core.Test.MediaFiles.EpisodeImport.Manual
         }
 
         [Test]
+        public void should_not_repeat_the_edition_question_as_a_rejection()
+        {
+            // The screen asks in the Series cell and stops once answered. The specification cannot stop:
+            // the file stays in the download folder whichever edition is chosen, so left in, the row
+            // would carry a rejection mark for good.
+            var path = GivenSingleFile(
+                GivenEdition(1, null, @"C:\TV\Series"),
+                GivenEdition(2, "Extended", @"C:\TV\Series (Extended)"));
+
+            Mocker.GetMock<IMakeImportDecision>()
+                  .Setup(s => s.GetImportDecisions(It.IsAny<List<string>>(), It.IsAny<Series>(), It.IsAny<DownloadClientItem>(), It.IsAny<ParsedEpisodeInfo>(), It.IsAny<bool>()))
+                  .Returns((List<string> files, Series s, DownloadClientItem d, ParsedEpisodeInfo p, bool sc) =>
+                      new List<ImportDecision>
+                      {
+                          new ImportDecision(
+                              new LocalEpisode { Path = files.First(), Series = s, Episodes = new List<Episode>() },
+                              new ImportRejection(ImportRejectionReason.AmbiguousEdition, "ambiguous"),
+                              new ImportRejection(ImportRejectionReason.Sample, "sample"))
+                      });
+
+            var item = Subject.GetMediaFiles(path, null, null, false).Should().ContainSingle().Subject;
+
+            item.EditionUnconfirmed.Should().BeTrue();
+            item.Rejections.Should().ContainSingle(r => r.Reason == ImportRejectionReason.Sample);
+        }
+
+        [Test]
         public void should_not_ask_to_confirm_an_edition_when_the_file_already_sits_in_one()
         {
             // Re-importing a library folder. The path has answered the question already.

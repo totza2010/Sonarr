@@ -37,5 +37,6 @@ public enum ImportRejectionReason
     NotRevisionUpgrade,
     NotCustomFormatUpgrade,
     ExistingFileIsNotAMultiple,
-    MultipleNotSupportedByNaming
+    MultipleNotSupportedByNaming,
+    AmbiguousEdition
 }

@@ -511,7 +511,10 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Manual
             item.DetectedSubtitleLanguages = MapDetectedLanguages(decision.LocalEpisode.MediaInfo?.Subtitles);
             item.Size = _diskProvider.GetFileSize(decision.LocalEpisode.Path);
 
-            item.Rejections = decision.Rejections;
+            // This screen asks about the edition itself, in the Series cell, and holds the import until it
+            // is answered. Repeating it as a rejection would mark the row for good: the file sits in the
+            // download folder whichever edition gets chosen, so the specification never stops saying it.
+            item.Rejections = decision.Rejections.Where(r => r.Reason != ImportRejectionReason.AmbiguousEdition).ToList();
 
             item.IndexerFlags = (int)decision.LocalEpisode.IndexerFlags;
             item.ReleaseType = decision.LocalEpisode.ReleaseType;
