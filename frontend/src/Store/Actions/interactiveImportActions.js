@@ -99,8 +99,8 @@ export const setInteractiveImportMode = createAction(SET_INTERACTIVE_IMPORT_MODE
 // Action Handlers
 export const actionHandlers = handleThunks({
   [FETCH_INTERACTIVE_IMPORT_ITEMS]: function(getState, payload, dispatch) {
-    if (!payload.downloadId && !payload.folder) {
-      dispatch(set({ section, error: { message: '`downloadId` or `folder` is required.' } }));
+    if (!payload.downloadId && !payload.downloadIds && !payload.folder) {
+      dispatch(set({ section, error: { message: '`downloadId`, `downloadIds` or `folder` is required.' } }));
       return;
     }
 

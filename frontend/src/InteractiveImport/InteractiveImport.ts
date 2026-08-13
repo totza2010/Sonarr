@@ -30,6 +30,10 @@ export interface InteractiveImportCommandOptions {
 
 interface InteractiveImport extends ModelBase {
   path: string;
+
+  // The download this file came from. Rows in one screen can come from several when the queue sends
+  // a selection, so it belongs to the row rather than to the screen.
+  downloadId?: string;
   relativePath: string;
   folderName: string;
   name: string;

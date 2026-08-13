@@ -245,6 +245,7 @@ const importModeSelector = createSelector(
 
 interface InteractiveImportModalContentProps {
   downloadId?: string;
+  downloadIds?: string[];
   seriesId?: number;
   seasonNumber?: number;
   showSeries?: boolean;
@@ -267,6 +268,7 @@ function InteractiveImportModalContent(
 ) {
   const {
     downloadId,
+    downloadIds,
     seriesId,
     seasonNumber,
     allowSeriesChange = true,
@@ -466,6 +468,7 @@ function InteractiveImportModalContent(
       dispatch(
         fetchInteractiveImportItems({
           downloadId,
+          downloadIds: downloadIds?.join(','),
           seriesId,
           seasonNumber,
           folder,
@@ -553,7 +556,10 @@ function InteractiveImportModalContent(
   }, [setIsConfirmDeleteModalOpen]);
 
   const onImportSelectedPress = useCallback(() => {
-    const finalImportMode = downloadId || !showImportMode ? 'auto' : importMode;
+    const finalImportMode =
+      downloadId || downloadIds?.length || !showImportMode
+        ? 'auto'
+        : importMode;
 
     const existingFiles: Partial<EpisodeFile>[] = [];
     const files: InteractiveImportCommandOptions[] = [];
@@ -662,7 +668,11 @@ function InteractiveImportModalContent(
           releaseType,
           multipleType,
           multipleNumber,
-          downloadId,
+
+          // The row's own download, not the screen's: opened from the queue for several at once there
+          // is no single one, and without it the import is treated as though nobody downloaded the
+          // file - no history against the release, and the download client never told it finished.
+          downloadId: item.downloadId ?? downloadId,
           episodeFileId,
         });
       }
@@ -697,6 +707,7 @@ function InteractiveImportModalContent(
     }
   }, [
     downloadId,
+    downloadIds,
     showImportMode,
     importMode,
     items,
@@ -724,13 +735,21 @@ function InteractiveImportModalContent(
       dispatch(
         fetchInteractiveImportItems({
           downloadId,
+          downloadIds: downloadIds?.join(','),
           seriesId,
           folder,
           filterExistingFiles: filter,
         })
       );
     },
-    [downloadId, seriesId, folder, setFilterExistingFiles, dispatch]
+    [
+      downloadId,
+      downloadIds,
+      seriesId,
+      folder,
+      setFilterExistingFiles,
+      dispatch,
+    ]
   );
 
   const onImportModeChange = useCallback<
@@ -1101,7 +1120,7 @@ function InteractiveImportModalContent(
             </SpinnerButton>
           ) : null}
 
-          {!downloadId && showImportMode ? (
+          {!downloadId && !downloadIds?.length && showImportMode ? (
             <SelectInput
               className={styles.importMode}
               name="importMode"

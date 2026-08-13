@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.AspNetCore.Mvc;
@@ -23,11 +24,21 @@ namespace Sonarr.Api.V3.ManualImport
 
         [HttpGet]
         [Produces("application/json")]
-        public List<ManualImportResource> GetMediaFiles(string folder, string downloadId, int? seriesId, int? seasonNumber, bool filterExistingFiles = true)
+        public List<ManualImportResource> GetMediaFiles(string folder, string downloadId, string downloadIds, int? seriesId, int? seasonNumber, bool filterExistingFiles = true)
         {
             if (seriesId.HasValue)
             {
                 return _manualImportService.GetMediaFiles(seriesId.Value, seasonNumber).ToResource().Select(AddQualityWeight).ToList();
+            }
+
+            // Several downloads at once, so a queue full of releases needing the same correction is one
+            // screen rather than one screen each. Kept as its own parameter so callers passing the single
+            // downloadId, which is every caller that predates this, are untouched.
+            if (downloadIds.IsNotNullOrWhiteSpace())
+            {
+                var ids = downloadIds.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+
+                return _manualImportService.GetMediaFiles(ids, filterExistingFiles).ToResource().Select(AddQualityWeight).ToList();
             }
 
             return _manualImportService.GetMediaFiles(folder, downloadId, seriesId, filterExistingFiles).ToResource().Select(AddQualityWeight).ToList();

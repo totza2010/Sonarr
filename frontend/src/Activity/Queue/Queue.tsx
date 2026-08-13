@@ -27,6 +27,7 @@ import createEpisodesFetchingSelector from 'Episode/createEpisodesFetchingSelect
 import useCurrentPage from 'Helpers/Hooks/useCurrentPage';
 import useSelectState from 'Helpers/Hooks/useSelectState';
 import { align, icons, kinds } from 'Helpers/Props';
+import InteractiveImportModal from 'InteractiveImport/InteractiveImportModal';
 import { executeCommand } from 'Store/Actions/commandActions';
 import { clearEpisodes, fetchEpisodes } from 'Store/Actions/episodeActions';
 import {
@@ -99,6 +100,21 @@ function Queue() {
     return getSelectedIds(selectedState);
   }, [selectedState]);
 
+  // The same rule the row uses to offer its own manual import icon, so the button can never promise
+  // a screen for a download that has nothing to import yet. Rows that fail it are skipped rather than
+  // blocked: selecting a whole page and acting on what qualifies is the point of the button.
+  const selectedImportableDownloadIds = useMemo(() => {
+    return items
+      .filter(
+        (item) =>
+          selectedIds.includes(item.id) &&
+          item.status === 'completed' &&
+          item.trackedDownloadStatus === 'warning' &&
+          !!item.downloadId
+      )
+      .map((item) => item.downloadId as string);
+  }, [items, selectedIds]);
+
   const isPendingSelected = useMemo(() => {
     return items.some((item) => {
       return selectedIds.indexOf(item.id) > -1 && item.status === 'delay';
@@ -106,6 +122,8 @@ function Queue() {
   }, [items, selectedIds]);
 
   const [isConfirmRemoveModalOpen, setIsConfirmRemoveModalOpen] =
+    useState(false);
+  const [isInteractiveImportModalOpen, setIsInteractiveImportModalOpen] =
     useState(false);
 
   const isRefreshing =
@@ -152,6 +170,14 @@ function Queue() {
   const handleGrabSelectedPress = useCallback(() => {
     dispatch(grabQueueItems({ ids: selectedIds }));
   }, [selectedIds, dispatch]);
+
+  const handleInteractiveImportSelectedPress = useCallback(() => {
+    setIsInteractiveImportModalOpen(true);
+  }, [setIsInteractiveImportModalOpen]);
+
+  const handleInteractiveImportModalClose = useCallback(() => {
+    setIsInteractiveImportModalOpen(false);
+  }, [setIsInteractiveImportModalOpen]);
 
   const handleRemoveSelectedPress = useCallback(() => {
     shouldBlockRefresh.current = true;
@@ -336,6 +362,13 @@ function Queue() {
           />
 
           <PageToolbarButton
+            label={translate('ManualImportSelected')}
+            iconName={icons.INTERACTIVE}
+            isDisabled={!selectedImportableDownloadIds.length}
+            onPress={handleInteractiveImportSelectedPress}
+          />
+
+          <PageToolbarButton
             label={translate('RemoveSelected')}
             iconName={icons.REMOVE}
             isDisabled={disableSelectedActions}
@@ -407,6 +440,12 @@ function Queue() {
         }
         onRemovePress={handleRemoveSelectedConfirmed}
         onModalClose={handleConfirmRemoveModalClose}
+      />
+
+      <InteractiveImportModal
+        isOpen={isInteractiveImportModalOpen}
+        downloadIds={selectedImportableDownloadIds}
+        onModalClose={handleInteractiveImportModalClose}
       />
     </PageContent>
   );

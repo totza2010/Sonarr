@@ -1144,6 +1144,7 @@
   "ManualCustomFormatsHelpText": "The custom formats this file counts as. Add ones its name does not mention, or remove ones it does. Once the name is rebuilt, anything the name settles on its own is dropped from here.",
   "ManualGrab": "Manual Grab",
   "ManualImport": "Manual Import",
+  "ManualImportSelected": "Import Selected",
   "ManualImportItemsLoadError": "Unable to load manual import items",
   "MappedNetworkDrivesWindowsService": "Mapped network drives are not available when running as a Windows Service, see the [FAQ]({url}) for more information.",
   "Mapping": "Mapping",

@@ -24,6 +24,7 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Manual
     {
         List<ManualImportItem> GetMediaFiles(int seriesId, int? seasonNumber);
         List<ManualImportItem> GetMediaFiles(string path, string downloadId, int? seriesId, bool filterExistingFiles);
+        List<ManualImportItem> GetMediaFiles(List<string> downloadIds, bool filterExistingFiles);
         ManualImportItem ReprocessItem(string path, string downloadId, int seriesId, int? seasonNumber, List<int> episodeIds, string releaseGroup, QualityModel quality, List<Language> languages, int indexerFlags, ReleaseType releaseType);
     }
 
@@ -143,6 +144,20 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Manual
             }
 
             return ProcessFolder(path, path, downloadId, seriesId, filterExistingFiles);
+        }
+
+        /// <summary>
+        /// The files of several downloads at once, so a queue full of releases that all need the same
+        /// correction can be dealt with in one screen rather than one screen each. Each file keeps the
+        /// download it came from, which is what the import already works from, so the mixture costs
+        /// nothing on the way back.
+        /// </summary>
+        public List<ManualImportItem> GetMediaFiles(List<string> downloadIds, bool filterExistingFiles)
+        {
+            return downloadIds.Where(id => id.IsNotNullOrWhiteSpace())
+                              .Distinct()
+                              .SelectMany(id => GetMediaFiles(null, id, null, filterExistingFiles))
+                              .ToList();
         }
 
         public ManualImportItem ReprocessItem(string path, string downloadId, int seriesId, int? seasonNumber, List<int> episodeIds, string releaseGroup, QualityModel quality, List<Language> languages, int indexerFlags, ReleaseType releaseType)
