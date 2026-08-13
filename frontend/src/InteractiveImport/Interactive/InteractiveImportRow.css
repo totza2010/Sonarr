@@ -39,3 +39,14 @@
   margin-left: 8px;
   vertical-align: middle;
 }
+
+/* The series is a guess and the guess cannot say which edition, so the cell carries the same mark an
+   empty required cell does - the title stays readable, since it is what the person confirms against. */
+.unconfirmedEdition {
+  composes: placeholder from './InteractiveImportRowCellPlaceholder.css';
+
+  padding: 0 4px;
+  min-height: 25px;
+  height: auto;
+  line-height: 21px;
+}

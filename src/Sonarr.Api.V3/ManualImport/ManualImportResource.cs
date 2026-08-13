@@ -23,6 +23,7 @@ namespace Sonarr.Api.V3.ManualImport
         public string Name { get; set; }
         public long Size { get; set; }
         public SeriesResource Series { get; set; }
+        public bool EditionUnconfirmed { get; set; }
         public int? SeasonNumber { get; set; }
         public List<EpisodeResource> Episodes { get; set; }
         public int? EpisodeFileId { get; set; }
@@ -70,6 +71,7 @@ namespace Sonarr.Api.V3.ManualImport
                 Name = model.Name,
                 Size = model.Size,
                 Series = model.Series.ToResource(),
+                EditionUnconfirmed = model.EditionUnconfirmed,
                 SeasonNumber = model.SeasonNumber,
                 Episodes = model.Episodes.ToResource(),
                 EpisodeFileId = model.EpisodeFileId,

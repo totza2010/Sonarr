@@ -15,6 +15,11 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Manual
         public string Name { get; set; }
         public long Size { get; set; }
         public Series Series { get; set; }
+
+        // The series was worked out from a name, and it has editions - so the one above is a guess at
+        // which edition, and a name can never settle that. The screen holds the import until somebody says.
+        public bool EditionUnconfirmed { get; set; }
+
         public int? SeasonNumber { get; set; }
         public List<Episode> Episodes { get; set; }
         public int? EpisodeFileId { get; set; }

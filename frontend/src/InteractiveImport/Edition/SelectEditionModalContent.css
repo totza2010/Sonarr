@@ -1,0 +1,17 @@
+.editions {
+  display: flex;
+  flex-direction: column;
+}
+
+.edition {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 10px;
+  border-bottom: 1px solid var(--borderColor);
+  text-align: start;
+}
+
+.badge {
+  margin-left: 8px;
+}

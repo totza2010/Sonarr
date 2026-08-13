@@ -2,7 +2,6 @@ import PropTypes from 'prop-types';
 import React, { Component } from 'react';
 import Label from 'Components/Label';
 import VirtualTableRowCell from 'Components/Table/Cells/VirtualTableRowCell';
-import SeriesEditionBadge from 'Series/SeriesEditionBadge';
 import styles from './SelectSeriesRow.css';
 
 class SelectSeriesRow extends Component {
@@ -22,11 +21,6 @@ class SelectSeriesRow extends Component {
       <>
         <VirtualTableRowCell className={styles.title}>
           {this.props.title}
-
-          <SeriesEditionBadge
-            className={styles.edition}
-            editionName={this.props.editionName}
-          />
         </VirtualTableRowCell>
 
         <VirtualTableRowCell className={styles.year}>
@@ -52,7 +46,6 @@ class SelectSeriesRow extends Component {
 SelectSeriesRow.propTypes = {
   id: PropTypes.number.isRequired,
   title: PropTypes.string.isRequired,
-  editionName: PropTypes.string,
   tvdbId: PropTypes.number.isRequired,
   imdbId: PropTypes.string,
   year: PropTypes.number.isRequired,

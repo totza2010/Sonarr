@@ -248,6 +248,7 @@
   "Component": "Component",
   "Condition": "Condition",
   "ConditionUsingRegularExpressions": "This condition matches using Regular Expressions. Note that the characters `\\^$.|?*+()[{` have special meanings and need escaping with a `\\`",
+  "ConfirmEditionHelpText": "This series has editions and the file name cannot say which one. Choose the series to confirm.",
   "Conditions": "Conditions",
   "Connect": "Connect",
   "ConnectSettings": "Connect Settings",

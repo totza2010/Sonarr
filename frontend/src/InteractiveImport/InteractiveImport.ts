@@ -50,6 +50,7 @@ interface InteractiveImport extends ModelBase {
   manualCustomFormats?: number[];
   excludedCustomFormats?: number[];
   series?: Series;
+  editionUnconfirmed?: boolean;
   seasonNumber: number;
   episodes: Episode[];
   qualityWeight: number;

@@ -27,6 +27,7 @@ import usePrevious from 'Helpers/Hooks/usePrevious';
 import useSelectState from 'Helpers/Hooks/useSelectState';
 import { align, icons, kinds, scrollDirections } from 'Helpers/Props';
 import SelectCustomFormatModal from 'InteractiveImport/CustomFormat/SelectCustomFormatModal';
+import SelectEditionModal from 'InteractiveImport/Edition/SelectEditionModal';
 import SelectEpisodeModal from 'InteractiveImport/Episode/SelectEpisodeModal';
 import { SelectedEpisode } from 'InteractiveImport/Episode/SelectEpisodeModalContent';
 import ImportMode from 'InteractiveImport/ImportMode';
@@ -45,6 +46,7 @@ import SelectSeasonModal from 'InteractiveImport/Season/SelectSeasonModal';
 import SelectSeriesModal from 'InteractiveImport/Series/SelectSeriesModal';
 import Language from 'Language/Language';
 import { QualityModel } from 'Quality/Quality';
+import getSeriesEditions from 'Series/getSeriesEditions';
 import Series from 'Series/Series';
 import { executeCommand } from 'Store/Actions/commandActions';
 import {
@@ -61,6 +63,7 @@ import {
   updateInteractiveImportItems,
 } from 'Store/Actions/interactiveImportActions';
 import { fetchNamingSettings } from 'Store/Actions/settingsActions';
+import createAllSeriesSelector from 'Store/Selectors/createAllSeriesSelector';
 import createClientSideCollectionSelector from 'Store/Selectors/createClientSideCollectionSelector';
 import createMultipleFilesEnabledSelector from 'Store/Selectors/createMultipleFilesEnabledSelector';
 import { SortCallback } from 'typings/callbacks';
@@ -75,6 +78,7 @@ import styles from './InteractiveImportModalContent.css';
 type SelectType =
   | 'select'
   | 'series'
+  | 'edition'
   | 'season'
   | 'episode'
   | 'releaseGroup'
@@ -317,6 +321,7 @@ function InteractiveImportModalContent(
   const { allSelected, allUnselected, selectedState } = selectState;
   const previousIsDeleting = usePrevious(isDeleting);
   const dispatch = useDispatch();
+  const allSeries: Series[] = useSelector(createAllSeriesSelector());
 
   const columns: Column[] = useMemo(() => {
     const result: Column[] = cloneDeep(COLUMNS);
@@ -368,6 +373,15 @@ function InteractiveImportModalContent(
     return [...groups.values()].filter((ids) => ids.length > 1);
   }, [items, selectedIds]);
 
+  // Editions belong to one series, so the bulk action only means anything when everything selected is
+  // the same series. Offering it across a mixed selection would ask one question of several answers.
+  const commonSeries = useMemo(() => {
+    const selected = items.filter((item) => selectedIds.includes(item.id));
+    const tvdbIds = new Set(selected.map((item) => item.series?.tvdbId));
+
+    return tvdbIds.size === 1 ? selected[0]?.series : undefined;
+  }, [items, selectedIds]);
+
   const bulkSelectOptions = useMemo(() => {
     const { seasonSelectDisabled, episodeSelectDisabled } = items.reduce(
       (acc, item) => {
@@ -392,11 +406,18 @@ function InteractiveImportModalContent(
       }
     );
 
+    const editionSelectDisabled = !commonSeries?.tvdbId;
+
     const options = [
       {
         key: 'select',
         value: translate('SelectDropdown'),
         disabled: true,
+      },
+      {
+        key: 'edition',
+        value: translate('SelectEdition'),
+        disabled: editionSelectDisabled,
       },
       {
         key: 'season',
@@ -446,7 +467,7 @@ function InteractiveImportModalContent(
     }
 
     return options;
-  }, [allowSeriesChange, items, selectedIds]);
+  }, [allowSeriesChange, commonSeries, items, selectedIds]);
   useEffect(
     () => {
       if (initialSortKey) {
@@ -799,12 +820,13 @@ function InteractiveImportModalContent(
     setSelectModalOpen(null);
   }, [setSelectModalOpen]);
 
-  const onSeriesSelect = useCallback(
-    (series: Series) => {
+  const onEditionSelect = useCallback(
+    (edition: Series) => {
       dispatch(
         updateInteractiveImportItems({
           ids: selectedIds,
-          series,
+          series: edition,
+          editionUnconfirmed: false,
           seasonNumber: undefined,
           episodes: [],
         })
@@ -814,7 +836,35 @@ function InteractiveImportModalContent(
 
       setSelectModalOpen(null);
     },
-    [selectedIds, setSelectModalOpen, dispatch]
+    [selectedIds, dispatch, setSelectModalOpen]
+  );
+
+  // Same follow-on the row does: naming a series with editions leaves the second question open, so it
+  // is asked while the person is still choosing rather than left to be found in the table.
+  const onSeriesSelect = useCallback(
+    (series: Series) => {
+      const hasEditions = getSeriesEditions(allSeries, series).length > 1;
+
+      dispatch(
+        updateInteractiveImportItems({
+          ids: selectedIds,
+          series,
+          editionUnconfirmed: hasEditions,
+          seasonNumber: undefined,
+          episodes: [],
+        })
+      );
+
+      if (hasEditions) {
+        setSelectModalOpen('edition');
+        return;
+      }
+
+      dispatch(reprocessInteractiveImportItems({ ids: selectedIds }));
+
+      setSelectModalOpen(null);
+    },
+    [selectedIds, allSeries, setSelectModalOpen, dispatch]
   );
 
   const onSeasonSelect = useCallback(
@@ -1168,6 +1218,14 @@ function InteractiveImportModalContent(
           </Button>
         </div>
       </ModalFooter>
+
+      <SelectEditionModal
+        isOpen={selectModalOpen === 'edition'}
+        series={commonSeries}
+        modalTitle={modalTitle}
+        onEditionSelect={onEditionSelect}
+        onModalClose={onSelectModalClose}
+      />
 
       <SelectSeriesModal
         isOpen={selectModalOpen === 'series'}

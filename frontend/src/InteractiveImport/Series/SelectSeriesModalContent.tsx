@@ -19,7 +19,6 @@ import Column from 'Components/Table/Column';
 import VirtualTableRowButton from 'Components/Table/VirtualTableRowButton';
 import { scrollDirections } from 'Helpers/Props';
 import Series from 'Series/Series';
-import seriesEditionTitle from 'Series/seriesEditionTitle';
 import createAllSeriesSelector from 'Store/Selectors/createAllSeriesSelector';
 import dimensions from 'Styles/Variables/dimensions';
 import { InputChanged } from 'typings/inputs';
@@ -93,7 +92,6 @@ function Row({ index, style, data }: ListChildComponentProps<RowItemData>) {
         key={series.id}
         id={series.id}
         title={series.title}
-        editionName={series.editionName}
         tvdbId={series.tvdbId}
         imdbId={series.imdbId}
         year={series.year}
@@ -167,18 +165,35 @@ function SelectSeriesModalContent(props: SelectSeriesModalContentProps) {
     [allSeries, onSeriesSelect]
   );
 
-  const sortedSeries = useMemo(
-    () => [...allSeries].sort(sortByProp('sortTitle')),
-    [allSeries]
-  );
+  // One row per series, not per edition. Which series and which edition are two questions, and this
+  // list only answers the first; every edition of a series carries the same title and ids anyway.
+  const sortedSeries = useMemo(() => {
+    const mainEditions = new Map<number, Series>();
+    const unmapped: Series[] = [];
+
+    allSeries.forEach((series) => {
+      if (!series.tvdbId) {
+        unmapped.push(series);
+        return;
+      }
+
+      const existing = mainEditions.get(series.tvdbId);
+
+      if (!existing || existing.editionName) {
+        mainEditions.set(series.tvdbId, series);
+      }
+    });
+
+    return [...mainEditions.values(), ...unmapped].sort(
+      sortByProp('sortTitle')
+    );
+  }, [allSeries]);
 
   const items = useMemo(
     () =>
       sortedSeries.filter(
         (item) =>
-          seriesEditionTitle(item.title, item.editionName)
-            .toLowerCase()
-            .includes(filter.toLowerCase()) ||
+          item.title.toLowerCase().includes(filter.toLowerCase()) ||
           item.tvdbId.toString().includes(filter) ||
           item.imdbId?.includes(filter)
       ),

@@ -315,8 +315,9 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Manual
             var folderInfo = Parser.Parser.ParseTitle(directoryInfo.Name);
             var seriesFiles = _diskScanService.FilterPaths(rootFolder, _diskScanService.GetVideoFiles(baseFolder).ToList());
             var decisions = _importDecisionMaker.GetImportDecisions(seriesFiles, series, downloadClientItem, folderInfo, SceneSource(series, baseFolder), filterExistingFiles);
+            var editionUnconfirmed = EditionNeedsConfirming(series, baseFolder, seriesId.HasValue);
 
-            return decisions.Select(decision => MapItem(decision, rootFolder, downloadId, directoryInfo.Name)).ToList();
+            return decisions.Select(decision => MapItem(decision, rootFolder, downloadId, directoryInfo.Name, editionUnconfirmed)).ToList();
         }
 
         // Title matching resolves to the main edition, but a file that already sits in an edition's
@@ -335,7 +336,27 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Manual
                 return series;
             }
 
-            return editions.FirstOrDefault(s => s.Path.IsParentPath(path) || s.Path.PathEquals(path)) ?? series;
+            return SeriesEditions.FindEditionForPath(editions, path) ?? series;
+        }
+
+        /// <summary>
+        /// Whether the edition this file is headed for was worked out rather than settled. Title matching
+        /// cannot tell one edition from another - a file name never says which cut it is - so a guess at a
+        /// series with editions always lands on the main one, and it lands there silently. Saying so lets
+        /// the screen hold the import until somebody confirms it.
+        ///
+        /// Nothing to confirm when the caller named the series, when the file already sits inside an
+        /// edition's folder, or when the series has no editions at all - the answer is not a guess in any
+        /// of those.
+        /// </summary>
+        private bool EditionNeedsConfirming(Series series, string path, bool seriesWasGiven)
+        {
+            if (series == null || seriesWasGiven)
+            {
+                return false;
+            }
+
+            return SeriesEditions.EditionIsAmbiguous(_seriesService.FindAllByTvdbId(series.TvdbId), path);
         }
 
         private ManualImportItem ProcessFile(string rootFolder, string baseFolder, string file, string downloadId, Series series = null)
@@ -344,6 +365,7 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Manual
             {
                 var trackedDownload = GetTrackedDownload(downloadId);
                 var relativeFile = baseFolder.GetRelativePath(file);
+                var seriesWasGiven = series != null;
 
                 if (series == null)
                 {
@@ -372,6 +394,8 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Manual
 
                 series = GetEditionForPath(series, file);
 
+                var editionUnconfirmed = EditionNeedsConfirming(series, file, seriesWasGiven);
+
                 if (series == null)
                 {
                     var localEpisode = new LocalEpisode();
@@ -396,7 +420,7 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Manual
 
                 if (importDecisions.Any())
                 {
-                    return MapItem(importDecisions.First(), rootFolder, downloadId, null);
+                    return MapItem(importDecisions.First(), rootFolder, downloadId, null, editionUnconfirmed);
                 }
             }
             catch (Exception ex)
@@ -450,12 +474,13 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Manual
             return null;
         }
 
-        private ManualImportItem MapItem(ImportDecision decision, string rootFolder, string downloadId, string folderName)
+        private ManualImportItem MapItem(ImportDecision decision, string rootFolder, string downloadId, string folderName, bool editionUnconfirmed = false)
         {
             var item = new ManualImportItem();
 
             item.Path = decision.LocalEpisode.Path;
             item.FolderName = folderName;
+            item.EditionUnconfirmed = editionUnconfirmed;
             item.RelativePath = rootFolder.GetRelativePath(decision.LocalEpisode.Path);
             item.Name = Path.GetFileNameWithoutExtension(decision.LocalEpisode.Path);
             item.DownloadId = downloadId;
@@ -485,7 +510,9 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Manual
             item.DetectedAudioLanguages = MapDetectedLanguages(decision.LocalEpisode.MediaInfo?.AudioLanguages);
             item.DetectedSubtitleLanguages = MapDetectedLanguages(decision.LocalEpisode.MediaInfo?.Subtitles);
             item.Size = _diskProvider.GetFileSize(decision.LocalEpisode.Path);
+
             item.Rejections = decision.Rejections;
+
             item.IndexerFlags = (int)decision.LocalEpisode.IndexerFlags;
             item.ReleaseType = decision.LocalEpisode.ReleaseType;
             item.MultipleType = decision.LocalEpisode.MultipleType;

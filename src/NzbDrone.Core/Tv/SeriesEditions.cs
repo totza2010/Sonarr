@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using NzbDrone.Common.Extensions;
 
 namespace NzbDrone.Core.Tv
@@ -20,6 +22,35 @@ namespace NzbDrone.Core.Tv
     public static class SeriesEditions
     {
         public const string MainEdition = "";
+
+        /// <summary>
+        /// Whether a file is headed for an edition nobody has chosen. Editions of a series share a title,
+        /// so matching a name always lands on the main one and never says that it guessed; only the path
+        /// can settle it on its own, by the file already sitting inside an edition's folder.
+        /// </summary>
+        public static bool EditionIsAmbiguous(IReadOnlyCollection<Series> editions, string path)
+        {
+            if (editions == null || editions.Count <= 1 || path.IsNullOrWhiteSpace())
+            {
+                return false;
+            }
+
+            return FindEditionForPath(editions, path) == null;
+        }
+
+        /// <summary>
+        /// The edition a path already belongs to, by sitting inside that edition's folder. The only way
+        /// an edition is settled without somebody saying so.
+        /// </summary>
+        public static Series FindEditionForPath(IEnumerable<Series> editions, string path)
+        {
+            if (editions == null || path.IsNullOrWhiteSpace())
+            {
+                return null;
+            }
+
+            return editions.FirstOrDefault(s => s.Path.IsParentPath(path) || s.Path.PathEquals(path));
+        }
 
         public static string NormalizeEditionName(string editionName)
         {

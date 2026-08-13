@@ -9,6 +9,7 @@ interface CssExports {
   'quality': string;
   'relativePath': string;
   'reprocessing': string;
+  'unconfirmedEdition': string;
 }
 export const cssExports: CssExports;
 export default cssExports;

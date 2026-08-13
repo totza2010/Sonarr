@@ -18,6 +18,7 @@ import IndexerFlags from 'Episode/IndexerFlags';
 import NamingLanguages from 'EpisodeFile/NamingLanguages';
 import { icons, kinds, tooltipPositions } from 'Helpers/Props';
 import SelectCustomFormatModal from 'InteractiveImport/CustomFormat/SelectCustomFormatModal';
+import SelectEditionModal from 'InteractiveImport/Edition/SelectEditionModal';
 import SelectEpisodeModal from 'InteractiveImport/Episode/SelectEpisodeModal';
 import { SelectedEpisode } from 'InteractiveImport/Episode/SelectEpisodeModalContent';
 import SelectIndexerFlagsModal from 'InteractiveImport/IndexerFlags/SelectIndexerFlagsModal';
@@ -34,6 +35,7 @@ import SelectSeasonModal from 'InteractiveImport/Season/SelectSeasonModal';
 import SelectSeriesModal from 'InteractiveImport/Series/SelectSeriesModal';
 import Language from 'Language/Language';
 import { QualityModel } from 'Quality/Quality';
+import getSeriesEditions from 'Series/getSeriesEditions';
 import Series from 'Series/Series';
 import SeriesEditionBadge from 'Series/SeriesEditionBadge';
 import { updateEpisodeFiles } from 'Store/Actions/episodeFileActions';
@@ -41,6 +43,7 @@ import {
   reprocessInteractiveImportItems,
   updateInteractiveImportItem,
 } from 'Store/Actions/interactiveImportActions';
+import createAllSeriesSelector from 'Store/Selectors/createAllSeriesSelector';
 import createMultipleFilesEnabledSelector from 'Store/Selectors/createMultipleFilesEnabledSelector';
 import CustomFormat from 'typings/CustomFormat';
 import { SelectStateInputProps } from 'typings/props';
@@ -53,6 +56,7 @@ import styles from './InteractiveImportRow.css';
 
 type SelectType =
   | 'series'
+  | 'edition'
   | 'season'
   | 'episode'
   | 'releaseGroup'
@@ -73,6 +77,7 @@ interface InteractiveImportRowProps {
   allowSeriesChange: boolean;
   relativePath: string;
   series?: Series;
+  editionUnconfirmed?: boolean;
   seasonNumber?: number;
   episodes?: Episode[];
   releaseGroup?: string;
@@ -107,6 +112,7 @@ function InteractiveImportRow(props: InteractiveImportRowProps) {
     allowSeriesChange,
     relativePath,
     series,
+    editionUnconfirmed = false,
     seasonNumber,
     episodes = [],
     quality,
@@ -136,6 +142,7 @@ function InteractiveImportRow(props: InteractiveImportRowProps) {
   } = props;
 
   const dispatch = useDispatch();
+  const allSeries: Series[] = useSelector(createAllSeriesSelector());
 
   // The list the backend returns is what the name matched; anything added by hand only exists on the
   // row until the file is imported, so its names are looked up here to show it right away.
@@ -211,6 +218,9 @@ function InteractiveImportRow(props: InteractiveImportRowProps) {
   useEffect(() => {
     const isValid = !!(
       series &&
+      // A guess at which edition is not an answer. Held here rather than refused at import time so
+      // the whole table shows what is outstanding at once.
+      !editionUnconfirmed &&
       seasonNumber != null &&
       episodes.length &&
       quality &&
@@ -225,6 +235,7 @@ function InteractiveImportRow(props: InteractiveImportRowProps) {
   }, [
     id,
     series,
+    editionUnconfirmed,
     seasonNumber,
     episodes,
     quality,
@@ -258,16 +269,19 @@ function InteractiveImportRow(props: InteractiveImportRowProps) {
     setSelectModalOpen(null);
   }, [setSelectModalOpen]);
 
+  // The series is settled the moment a name matches; which edition is not. While that is outstanding
+  // the cell asks the question that is actually open rather than the one already answered.
   const onSelectSeriesPress = useCallback(() => {
-    setSelectModalOpen('series');
-  }, [setSelectModalOpen]);
+    setSelectModalOpen(editionUnconfirmed ? 'edition' : 'series');
+  }, [editionUnconfirmed, setSelectModalOpen]);
 
-  const onSeriesSelect = useCallback(
-    (series: Series) => {
+  const onEditionSelect = useCallback(
+    (edition: Series) => {
       dispatch(
         updateInteractiveImportItem({
           id,
-          series,
+          series: edition,
+          editionUnconfirmed: false,
           seasonNumber: undefined,
           episodes: [],
         })
@@ -279,6 +293,36 @@ function InteractiveImportRow(props: InteractiveImportRowProps) {
       selectRowAfterChange();
     },
     [id, dispatch, setSelectModalOpen, selectRowAfterChange]
+  );
+
+  // Naming a series with editions has not said which one, so the second question follows the first
+  // straight away rather than leaving the row to be noticed later. Asked here, where the person is
+  // already choosing, it costs one more click and never fires on its own.
+  const onSeriesSelect = useCallback(
+    (series: Series) => {
+      const hasEditions = getSeriesEditions(allSeries, series).length > 1;
+
+      dispatch(
+        updateInteractiveImportItem({
+          id,
+          series,
+          editionUnconfirmed: hasEditions,
+          seasonNumber: undefined,
+          episodes: [],
+        })
+      );
+
+      if (hasEditions) {
+        setSelectModalOpen('edition');
+        return;
+      }
+
+      dispatch(reprocessInteractiveImportItems({ ids: [id] }));
+
+      setSelectModalOpen(null);
+      selectRowAfterChange();
+    },
+    [id, allSeries, dispatch, setSelectModalOpen, selectRowAfterChange]
   );
 
   const onSelectSeasonPress = useCallback(() => {
@@ -552,7 +596,43 @@ function InteractiveImportRow(props: InteractiveImportRowProps) {
   );
 
   const seriesTitle = series ? series.title : '';
+
+  const seriesCellTitle = useMemo(() => {
+    if (editionUnconfirmed) {
+      return translate('ConfirmEditionHelpText');
+    }
+
+    return allowSeriesChange ? translate('ClickToChangeSeries') : undefined;
+  }, [editionUnconfirmed, allowSeriesChange]);
+
+  const showSeriesPlaceholder = isSelected && !series;
+
   const isAnime = series?.seriesType === 'anime';
+
+  // The dashed box a required cell wears when it is empty, worn here around the title instead: the
+  // series is known, it is which edition that is not, and the title is what gets confirmed against.
+  const seriesCellContent = useMemo(() => {
+    if (showSeriesPlaceholder) {
+      return <InteractiveImportRowCellPlaceholder />;
+    }
+
+    const title = (
+      <>
+        {seriesTitle}
+
+        <SeriesEditionBadge
+          className={styles.edition}
+          editionName={series?.editionName}
+        />
+      </>
+    );
+
+    if (editionUnconfirmed) {
+      return <span className={styles.unconfirmedEdition}>{title}</span>;
+    }
+
+    return title;
+  }, [showSeriesPlaceholder, editionUnconfirmed, seriesTitle, series]);
 
   const episodeInfo = episodes.map((episode) => {
     return (
@@ -569,7 +649,6 @@ function InteractiveImportRow(props: InteractiveImportRowProps) {
   });
 
   const requiresSeasonNumber = isNaN(Number(seasonNumber));
-  const showSeriesPlaceholder = isSelected && !series;
   const showSeasonNumberPlaceholder =
     isSelected && !!series && requiresSeasonNumber && !isReprocessing;
   const showEpisodeNumbersPlaceholder =
@@ -594,22 +673,10 @@ function InteractiveImportRow(props: InteractiveImportRowProps) {
       {isSeriesColumnVisible ? (
         <TableRowCellButton
           isDisabled={!allowSeriesChange}
-          title={
-            allowSeriesChange ? translate('ClickToChangeSeries') : undefined
-          }
+          title={seriesCellTitle}
           onPress={onSelectSeriesPress}
         >
-          {showSeriesPlaceholder ? (
-            <InteractiveImportRowCellPlaceholder />
-          ) : (
-            <>
-              {seriesTitle}
-              <SeriesEditionBadge
-                className={styles.edition}
-                editionName={series?.editionName}
-              />
-            </>
-          )}
+          {seriesCellContent}
         </TableRowCellButton>
       ) : null}
 
@@ -807,6 +874,14 @@ function InteractiveImportRow(props: InteractiveImportRowProps) {
         isOpen={selectModalOpen === 'series'}
         modalTitle={modalTitle}
         onSeriesSelect={onSeriesSelect}
+        onModalClose={onSelectModalClose}
+      />
+
+      <SelectEditionModal
+        isOpen={selectModalOpen === 'edition'}
+        series={series}
+        modalTitle={modalTitle}
+        onEditionSelect={onEditionSelect}
         onModalClose={onSelectModalClose}
       />
 
