@@ -63,6 +63,10 @@ namespace Sonarr.Api.V3.EpisodeFiles
             var scoredFormats = formatCalculationService?.ParseScoredCustomFormat(model, model.Series);
             var customFormatScore = series?.QualityProfile?.Value?.CalculateCustomFormatScore(scoredFormats) ?? 0;
 
+            var manualFormats = formatCalculationService == null
+                ? model.ManualCustomFormats
+                : formatCalculationService.ForcedCustomFormats(model, model.Series);
+
             return new EpisodeFileResource
             {
                 Id = model.Id,
@@ -78,7 +82,7 @@ namespace Sonarr.Api.V3.EpisodeFiles
                 Languages = model.Languages,
                 NamingAudioLanguages = model.NamingAudioLanguages?.Any() == true ? model.NamingAudioLanguages : null,
                 NamingSubtitleLanguages = model.NamingSubtitleLanguages?.Any() == true ? model.NamingSubtitleLanguages : null,
-                ManualCustomFormats = model.ManualCustomFormats?.Any() == true ? model.ManualCustomFormats : null,
+                ManualCustomFormats = manualFormats?.Any() == true ? manualFormats : null,
                 ExcludedCustomFormats = model.ExcludedCustomFormats?.Any() == true ? model.ExcludedCustomFormats : null,
                 Quality = model.Quality,
                 MediaInfo = model.MediaInfo.ToResource(model.SceneName),

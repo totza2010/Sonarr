@@ -127,6 +127,37 @@ namespace NzbDrone.Core.Test.CustomFormats
         }
 
         [Test]
+        public void should_report_a_hand_added_format_as_forced_while_the_name_lacks_it()
+        {
+            _episodeFile.ManualCustomFormats = new List<int> { _notInName.Id };
+
+            Subject.ForcedCustomFormats(_episodeFile, _series).Should().BeEquivalentTo(new[] { _notInName.Id });
+        }
+
+        [Test]
+        public void should_stop_reporting_a_hand_added_format_as_forced_once_the_name_carries_it()
+        {
+            // Covers all three ways the name can catch up: the import writing it, a later rename, or the
+            // format itself being written after the file was already there. Nothing is stored to say so,
+            // which is why the answer is worked out on every read.
+            _episodeFile.ManualCustomFormats = new List<int> { _notInName.Id };
+            _episodeFile.RelativePath = "Season 01/Series.S01E01.NF.IQ.WEBDL-1080p.mkv";
+
+            Subject.ForcedCustomFormats(_episodeFile, _series).Should().BeEmpty();
+        }
+
+        [Test]
+        public void should_keep_reporting_a_forced_format_the_name_only_matches_because_it_was_excluded()
+        {
+            // Excluding it means the file is not to count as that format, so the hand-added entry is the
+            // only thing still speaking and has to stay visible.
+            _episodeFile.ManualCustomFormats = new List<int> { _inName.Id };
+            _episodeFile.ExcludedCustomFormats = new List<int> { _inName.Id };
+
+            Subject.ForcedCustomFormats(_episodeFile, _series).Should().BeEquivalentTo(new[] { _inName.Id });
+        }
+
+        [Test]
         public void should_ignore_a_hand_added_id_that_no_longer_names_a_format()
         {
             // Deleting a format is deliberate; a file still pointing at it should not fail or report it.

@@ -507,7 +507,8 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Manual
             item.NamingSubtitleLanguages = episodeFile.NamingSubtitleLanguages;
             item.DetectedAudioLanguages = MapDetectedLanguages(episodeFile.MediaInfo?.AudioLanguages);
             item.DetectedSubtitleLanguages = MapDetectedLanguages(episodeFile.MediaInfo?.Subtitles);
-            item.ManualCustomFormats = episodeFile.ManualCustomFormats;
+
+            item.ManualCustomFormats = _formatCalculator.ForcedCustomFormats(episodeFile, series);
             item.ExcludedCustomFormats = episodeFile.ExcludedCustomFormats;
             item.IndexerFlags = (int)episodeFile.IndexerFlags;
             item.ReleaseType = episodeFile.ReleaseType;

@@ -24,6 +24,7 @@ namespace NzbDrone.Core.CustomFormats
         List<CustomFormat> ParseCustomFormat(EpisodeHistory history, Series series);
         List<CustomFormat> ParseCustomFormat(LocalEpisode localEpisode);
         List<CustomFormat> ApplyManualCustomFormats(List<CustomFormat> customFormats, List<int> manualFormatIds, List<int> excludedFormatIds);
+        List<int> ForcedCustomFormats(EpisodeFile episodeFile, Series series);
     }
 
     public class CustomFormatCalculationService : ICustomFormatCalculationService
@@ -246,6 +247,24 @@ namespace NzbDrone.Core.CustomFormats
         {
             return MatchFormats(episodeFile, series, allCustomFormats)
                 .Where(f => episodeFile.ExcludedCustomFormats?.Contains(f.Id) != true);
+        }
+
+        /// <summary>
+        /// Which hand-added formats are still being forced, rather than which were added at some point.
+        /// A format the name has come to match on its own has stopped being an instruction, whether the
+        /// name caught up on import, on a rename, or because the format itself was written afterwards.
+        /// Reporting it as hand-added leaves the file looking overridden with nothing to undo.
+        /// </summary>
+        public List<int> ForcedCustomFormats(EpisodeFile episodeFile, Series series)
+        {
+            if (episodeFile.ManualCustomFormats?.Any() != true)
+            {
+                return episodeFile.ManualCustomFormats;
+            }
+
+            var earned = Earned(episodeFile, series, _formatService.All()).Select(f => f.Id).ToList();
+
+            return episodeFile.ManualCustomFormats.Where(id => !earned.Contains(id)).ToList();
         }
 
         /// <summary>
