@@ -7,6 +7,7 @@ using Moq;
 using NUnit.Framework;
 using NzbDrone.Common.Disk;
 using NzbDrone.Common.Extensions;
+using NzbDrone.Core.CustomFormats;
 using NzbDrone.Core.Download;
 using NzbDrone.Core.History;
 using NzbDrone.Core.MediaFiles;
@@ -450,6 +451,42 @@ namespace NzbDrone.Core.Test.MediaFiles.EpisodeImport
             Mocker.GetMock<IUpgradeMediaFiles>()
                   .Verify(v => v.UpgradeEpisodeFile(It.Is<EpisodeFile>(e => e.SceneName == firstDecision.LocalEpisode.SceneName), _approvedDecisions.First().LocalEpisode, false),
                       Times.Once());
+        }
+
+        [Test]
+        public void should_fold_a_hand_added_format_into_the_list_the_name_is_built_from()
+        {
+            // The name comes from the list the decision worked out, not from the file, so a format added
+            // by hand only reaches the name if it is folded in before the file is moved. Without this it
+            // takes a second rename to show up.
+            var manual = new CustomFormat("NF") { Id = 12 };
+            var decision = _approvedDecisions.First();
+
+            decision.LocalEpisode.CustomFormats = new List<CustomFormat>();
+            decision.LocalEpisode.ManualCustomFormats = new List<int> { manual.Id };
+
+            Mocker.GetMock<ICustomFormatCalculationService>()
+                  .Setup(s => s.ApplyManualCustomFormats(It.IsAny<List<CustomFormat>>(), It.IsAny<List<int>>(), It.IsAny<List<int>>()))
+                  .Returns(new List<CustomFormat> { manual });
+
+            Subject.Import(new List<ImportDecision> { decision }, true);
+
+            Mocker.GetMock<IUpgradeMediaFiles>()
+                  .Verify(v => v.UpgradeEpisodeFile(It.IsAny<EpisodeFile>(),
+                                                    It.Is<LocalEpisode>(l => l.CustomFormats.Contains(manual)),
+                                                    It.IsAny<bool>()),
+                      Times.Once());
+        }
+
+        [Test]
+        public void should_leave_the_list_alone_when_nothing_was_said_by_hand()
+        {
+            // Every file nobody has touched takes this path, so it has to be the untouched one.
+            Subject.Import(new List<ImportDecision> { _approvedDecisions.First() }, true);
+
+            Mocker.GetMock<ICustomFormatCalculationService>()
+                  .Verify(s => s.ApplyManualCustomFormats(It.IsAny<List<CustomFormat>>(), It.IsAny<List<int>>(), It.IsAny<List<int>>()),
+                      Times.Never());
         }
     }
 }

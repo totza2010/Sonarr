@@ -23,6 +23,7 @@ namespace NzbDrone.Core.CustomFormats
         List<CustomFormat> ParseCustomFormat(Blocklist blocklist, Series series);
         List<CustomFormat> ParseCustomFormat(EpisodeHistory history, Series series);
         List<CustomFormat> ParseCustomFormat(LocalEpisode localEpisode);
+        List<CustomFormat> ApplyManualCustomFormats(List<CustomFormat> customFormats, List<int> manualFormatIds, List<int> excludedFormatIds);
     }
 
     public class CustomFormatCalculationService : ICustomFormatCalculationService
@@ -245,6 +246,31 @@ namespace NzbDrone.Core.CustomFormats
         {
             return MatchFormats(episodeFile, series, allCustomFormats)
                 .Where(f => episodeFile.ExcludedCustomFormats?.Contains(f.Id) != true);
+        }
+
+        /// <summary>
+        /// The same merge as <see cref="Merge(EpisodeFile, Series, List{CustomFormat})"/>, for a list that
+        /// has already been worked out. An import names the file from the list the decision produced
+        /// rather than from the file, so without this a format added or removed by hand does not reach
+        /// the name until somebody renames the file afterwards.
+        ///
+        /// Deliberately separate from the scored set, which has to stay what the file earns on its own.
+        /// </summary>
+        public List<CustomFormat> ApplyManualCustomFormats(List<CustomFormat> customFormats, List<int> manualFormatIds, List<int> excludedFormatIds)
+        {
+            if (manualFormatIds?.Any() != true && excludedFormatIds?.Any() != true)
+            {
+                return customFormats;
+            }
+
+            var kept = (customFormats ?? new List<CustomFormat>())
+                .Where(f => excludedFormatIds?.Contains(f.Id) != true)
+                .ToList();
+
+            var added = _formatService.All()
+                .Where(f => manualFormatIds?.Contains(f.Id) == true && kept.All(k => k.Id != f.Id));
+
+            return kept.Concat(added).ToList();
         }
 
         /// <summary>

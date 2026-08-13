@@ -92,5 +92,46 @@ namespace NzbDrone.Core.Test.CustomFormats
             Subject.ParseCustomFormat(_episodeFile, _series).Should().BeEquivalentTo(new[] { _inName });
             Subject.ParseScoredCustomFormat(_episodeFile, _series).Should().BeEquivalentTo(new[] { _inName });
         }
+
+        [Test]
+        public void should_leave_an_already_worked_out_list_alone_when_nothing_was_said_by_hand()
+        {
+            // The list an import names the file from. Every file that nobody has touched takes this
+            // path, so it has to come back exactly as it went in.
+            var decided = new List<CustomFormat> { _inName };
+
+            Subject.ApplyManualCustomFormats(decided, new List<int>(), new List<int>())
+                   .Should().BeSameAs(decided);
+        }
+
+        [Test]
+        public void should_add_a_hand_added_format_to_an_already_worked_out_list()
+        {
+            // Without this the format only reaches the name when somebody renames the file afterwards.
+            Subject.ApplyManualCustomFormats(new List<CustomFormat> { _inName }, new List<int> { _notInName.Id }, new List<int>())
+                   .Should().BeEquivalentTo(new[] { _inName, _notInName });
+        }
+
+        [Test]
+        public void should_drop_a_hand_excluded_format_from_an_already_worked_out_list()
+        {
+            Subject.ApplyManualCustomFormats(new List<CustomFormat> { _inName, _notInName }, new List<int>(), new List<int> { _inName.Id })
+                   .Should().BeEquivalentTo(new[] { _notInName });
+        }
+
+        [Test]
+        public void should_not_repeat_a_hand_added_format_the_list_already_holds()
+        {
+            Subject.ApplyManualCustomFormats(new List<CustomFormat> { _inName }, new List<int> { _inName.Id }, new List<int>())
+                   .Should().BeEquivalentTo(new[] { _inName });
+        }
+
+        [Test]
+        public void should_ignore_a_hand_added_id_that_no_longer_names_a_format()
+        {
+            // Deleting a format is deliberate; a file still pointing at it should not fail or report it.
+            Subject.ApplyManualCustomFormats(new List<CustomFormat> { _inName }, new List<int> { 99 }, new List<int>())
+                   .Should().BeEquivalentTo(new[] { _inName });
+        }
     }
 }

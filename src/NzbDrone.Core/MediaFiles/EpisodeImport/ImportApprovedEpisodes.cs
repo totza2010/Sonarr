@@ -5,6 +5,7 @@ using System.Linq;
 using NLog;
 using NzbDrone.Common.Disk;
 using NzbDrone.Common.Extensions;
+using NzbDrone.Core.CustomFormats;
 using NzbDrone.Core.Download;
 using NzbDrone.Core.Extras;
 using NzbDrone.Core.History;
@@ -27,6 +28,7 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport
     {
         private readonly IUpgradeMediaFiles _episodeFileUpgrader;
         private readonly IMediaFileService _mediaFileService;
+        private readonly ICustomFormatCalculationService _formatCalculator;
         private readonly IEpisodeFileLinkService _episodeFileLinkService;
         private readonly IExtraService _extraService;
         private readonly IExistingExtraFiles _existingExtraFiles;
@@ -38,6 +40,7 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport
 
         public ImportApprovedEpisodes(IUpgradeMediaFiles episodeFileUpgrader,
                                       IMediaFileService mediaFileService,
+                                      ICustomFormatCalculationService formatCalculator,
                                       IEpisodeFileLinkService episodeFileLinkService,
                                       IExtraService extraService,
                                       IExistingExtraFiles existingExtraFiles,
@@ -49,6 +52,7 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport
         {
             _episodeFileUpgrader = episodeFileUpgrader;
             _mediaFileService = mediaFileService;
+            _formatCalculator = formatCalculator;
             _episodeFileLinkService = episodeFileLinkService;
             _extraService = extraService;
             _existingExtraFiles = existingExtraFiles;
@@ -122,6 +126,18 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport
                     episodeFile.NamingSubtitleLanguages = localEpisode.NamingSubtitleLanguages ?? new List<Language>();
                     episodeFile.ManualCustomFormats = localEpisode.ManualCustomFormats ?? new List<int>();
                     episodeFile.ExcludedCustomFormats = localEpisode.ExcludedCustomFormats ?? new List<int>();
+
+                    // The name about to be built comes from the list the decision produced, not from the
+                    // file, so the hand-picked formats have to be folded in here. Without this they only
+                    // reach the name when somebody renames the file afterwards. The score was already
+                    // worked out from the earned formats alone and is not touched.
+                    if (episodeFile.ManualCustomFormats.Any() || episodeFile.ExcludedCustomFormats.Any())
+                    {
+                        localEpisode.CustomFormats = _formatCalculator.ApplyManualCustomFormats(
+                            localEpisode.CustomFormats,
+                            episodeFile.ManualCustomFormats,
+                            episodeFile.ExcludedCustomFormats);
+                    }
 
                     // Which of the episode's files this one is, when the import said so.
                     episodeFile.MultipleType = localEpisode.MultipleType;
