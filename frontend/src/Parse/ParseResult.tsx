@@ -191,6 +191,7 @@ function ParseResult(props: ParseResultProps) {
               <SeriesTitleLink
                 titleSlug={series.titleSlug}
                 title={series.title}
+                editionName={series.editionName}
               />
             ) : (
               '-'

@@ -198,6 +198,7 @@ function QueueRow(props: QueueRowProps) {
                 <SeriesTitleLink
                   titleSlug={series.titleSlug}
                   title={series.title}
+                  editionName={series.editionName}
                 />
               ) : (
                 title

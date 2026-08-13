@@ -127,6 +127,7 @@ function HistoryRow(props: HistoryRowProps) {
               <SeriesTitleLink
                 titleSlug={series.titleSlug}
                 title={series.title}
+                editionName={series.editionName}
               />
             </TableRowCell>
           );

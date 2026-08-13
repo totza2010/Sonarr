@@ -61,6 +61,7 @@ function MissingRow(props) {
                 <SeriesTitleLink
                   titleSlug={series.titleSlug}
                   title={series.title}
+                  editionName={series.editionName}
                 />
               </TableRowCell>
             );

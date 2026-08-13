@@ -20,7 +20,6 @@ import EditSeriesModal from 'Series/Edit/EditSeriesModal';
 import createSeriesIndexItemSelector from 'Series/Index/createSeriesIndexItemSelector';
 import { Statistics } from 'Series/Series';
 import SeriesBanner from 'Series/SeriesBanner';
-import SeriesEditionBadge from 'Series/SeriesEditionBadge';
 import seriesEditionTitle from 'Series/seriesEditionTitle';
 import SeriesTitleLink from 'Series/SeriesTitleLink';
 import { executeCommand } from 'Store/Actions/commandActions';
@@ -221,10 +220,9 @@ function SeriesIndexRow(props: SeriesIndexRowProps) {
                 </Link>
               ) : (
                 <>
-                  <SeriesTitleLink titleSlug={titleSlug} title={seriesTitle} />
-
-                  <SeriesEditionBadge
-                    className={styles.edition}
+                  <SeriesTitleLink
+                    titleSlug={titleSlug}
+                    title={seriesTitle}
                     editionName={editionName}
                   />
 
