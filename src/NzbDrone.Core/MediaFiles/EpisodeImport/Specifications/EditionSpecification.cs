@@ -1,3 +1,4 @@
+using System.Linq;
 using NLog;
 using NzbDrone.Core.DecisionEngine;
 using NzbDrone.Core.Download;
@@ -31,6 +32,16 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Specifications
         public ImportSpecDecision IsSatisfiedBy(LocalEpisode localEpisode, DownloadClientItem downloadClientItem)
         {
             if (localEpisode.Series == null)
+            {
+                return ImportSpecDecision.Accept();
+            }
+
+            // A grab records the episodes it was for, and an episode row belongs to exactly one edition.
+            // Finding this file's episodes among them means somebody already chose the edition, on the
+            // page they searched from - asking again would be asking a question already answered.
+            var grabbedEpisodeIds = localEpisode.Release?.EpisodeIds;
+
+            if (grabbedEpisodeIds?.Any() == true && localEpisode.Episodes.Any(e => grabbedEpisodeIds.Contains(e.Id)))
             {
                 return ImportSpecDecision.Accept();
             }

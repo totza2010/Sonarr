@@ -32,6 +32,7 @@ namespace NzbDrone.Core.Download.TrackedDownloads
                                           IHandle<SeriesDeletedEvent>
     {
         private readonly IParsingService _parsingService;
+        private readonly ISeriesService _seriesService;
         private readonly IHistoryService _historyService;
         private readonly IEventAggregator _eventAggregator;
         private readonly IDownloadHistoryService _downloadHistoryService;
@@ -41,6 +42,7 @@ namespace NzbDrone.Core.Download.TrackedDownloads
         private readonly ICached<TrackedDownload> _cache;
 
         public TrackedDownloadService(IParsingService parsingService,
+                                      ISeriesService seriesService,
                                       ICacheManager cacheManager,
                                       IHistoryService historyService,
                                       ICustomFormatCalculationService formatCalculator,
@@ -50,6 +52,7 @@ namespace NzbDrone.Core.Download.TrackedDownloads
                                       Logger logger)
         {
             _parsingService = parsingService;
+            _seriesService = seriesService;
             _historyService = historyService;
             _formatCalculator = formatCalculator;
             _eventAggregator = eventAggregator;
@@ -153,6 +156,35 @@ namespace NzbDrone.Core.Download.TrackedDownloads
                                 firstHistoryItem.SeriesId,
                                 historyItems.Where(v => v.EventType == EpisodeHistoryEventType.Grabbed)
                                     .Select(h => h.EpisodeId).Distinct());
+                        }
+                    }
+
+                    // A release title says which series but never which edition, so matching it lands on
+                    // the main edition even when the grab came from another one. The grab recorded the
+                    // series that was actually asked for; only editions of that same series are ever
+                    // swapped in, so a title that matched the wrong show still fails as loudly as before.
+                    //
+                    // The episodes have to come across with it. Each edition keeps its own episode rows,
+                    // so leaving the ones the title matched would point the download at another edition's
+                    // episodes - which is what the queue would count against, and what an import would
+                    // attach the file to.
+                    var mapped = trackedDownload.RemoteEpisode?.Series;
+
+                    if (mapped != null && firstHistoryItem.SeriesId != mapped.Id)
+                    {
+                        var grabbed = _seriesService.GetSeries(firstHistoryItem.SeriesId);
+                        var grabbedEpisodeIds = historyItems.Where(v => v.EventType == EpisodeHistoryEventType.Grabbed)
+                                                            .Select(h => h.EpisodeId)
+                                                            .Distinct()
+                                                            .ToList();
+
+                        if (grabbed != null && grabbed.TvdbId == mapped.TvdbId && grabbedEpisodeIds.Any())
+                        {
+                            _logger.Debug("Grab was for {0}, using it over the {1} the title matched",
+                                          grabbed.Title,
+                                          mapped.Title);
+
+                            trackedDownload.RemoteEpisode = _parsingService.Map(parsedEpisodeInfo, firstHistoryItem.SeriesId, grabbedEpisodeIds);
                         }
                     }
 

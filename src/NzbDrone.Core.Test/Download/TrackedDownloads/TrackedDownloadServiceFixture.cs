@@ -402,5 +402,104 @@ namespace NzbDrone.Core.Test.Download.TrackedDownloads
             trackedDownloads.Should().HaveCount(1);
             trackedDownloads.First().RemoteEpisode.Should().BeNull();
         }
+
+        private DownloadClientItem GivenGrabbedDownload(int grabbedSeriesId, Series titleMatched)
+        {
+            Mocker.GetMock<IHistoryService>()
+                  .Setup(s => s.FindByDownloadId("35238"))
+                  .Returns(new List<EpisodeHistory>
+                  {
+                      new EpisodeHistory
+                      {
+                          DownloadId = "35238",
+                          SourceTitle = "TV Series S01",
+                          SeriesId = grabbedSeriesId,
+                          EpisodeId = 4,
+                          EventType = EpisodeHistoryEventType.Grabbed
+                      }
+                  });
+
+            Mocker.GetMock<IParsingService>()
+                  .Setup(s => s.Map(It.IsAny<ParsedEpisodeInfo>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(), null))
+                  .Returns(new RemoteEpisode
+                  {
+                      Series = titleMatched,
+                      Episodes = new List<Episode> { new Episode { Id = 4, SeriesId = titleMatched.Id } },
+                      ParsedEpisodeInfo = new ParsedEpisodeInfo { SeriesTitle = "TV Series", SeasonNumber = 1 }
+                  });
+
+            // The overload that takes the series the grab was for, which brings that edition's episodes.
+            Mocker.GetMock<IParsingService>()
+                  .Setup(s => s.Map(It.IsAny<ParsedEpisodeInfo>(), grabbedSeriesId, It.IsAny<IEnumerable<int>>()))
+                  .Returns(new RemoteEpisode
+                  {
+                      Series = new Series { Id = grabbedSeriesId, TvdbId = titleMatched.TvdbId },
+                      Episodes = new List<Episode> { new Episode { Id = 4, SeriesId = grabbedSeriesId } },
+                      ParsedEpisodeInfo = new ParsedEpisodeInfo { SeriesTitle = "TV Series", SeasonNumber = 1 }
+                  });
+
+            return new DownloadClientItem
+            {
+                Title = "TV Series S01",
+                DownloadId = "35238",
+                DownloadClientInfo = new DownloadClientItemClientInfo
+                {
+                    Protocol = DownloadProtocol.Torrent,
+                    Id = 1,
+                    Name = "Client"
+                }
+            };
+        }
+
+        [Test]
+        public void should_use_the_series_the_grab_was_for_when_the_title_matched_another_edition()
+        {
+            // A release title says which series and never which edition, so matching it lands on the main
+            // edition. The grab knows which edition was actually asked for.
+            var mainEdition = new Series { Id = 5, TvdbId = 7, Title = "TV Series" };
+            var chosenEdition = new Series { Id = 6, TvdbId = 7, Title = "TV Series", EditionName = "Extended" };
+
+            var item = GivenGrabbedDownload(chosenEdition.Id, mainEdition);
+
+            Mocker.GetMock<ISeriesService>().Setup(s => s.GetSeries(chosenEdition.Id)).Returns(chosenEdition);
+
+            var trackedDownload = Subject.TrackDownload(new DownloadClientDefinition { Id = 1, Protocol = DownloadProtocol.Torrent }, item);
+
+            trackedDownload.RemoteEpisode.Series.Id.Should().Be(chosenEdition.Id);
+
+            // Each edition keeps its own episode rows, so the episodes have to come across too. Left
+            // behind, the queue counts against another edition's episodes and an import attaches there.
+            trackedDownload.RemoteEpisode.Episodes.Should().OnlyContain(e => e.SeriesId == chosenEdition.Id);
+        }
+
+        [Test]
+        public void should_keep_the_series_the_title_matched_when_the_grab_was_for_a_different_show()
+        {
+            // Only editions of the same series are ever swapped in. A history row pointing somewhere else
+            // is a mismatch worth leaving visible rather than quietly following.
+            var titleMatched = new Series { Id = 5, TvdbId = 7, Title = "TV Series" };
+            var otherShow = new Series { Id = 6, TvdbId = 99, Title = "Another Series" };
+
+            var item = GivenGrabbedDownload(otherShow.Id, titleMatched);
+
+            Mocker.GetMock<ISeriesService>().Setup(s => s.GetSeries(otherShow.Id)).Returns(otherShow);
+
+            var trackedDownload = Subject.TrackDownload(new DownloadClientDefinition { Id = 1, Protocol = DownloadProtocol.Torrent }, item);
+
+            trackedDownload.RemoteEpisode.Series.Id.Should().Be(titleMatched.Id);
+        }
+
+        [Test]
+        public void should_not_look_up_the_grabbed_series_when_the_title_already_matched_it()
+        {
+            // The ordinary download, where there is only one series it could be.
+            var series = new Series { Id = 5, TvdbId = 7, Title = "TV Series" };
+
+            var item = GivenGrabbedDownload(series.Id, series);
+
+            Subject.TrackDownload(new DownloadClientDefinition { Id = 1, Protocol = DownloadProtocol.Torrent }, item);
+
+            Mocker.GetMock<ISeriesService>().Verify(s => s.GetSeries(It.IsAny<int>()), Times.Never());
+        }
     }
 }

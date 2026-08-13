@@ -1,7 +1,10 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using FluentAssertions;
 using Moq;
 using NUnit.Framework;
+using NzbDrone.Core.History;
 using NzbDrone.Core.MediaFiles.EpisodeImport;
 using NzbDrone.Core.MediaFiles.EpisodeImport.Specifications;
 using NzbDrone.Core.Parser.Model;
@@ -22,7 +25,8 @@ namespace NzbDrone.Core.Test.MediaFiles.EpisodeImport.Specifications
             _localEpisode = new LocalEpisode
             {
                 Path = @"C:\Downloads\Series.S01E01.mkv".AsOsAgnostic(),
-                Series = GivenEdition(1, null)
+                Series = GivenEdition(1, null),
+                Episodes = new List<Episode>()
             };
         }
 
@@ -36,6 +40,13 @@ namespace NzbDrone.Core.Test.MediaFiles.EpisodeImport.Specifications
                 EditionName = editionName,
                 Path = (editionName == null ? @"C:\TV\Series" : $@"C:\TV\Series ({editionName})").AsOsAgnostic()
             };
+        }
+
+        private static GrabbedReleaseInfo GivenGrab(params int[] episodeIds)
+        {
+            return new GrabbedReleaseInfo(episodeIds
+                .Select(id => new EpisodeHistory { EpisodeId = id, SourceTitle = "TV Series S01", Date = DateTime.UtcNow })
+                .ToList());
         }
 
         private void GivenEditions(params Series[] editions)
@@ -82,6 +93,31 @@ namespace NzbDrone.Core.Test.MediaFiles.EpisodeImport.Specifications
             _localEpisode.Path = @"C:\TV\Series\Season 01\Series.S01E01.mkv".AsOsAgnostic();
 
             Subject.IsSatisfiedBy(_localEpisode, null).Accepted.Should().BeTrue();
+        }
+
+        [Test]
+        public void should_accept_a_download_grabbed_for_this_edition_s_episodes()
+        {
+            // Searching from an edition's page and pressing download has already answered the question.
+            GivenEditions(GivenEdition(1, null), GivenEdition(2, "Extended"));
+
+            _localEpisode.Series = GivenEdition(2, "Extended");
+            _localEpisode.Episodes = new List<Episode> { new Episode { Id = 40, SeriesId = 2 } };
+            _localEpisode.Release = GivenGrab(40);
+
+            Subject.IsSatisfiedBy(_localEpisode, null).Accepted.Should().BeTrue();
+        }
+
+        [Test]
+        public void should_reject_a_download_whose_grab_named_another_edition_s_episodes()
+        {
+            // Episode rows belong to one edition, so a grab naming different ones did not settle this.
+            GivenEditions(GivenEdition(1, null), GivenEdition(2, "Extended"));
+
+            _localEpisode.Episodes = new List<Episode> { new Episode { Id = 40, SeriesId = 1 } };
+            _localEpisode.Release = GivenGrab(99);
+
+            Subject.IsSatisfiedBy(_localEpisode, null).Accepted.Should().BeFalse();
         }
 
         [Test]
