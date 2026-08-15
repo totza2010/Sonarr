@@ -198,6 +198,21 @@ class UISettings extends Component {
                   </FormGroup>
 
                   <FormGroup>
+                    <FormLabel>
+                      {translate('InteractiveImportInlineActions')}
+                    </FormLabel>
+                    <FormInputGroup
+                      type={inputTypes.CHECK}
+                      name="interactiveImportInlineActions"
+                      helpText={translate(
+                        'InteractiveImportInlineActionsHelpText'
+                      )}
+                      onChange={onInputChange}
+                      {...settings.interactiveImportInlineActions}
+                    />
+                  </FormGroup>
+
+                  <FormGroup>
                     <FormLabel>{translate('EnableColorImpairedMode')}</FormLabel>
                     <FormInputGroup
                       type={inputTypes.CHECK}

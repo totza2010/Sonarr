@@ -1058,6 +1058,8 @@
   "InstanceName": "Instance Name",
   "InstanceNameHelpText": "Instance name in tab and for Syslog app name",
   "InteractiveImport": "Interactive Import",
+  "InteractiveImportInlineActions": "Inline Bulk Actions",
+  "InteractiveImportInlineActionsHelpText": "Show the manual import bulk edits as a row of buttons rather than a menu. Buttons take one click instead of two; the menu takes less width.",
   "InteractiveImportLoadError": "Unable to load manual import items",
   "InteractiveImportNoEpisode": "One or more episodes must be chosen for each selected file",
   "InteractiveImportNoFilesFound": "No video files were found in the selected folder",

@@ -5,6 +5,7 @@ export default interface UiSettings {
   longDateFormat: string;
   timeFormat: string;
   firstDayOfWeek: number;
+  interactiveImportInlineActions: boolean;
   enableColorImpairedMode: boolean;
   calendarWeekColumnHeader: string;
 }

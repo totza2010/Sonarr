@@ -15,6 +15,7 @@ namespace Sonarr.Api.V3.Config
         public string TimeFormat { get; set; }
         public bool ShowRelativeDates { get; set; }
 
+        public bool InteractiveImportInlineActions { get; set; }
         public bool EnableColorImpairedMode { get; set; }
         public string Theme { get; set; }
         public int UILanguage { get; set; }
@@ -34,6 +35,7 @@ namespace Sonarr.Api.V3.Config
                 TimeFormat = model.TimeFormat,
                 ShowRelativeDates = model.ShowRelativeDates,
 
+                InteractiveImportInlineActions = model.InteractiveImportInlineActions,
                 EnableColorImpairedMode = model.EnableColorImpairedMode,
                 Theme = config.Theme,
                 UILanguage = model.UILanguage

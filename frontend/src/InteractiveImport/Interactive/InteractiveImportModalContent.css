@@ -77,3 +77,12 @@
     }
   }
 }
+
+/* Composed rather than replaced: a className handed to Button takes the place of its own, which would
+   leave the icons looking like plain text rather than something to press. */
+.bulkAction {
+  composes: button from '~Components/Link/Button.css';
+
+  margin-right: 2px;
+  padding: 6px 10px;
+}

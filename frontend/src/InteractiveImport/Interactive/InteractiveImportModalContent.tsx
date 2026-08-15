@@ -1,3 +1,4 @@
+import { IconDefinition } from '@fortawesome/fontawesome-svg-core';
 import { cloneDeep, without } from 'lodash';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
@@ -66,6 +67,7 @@ import { fetchNamingSettings } from 'Store/Actions/settingsActions';
 import createAllSeriesSelector from 'Store/Selectors/createAllSeriesSelector';
 import createClientSideCollectionSelector from 'Store/Selectors/createClientSideCollectionSelector';
 import createMultipleFilesEnabledSelector from 'Store/Selectors/createMultipleFilesEnabledSelector';
+import createUISettingsSelector from 'Store/Selectors/createUISettingsSelector';
 import { SortCallback } from 'typings/callbacks';
 import { SelectStateInputProps } from 'typings/props';
 import getErrorMessage from 'Utilities/Object/getErrorMessage';
@@ -93,6 +95,35 @@ type SelectType =
   | 'multiple';
 
 type FilterExistingFiles = 'all' | 'new';
+
+interface BulkAction {
+  key: SelectType;
+  label: string;
+  icon: IconDefinition;
+  isDisabled?: boolean;
+}
+
+interface BulkActionButtonProps {
+  action: BulkAction;
+  onPress(key: SelectType): void;
+}
+
+// Its own component so each button carries its own handler without one being made during render.
+function BulkActionButton({ action, onPress }: BulkActionButtonProps) {
+  const handlePress = useCallback(() => {
+    onPress(action.key);
+  }, [action.key, onPress]);
+
+  return (
+    <Button
+      className={styles.bulkAction}
+      title={action.label}
+      onPress={handlePress}
+    >
+      <Icon name={action.icon} />
+    </Button>
+  );
+}
 
 // TODO: This feels janky to do, but not sure of a better way currently
 type OnSelectedChangeCallback = React.ComponentProps<
@@ -322,6 +353,9 @@ function InteractiveImportModalContent(
   const previousIsDeleting = usePrevious(isDeleting);
   const dispatch = useDispatch();
   const allSeries: Series[] = useSelector(createAllSeriesSelector());
+  const { interactiveImportInlineActions } = useSelector(
+    createUISettingsSelector()
+  );
 
   const columns: Column[] = useMemo(() => {
     const result: Column[] = cloneDeep(COLUMNS);
@@ -382,7 +416,14 @@ function InteractiveImportModalContent(
     return tvdbIds.size === 1 ? selected[0]?.series : undefined;
   }, [items, selectedIds]);
 
-  const bulkSelectOptions = useMemo(() => {
+  // Shown only while they can be used, the way Mark as Multiple already behaves. A greyed row of
+  // twelve costs the width whether or not any of them can do anything, and this bar has to share its
+  // line with the import mode and the Import button.
+  const bulkActions = useMemo<BulkAction[]>(() => {
+    if (!selectedIds.length) {
+      return [];
+    }
+
     const { seasonSelectDisabled, episodeSelectDisabled } = items.reduce(
       (acc, item) => {
         if (!selectedIds.includes(item.id)) {
@@ -406,68 +447,99 @@ function InteractiveImportModalContent(
       }
     );
 
-    const editionSelectDisabled = !commonSeries?.tvdbId;
+    const actions: BulkAction[] = [
+      {
+        key: 'edition',
+        label: translate('SelectEdition'),
+        icon: icons.CLONE,
 
-    const options = [
+        // Nothing to choose between unless the selection is all one series and that series has more
+        // than the one edition.
+        isDisabled: getSeriesEditions(allSeries, commonSeries).length <= 1,
+      },
+      {
+        key: 'season',
+        label: translate('SelectSeason'),
+        icon: icons.CALENDAR,
+        isDisabled: seasonSelectDisabled,
+      },
+      {
+        key: 'episode',
+        label: translate('SelectEpisodes'),
+        icon: icons.EPISODE_FILE,
+        isDisabled: episodeSelectDisabled,
+      },
+      {
+        key: 'quality',
+        label: translate('SelectQuality'),
+        icon: icons.MEDIA_INFO,
+      },
+      {
+        key: 'releaseGroup',
+        label: translate('SelectReleaseGroup'),
+        icon: icons.GROUP,
+      },
+      {
+        key: 'language',
+        label: translate('SelectLanguage'),
+        icon: icons.LANGUAGE,
+      },
+      {
+        key: 'namingLanguages',
+        label: translate('SelectNamingLanguages'),
+        icon: icons.SUBTITLE,
+      },
+      {
+        key: 'customFormats',
+        label: translate('SelectCustomFormats'),
+        icon: icons.INTERACTIVE,
+      },
+      {
+        key: 'indexerFlags',
+        label: translate('SelectIndexerFlags'),
+        icon: icons.FLAG,
+      },
+      {
+        key: 'releaseType',
+        label: translate('SelectReleaseType'),
+        icon: icons.TAGS,
+      },
+    ];
+
+    if (allowSeriesChange) {
+      actions.unshift({
+        key: 'series',
+        label: translate('SelectSeries'),
+        icon: icons.ORGANIZE,
+      });
+    }
+
+    return actions.filter((a) => !a.isDisabled);
+  }, [allowSeriesChange, allSeries, commonSeries, items, selectedIds]);
+
+  // The menu wants the same actions as a list, with a heading of its own that the buttons do not need.
+  const bulkSelectOptions = useMemo(() => {
+    return [
       {
         key: 'select',
         value: translate('SelectDropdown'),
         disabled: true,
       },
-      {
-        key: 'edition',
-        value: translate('SelectEdition'),
-        disabled: editionSelectDisabled,
-      },
-      {
-        key: 'season',
-        value: translate('SelectSeason'),
-        disabled: seasonSelectDisabled,
-      },
-      {
-        key: 'episode',
-        value: translate('SelectEpisodes'),
-        disabled: episodeSelectDisabled,
-      },
-      {
-        key: 'quality',
-        value: translate('SelectQuality'),
-      },
-      {
-        key: 'releaseGroup',
-        value: translate('SelectReleaseGroup'),
-      },
-      {
-        key: 'language',
-        value: translate('SelectLanguage'),
-      },
-      {
-        key: 'namingLanguages',
-        value: translate('SelectNamingLanguages'),
-      },
-      {
-        key: 'customFormats',
-        value: translate('SelectCustomFormats'),
-      },
-      {
-        key: 'indexerFlags',
-        value: translate('SelectIndexerFlags'),
-      },
-      {
-        key: 'releaseType',
-        value: translate('SelectReleaseType'),
-      },
+      ...bulkActions.map((action) => ({
+        key: action.key,
+        value: action.label,
+      })),
     ];
+  }, [bulkActions]);
 
-    if (allowSeriesChange) {
-      options.splice(1, 0, {
-        key: 'series',
-        value: translate('SelectSeries'),
-      });
-    }
-
-    return options;
-  }, [allowSeriesChange, commonSeries, items, selectedIds]);
+  const onSelectModalSelect = useCallback<
+    ({ value }: { value: SelectType }) => void
+  >(
+    ({ value }) => {
+      setSelectModalOpen(value);
+    },
+    [setSelectModalOpen]
+  );
   useEffect(
     () => {
       if (initialSortKey) {
@@ -780,15 +852,6 @@ function InteractiveImportModalContent(
       dispatch(setInteractiveImportMode({ importMode: value }));
     },
     [dispatch]
-  );
-
-  const onSelectModalSelect = useCallback<
-    ({ value }: { value: SelectType }) => void
-  >(
-    ({ value }) => {
-      setSelectModalOpen(value);
-    },
-    [setSelectModalOpen]
   );
 
   const onMarkAsMultiplePress = useCallback(() => {
@@ -1180,22 +1243,41 @@ function InteractiveImportModalContent(
             />
           ) : null}
 
-          <SelectInput
-            className={styles.bulkSelect}
-            name="select"
-            value="select"
-            values={bulkSelectOptions}
-            isDisabled={!selectedIds.length}
-            onChange={onSelectModalSelect}
-          />
+          {/* A row rather than a list behind a menu: picking one used to take opening the menu and then
+              choosing, and there is room along the bottom for the choices themselves. The bar stays put
+              while the table scrolls, so they are reachable from anywhere in a long list. */}
+          {interactiveImportInlineActions ? (
+            bulkActions.map((action) => {
+              return (
+                <BulkActionButton
+                  key={action.key}
+                  action={action}
+                  onPress={setSelectModalOpen}
+                />
+              );
+            })
+          ) : (
+            <SelectInput
+              className={styles.bulkSelect}
+              name="select"
+              value="select"
+              values={bulkSelectOptions}
+              isDisabled={!selectedIds.length}
+              onChange={onSelectModalSelect}
+            />
+          )}
 
-          {/* Its own button rather than an entry in the list above, which is ordered by column and
-              would bury an action that applies to whole groups rather than to each selected row. It
-              appears only when the selection divides evenly into groups and the naming format can
-              tell the files apart. */}
+          {/* Sits with the rest even though it acts on whole groups rather than on each selected row,
+              since a lone worded button beside a row of icons reads as something left over. It appears
+              only when the selection divides evenly into groups and the naming format can tell the
+              files apart. */}
           {isMultipleEnabled && multipleGroups.length ? (
-            <Button onPress={onMarkAsMultiplePress}>
-              {translate('MarkAsMultiple')}
+            <Button
+              className={styles.bulkAction}
+              title={translate('MarkAsMultiple')}
+              onPress={onMarkAsMultiplePress}
+            >
+              <Icon name={icons.UNGROUP} />
             </Button>
           ) : null}
         </div>

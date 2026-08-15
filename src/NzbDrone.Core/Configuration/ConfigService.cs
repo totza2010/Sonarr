@@ -332,6 +332,17 @@ namespace NzbDrone.Core.Configuration
             set { SetValue("ShowRelativeDates", value); }
         }
 
+        /// <summary>
+        /// Whether the manual import screen offers its bulk edits as a row of buttons or as the list
+        /// behind a menu. The buttons take a click each rather than two, the menu takes less width.
+        /// </summary>
+        public bool InteractiveImportInlineActions
+        {
+            get { return GetValueBoolean("InteractiveImportInlineActions", true); }
+
+            set { SetValue("InteractiveImportInlineActions", value); }
+        }
+
         public bool EnableColorImpairedMode
         {
             get { return GetValueBoolean("EnableColorImpairedMode", false); }
