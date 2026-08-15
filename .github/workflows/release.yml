@@ -141,6 +141,10 @@ jobs:
     steps:
       - name: Check out
         uses: actions/checkout@v4
+        with:
+          # The release notes are built from the commits since the previous tag, which a shallow
+          # checkout does not have.
+          fetch-depth: 0
 
       - name: Download release artifacts
         uses: actions/download-artifact@v4
@@ -149,12 +153,42 @@ jobs:
           pattern: release_*
           merge-multiple: true
 
+      # The update modal reads these notes, so they are grouped the way it shows them: commits whose
+      # subject starts with "Fixed" under Fixed, everything else under New. Generated notes are off
+      # because they come from pull requests, and this fork commits straight to the branch.
+      - name: Build release notes
+        id: notes
+        run: |
+          previous=$(git describe --tags --abbrev=0 --exclude="v${{ inputs.version }}" 2>/dev/null || true)
+          range=${previous:+$previous..}HEAD
+
+          new=$(git log --no-merges --format='%s' $range | grep -v '^Fixed' | sed 's/^/* /' || true)
+          fixed=$(git log --no-merges --format='%s' $range | grep '^Fixed' | sed 's/^Fixed: *//; s/^Fixed *//; s/^/* /' || true)
+
+          {
+            echo 'body<<RELEASE_NOTES_EOF'
+
+            if [ -n "$new" ]; then
+              echo '## New'
+              echo "$new"
+              echo
+            fi
+
+            if [ -n "$fixed" ]; then
+              echo '## Fixed'
+              echo "$fixed"
+            fi
+
+            echo 'RELEASE_NOTES_EOF'
+          } >> "$GITHUB_OUTPUT"
+
       - name: Create release
         uses: ncipollo/release-action@v1
         with:
           artifacts: _artifacts/Sonarr.*
+          body: ${{ steps.notes.outputs.body }}
           commit: ${{ github.sha }}
-          generateReleaseNotes: true
+          generateReleaseNotes: false
           name: ${{ inputs.version }}
           prerelease: ${{ inputs.branch != 'main' }}
           skipIfReleaseExists: true

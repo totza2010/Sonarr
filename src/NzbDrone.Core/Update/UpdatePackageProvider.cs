@@ -1,11 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.Runtime.InteropServices;
-using NzbDrone.Common.Cloud;
-using NzbDrone.Common.EnvironmentInfo;
+using System.Linq;
+using NLog;
 using NzbDrone.Common.Http;
-using NzbDrone.Core.Analytics;
-using NzbDrone.Core.Datastore;
 
 namespace NzbDrone.Core.Update
 {
@@ -15,77 +12,67 @@ namespace NzbDrone.Core.Update
         List<UpdatePackage> GetRecentUpdates(string branch, Version currentVersion, Version previousVersion = null);
     }
 
+    /// <summary>
+    /// Where updates come from. Upstream asks a service that decides what each install should have; this
+    /// fork has no such service and does not want one, so it reads its own GitHub releases directly. The
+    /// releases already carry everything the update needs - the version in the tag, the notes in the body,
+    /// one asset per runtime, and a digest to check the download against - and the artefacts are named the
+    /// way upstream names them, so nothing downstream of here changes.
+    /// </summary>
     public class UpdatePackageProvider : IUpdatePackageProvider
     {
-        private readonly IHttpClient _httpClient;
-        private readonly IHttpRequestBuilderFactory _requestBuilder;
-        private readonly IPlatformInfo _platformInfo;
-        private readonly IAnalyticsService _analyticsService;
-        private readonly IMainDatabase _mainDatabase;
+        private const string ReleasesUrl = "https://api.github.com/repos/totza2010/Sonarr/releases?per_page=30";
 
-        public UpdatePackageProvider(IHttpClient httpClient, ISonarrCloudRequestBuilder requestBuilder, IAnalyticsService analyticsService, IPlatformInfo platformInfo, IMainDatabase mainDatabase)
+        private readonly IHttpClient _httpClient;
+        private readonly Logger _logger;
+
+        public UpdatePackageProvider(IHttpClient httpClient, Logger logger)
         {
-            _platformInfo = platformInfo;
-            _analyticsService = analyticsService;
-            _requestBuilder = requestBuilder.Services;
             _httpClient = httpClient;
-            _mainDatabase = mainDatabase;
+            _logger = logger;
         }
 
         public UpdatePackage GetLatestUpdate(string branch, Version currentVersion)
         {
-            var request = _requestBuilder.Create()
-                                         .Resource("/update/{branch}")
-                                         .AddQueryParam("version", currentVersion)
-                                         .AddQueryParam("os", OsInfo.Os.ToString().ToLowerInvariant())
-                                         .AddQueryParam("arch", RuntimeInformation.OSArchitecture)
-                                         .AddQueryParam("runtime", "netcore")
-                                         .AddQueryParam("runtimeVer", _platformInfo.Version)
-                                         .AddQueryParam("dbType", _mainDatabase.DatabaseType)
-                                         .AddQueryParam("includeMajorVersion", true)
-                                         .SetSegment("branch", branch);
-
-            if (_analyticsService.IsEnabled)
-            {
-                // Send if the system is active so we know which versions to deprecate/ignore
-                request.AddQueryParam("active", _analyticsService.InstallIsActive.ToString().ToLower());
-            }
-
-            var update = _httpClient.Get<UpdatePackageAvailable>(request.Build()).Resource;
-
-            if (!update.Available)
-            {
-                return null;
-            }
-
-            return update.UpdatePackage;
+            return GetPackages(branch).FirstOrDefault(p => p.Version > currentVersion);
         }
 
-        public List<UpdatePackage> GetRecentUpdates(string branch, Version currentVersion, Version previousVersion)
+        public List<UpdatePackage> GetRecentUpdates(string branch, Version currentVersion, Version previousVersion = null)
         {
-            var request = _requestBuilder.Create()
-                                         .Resource("/update/{branch}/changes")
-                                         .AddQueryParam("version", currentVersion)
-                                         .AddQueryParam("os", OsInfo.Os.ToString().ToLowerInvariant())
-                                         .AddQueryParam("arch", RuntimeInformation.OSArchitecture)
-                                         .AddQueryParam("runtime", "netcore")
-                                         .AddQueryParam("runtimeVer", _platformInfo.Version)
-                                         .SetSegment("branch", branch);
+            // Everything since the version being replaced, so the modal that opens after an update can say
+            // what the jump contained rather than only what the last release did.
+            var oldest = previousVersion != null && previousVersion < currentVersion ? previousVersion : currentVersion;
 
-            if (previousVersion != null && previousVersion != currentVersion)
+            return GetPackages(branch).Where(p => p.Version >= oldest).ToList();
+        }
+
+        private List<UpdatePackage> GetPackages(string branch)
+        {
+            List<GitHubReleaseResource> releases;
+
+            try
             {
-                request.AddQueryParam("prevVersion", previousVersion);
+                var request = new HttpRequestBuilder(ReleasesUrl).Build();
+
+                // GitHub refuses anonymous calls without one, and pins the response shape to a version.
+                request.Headers.Add("Accept", "application/vnd.github+json");
+
+                releases = _httpClient.Get<List<GitHubReleaseResource>>(request).Resource;
+            }
+            catch (Exception ex)
+            {
+                // Being unable to look is not the same as there being nothing: an install that cannot reach
+                // GitHub, or that has run into its rate limit, should carry on quietly rather than report a
+                // failure the person can do nothing about.
+                _logger.Debug(ex, "Unable to read releases from GitHub");
+
+                return new List<UpdatePackage>();
             }
 
-            if (_analyticsService.IsEnabled)
-            {
-                // Send if the system is active so we know which versions to deprecate/ignore
-                request.AddQueryParam("active", _analyticsService.InstallIsActive.ToString().ToLower());
-            }
-
-            var updates = _httpClient.Get<List<UpdatePackage>>(request.Build());
-
-            return updates.Resource;
+            return releases.Select(r => UpdatePackageMapper.Map(r, branch))
+                           .Where(p => p != null)
+                           .OrderByDescending(p => p.Version)
+                           .ToList();
         }
     }
 }
