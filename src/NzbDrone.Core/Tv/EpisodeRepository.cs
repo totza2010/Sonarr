@@ -21,6 +21,7 @@ namespace NzbDrone.Core.Tv
         List<Episode> GetEpisodesBySceneSeason(int seriesId, int sceneSeasonNumber);
         List<Episode> GetEpisodeByFileId(int fileId);
         List<Episode> EpisodesWithFiles(int seriesId);
+        List<Episode> AllEpisodesWithFiles();
         PagingSpec<Episode> EpisodesWithoutFiles(PagingSpec<Episode> pagingSpec, bool includeSpecials);
         PagingSpec<Episode> EpisodesWhereCutoffUnmet(PagingSpec<Episode> pagingSpec, List<QualitiesBelowCutoff> qualitiesBelowCutoff, bool includeSpecials);
         List<Episode> FindEpisodesBySceneNumbering(int seriesId, int seasonNumber, int episodeNumber);
@@ -90,6 +91,15 @@ namespace NzbDrone.Core.Tv
         public List<Episode> GetEpisodeByFileId(int fileId)
         {
             return Query(e => e.EpisodeFileId == fileId).ToList();
+        }
+
+        /// <summary>
+        /// Every episode that has a file, which is every episode a naming format will ever be asked to
+        /// name. The ones without are left out: there is nothing to rename, and there are far more of them.
+        /// </summary>
+        public List<Episode> AllEpisodesWithFiles()
+        {
+            return Query(e => e.EpisodeFileId > 0);
         }
 
         public List<Episode> EpisodesWithFiles(int seriesId)

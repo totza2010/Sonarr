@@ -1,0 +1,68 @@
+.namingLengths {
+  position: sticky;
+  /* Follows the page down, so the numbers stay beside whichever format box is being typed into. */
+  top: 20px;
+  flex: 0 0 340px;
+  /* A flex item is at least as wide as its widest unbreakable content by default, and the stretched
+     title is one very long line - without this it forces the column to thousands of pixels and squeezes
+     the form beside it into nothing. */
+  min-width: 0;
+}
+
+@media only screen and (max-width: $breakpointLarge) {
+  .namingLengths {
+    position: static;
+    flex-basis: auto;
+  }
+}
+
+.legend {
+  margin-bottom: 4px;
+  font-weight: bold;
+}
+
+.helpText {
+  margin-bottom: 8px;
+  color: var(--helpTextColor);
+  font-size: $smallFontSize;
+}
+
+.series {
+  overflow: hidden;
+  color: var(--helpTextColor);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: $smallFontSize;
+}
+
+.table {
+  border-collapse: collapse;
+}
+
+.label {
+  padding-right: 12px;
+  font-size: $smallFontSize;
+}
+
+.length {
+  padding-right: 4px;
+  text-align: right;
+  font-size: $smallFontSize;
+  font-family: $monoSpaceFontFamily;
+}
+
+.over {
+  color: var(--dangerColor);
+  font-weight: bold;
+}
+
+.limit {
+  padding-right: 8px;
+  color: var(--helpTextColor);
+  font-size: $smallFontSize;
+  font-family: $monoSpaceFontFamily;
+}
+
+.flag {
+  width: 20px;
+}

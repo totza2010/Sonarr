@@ -20,14 +20,17 @@ namespace Sonarr.Api.V3.Config
         private readonly IValidateMultipleFileNaming _multipleFileNamingValidator;
         private readonly IValidateLanguageFlagsNaming _languageFlagsNamingValidator;
         private readonly IBuildFileNames _filenameBuilder;
+        private readonly IPredictFileNameLength _lengthPredictor;
 
         public NamingConfigController(INamingConfigService namingConfigService,
                                   IFilenameSampleService filenameSampleService,
                                   IFilenameValidationService filenameValidationService,
                                   IValidateMultipleFileNaming multipleFileNamingValidator,
                                   IValidateLanguageFlagsNaming languageFlagsNamingValidator,
-                                  IBuildFileNames filenameBuilder)
+                                  IBuildFileNames filenameBuilder,
+                                  IPredictFileNameLength lengthPredictor)
         {
+            _lengthPredictor = lengthPredictor;
             _namingConfigService = namingConfigService;
             _filenameSampleService = filenameSampleService;
             _filenameValidationService = filenameValidationService;
@@ -118,6 +121,11 @@ namespace Sonarr.Api.V3.Config
             sampleResource.SpecialsFolderExample = nameSpec.SpecialsFolderFormat.IsNullOrWhiteSpace()
                 ? null
                 : _filenameSampleService.GetSpecialsFolderSample(nameSpec);
+
+            // The samples above are built from an invented series with a short title, which says what the
+            // format looks like but not how long it gets. This says how long, by stretching those invented
+            // names to the longest the library actually holds.
+            sampleResource.LengthPrediction = _lengthPredictor.Predict(nameSpec).ToResource();
 
             return sampleResource;
         }

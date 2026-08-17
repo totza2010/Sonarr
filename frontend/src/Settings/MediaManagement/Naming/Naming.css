@@ -3,3 +3,21 @@
 
   font-family: $monoSpaceFontFamily;
 }
+
+.layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.form {
+  flex: 1 1 auto;
+  /* Without this a long naming format stretches the form and pushes the lengths off the page. */
+  min-width: 0;
+}
+
+@media only screen and (max-width: $breakpointLarge) {
+  .layout {
+    flex-direction: column;
+  }
+}

@@ -26,6 +26,7 @@ namespace NzbDrone.Core.Tv
         List<Episode> GetEpisodesBySeason(int seriesId, int seasonNumber);
         List<Episode> GetEpisodesBySceneSeason(int seriesId, int sceneSeasonNumber);
         List<Episode> EpisodesWithFiles(int seriesId);
+        List<Episode> AllEpisodesWithFiles();
         PagingSpec<Episode> EpisodesWithoutFiles(PagingSpec<Episode> pagingSpec);
         List<Episode> GetEpisodesByFileId(int episodeFileId);
         void UpdateEpisode(Episode episode);
@@ -145,6 +146,11 @@ namespace NzbDrone.Core.Tv
             }
 
             return null;
+        }
+
+        public List<Episode> AllEpisodesWithFiles()
+        {
+            return _episodeRepository.AllEpisodesWithFiles();
         }
 
         public List<Episode> EpisodesWithFiles(int seriesId)
