@@ -161,6 +161,20 @@ namespace NzbDrone.Core.MediaFiles
                                  overlong.Count(f => f.NameTooLong),
                                  overlong.Count(f => f.PathTooLong));
 
+            if (overlong.Any())
+            {
+                // The health check names three and counts the rest, which says how bad it is but not where
+                // to go. The whole list belongs somewhere it can be read at leisure, and the event list is
+                // that place - worst first, so the top of a long line is the part worth reading.
+                // Info rather than progress: the corner of the screen is no place for a list this long.
+                var titles = overlong.GroupBy(f => f.SeriesTitle)
+                                     .OrderByDescending(g => g.Count())
+                                     .ThenBy(g => g.Key)
+                                     .Select(g => $"{g.Key} ({g.Count()})");
+
+                _logger.Info("Series over a length limit: {0}", string.Join(", ", titles));
+            }
+
             _cache.Set("overlong", overlong);
 
             return overlong;
