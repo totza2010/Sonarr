@@ -231,6 +231,40 @@ class MediaManagement extends Component {
                         isAdvanced={true}
                         size={sizes.MEDIUM}
                       >
+                        <FormLabel>{translate('FileNameLengthLimit')}</FormLabel>
+
+                        <FormInputGroup
+                          type={inputTypes.NUMBER}
+                          unit='bytes'
+                          name="fileNameLengthLimit"
+                          helpText={translate('FileNameLengthLimitHelpText')}
+                          onChange={onInputChange}
+                          {...settings.fileNameLengthLimit}
+                        />
+                      </FormGroup>
+
+                      <FormGroup
+                        advancedSettings={advancedSettings}
+                        isAdvanced={true}
+                        size={sizes.MEDIUM}
+                      >
+                        <FormLabel>{translate('FilePathLengthLimit')}</FormLabel>
+
+                        <FormInputGroup
+                          type={inputTypes.NUMBER}
+                          unit='bytes'
+                          name="filePathLengthLimit"
+                          helpText={translate('FilePathLengthLimitHelpText')}
+                          onChange={onInputChange}
+                          {...settings.filePathLengthLimit}
+                        />
+                      </FormGroup>
+
+                      <FormGroup
+                        advancedSettings={advancedSettings}
+                        isAdvanced={true}
+                        size={sizes.MEDIUM}
+                      >
                         <FormLabel>{translate('MinimumFreeSpace')}</FormLabel>
 
                         <FormInputGroup

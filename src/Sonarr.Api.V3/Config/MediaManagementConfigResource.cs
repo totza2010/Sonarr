@@ -23,6 +23,8 @@ namespace Sonarr.Api.V3.Config
 
         public EpisodeTitleRequiredType EpisodeTitleRequired { get; set; }
         public bool SkipFreeSpaceCheckWhenImporting { get; set; }
+        public int FileNameLengthLimit { get; set; }
+        public int FilePathLengthLimit { get; set; }
         public int MinimumFreeSpaceWhenImporting { get; set; }
         public bool CopyUsingHardlinks { get; set; }
         public bool UseScriptImport { get; set; }
@@ -53,6 +55,8 @@ namespace Sonarr.Api.V3.Config
 
                 EpisodeTitleRequired = model.EpisodeTitleRequired,
                 SkipFreeSpaceCheckWhenImporting = model.SkipFreeSpaceCheckWhenImporting,
+                FileNameLengthLimit = model.FileNameLengthLimit,
+                FilePathLengthLimit = model.FilePathLengthLimit,
                 MinimumFreeSpaceWhenImporting = model.MinimumFreeSpaceWhenImporting,
                 CopyUsingHardlinks = model.CopyUsingHardlinks,
                 UseScriptImport = model.UseScriptImport,

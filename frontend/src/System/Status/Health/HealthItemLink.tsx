@@ -33,6 +33,14 @@ function HealthItemLink(props: HealthItemLinkProps) {
           to="/settings/downloadclients"
         />
       );
+    case 'FileNameLengthCheck':
+      return (
+        <IconButton
+          name={icons.SETTINGS}
+          title={translate('Settings')}
+          to="/settings/mediamanagement"
+        />
+      );
     case 'NotificationStatusCheck':
       return (
         <IconButton

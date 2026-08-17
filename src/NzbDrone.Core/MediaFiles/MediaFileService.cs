@@ -16,6 +16,7 @@ namespace NzbDrone.Core.MediaFiles
         void Update(EpisodeFile episodeFile);
         void Update(List<EpisodeFile> episodeFiles);
         void Delete(EpisodeFile episodeFile, DeleteMediaFileReason reason);
+        List<EpisodeFile> GetAllFiles();
         List<EpisodeFile> GetFilesBySeries(int seriesId);
         List<EpisodeFile> GetFilesBySeason(int seriesId, int seasonNumber);
         List<EpisodeFile> GetFiles(IEnumerable<int> ids);
@@ -65,6 +66,11 @@ namespace NzbDrone.Core.MediaFiles
 
             _mediaFileRepository.Delete(episodeFile);
             _eventAggregator.PublishEvent(new EpisodeFileDeletedEvent(episodeFile, reason));
+        }
+
+        public List<EpisodeFile> GetAllFiles()
+        {
+            return _mediaFileRepository.All().ToList();
         }
 
         public List<EpisodeFile> GetFilesBySeries(int seriesId)

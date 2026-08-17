@@ -32,6 +32,8 @@ namespace NzbDrone.Core.Configuration
         bool DeleteEmptyFolders { get; set; }
         FileDateType FileDate { get; set; }
         bool SkipFreeSpaceCheckWhenImporting { get; set; }
+        int FileNameLengthLimit { get; set; }
+        int FilePathLengthLimit { get; set; }
         int MinimumFreeSpaceWhenImporting { get; set; }
         bool CopyUsingHardlinks { get; set; }
         bool EnableMediaInfo { get; set; }

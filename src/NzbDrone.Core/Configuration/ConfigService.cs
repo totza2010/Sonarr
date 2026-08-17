@@ -194,6 +194,35 @@ namespace NzbDrone.Core.Configuration
             set { SetValue("SkipFreeSpaceCheckWhenImporting", value); }
         }
 
+        /// <summary>
+        /// The longest a file name may be, in bytes, before it is worth warning about. Sonarr itself
+        /// copes with more than most things reading the same library do - a Plex client, an SMB share, a
+        /// cloud mount - so the number that matters is the smallest limit downstream, not this machine's.
+        /// Zero turns the check off.
+        /// </summary>
+        public int FileNameLengthLimit
+        {
+            get { return GetValueInt("FileNameLengthLimit", 255); }
+
+            set { SetValue("FileNameLengthLimit", value); }
+        }
+
+        /// <summary>
+        /// The longest a whole path may be before it is worth warning about. Separate from the name limit
+        /// because it is a different ceiling in a different unit: Windows stops at 260 characters for a
+        /// path unless long paths are turned on, while the name limit is bytes per component.
+        ///
+        /// Measured as this machine sees it. A client reaching the same file over a share counts from its
+        /// own drive letter instead, so the number to set is 260 less whatever that prefix costs. Zero
+        /// turns the check off, which is the default: there is no value that is right everywhere.
+        /// </summary>
+        public int FilePathLengthLimit
+        {
+            get { return GetValueInt("FilePathLengthLimit", 0); }
+
+            set { SetValue("FilePathLengthLimit", value); }
+        }
+
         public int MinimumFreeSpaceWhenImporting
         {
             get { return GetValueInt("MinimumFreeSpaceWhenImporting", 100); }
