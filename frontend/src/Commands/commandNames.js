@@ -11,6 +11,7 @@ export const EPISODE_SEARCH = 'EpisodeSearch';
 export const INTERACTIVE_IMPORT = 'ManualImport';
 export const MISSING_EPISODE_SEARCH = 'MissingEpisodeSearch';
 export const MOVE_SERIES = 'MoveSeries';
+export const CLEAN_EPISODE_FILE_LINKS = 'CleanEpisodeFileLinks';
 export const REFRESH_SERIES = 'RefreshSeries';
 export const RENAME_FILES = 'RenameFiles';
 export const RENAME_SERIES = 'RenameSeries';

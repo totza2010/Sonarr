@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import AppState from 'App/State/AppState';
+import * as commandNames from 'Commands/commandNames';
 import Alert from 'Components/Alert';
 import FieldSet from 'Components/FieldSet';
 import Icon, { IconProps } from 'Components/Icon';
@@ -14,11 +15,13 @@ import Table from 'Components/Table/Table';
 import TableBody from 'Components/Table/TableBody';
 import TableRow from 'Components/Table/TableRow';
 import { icons, kinds } from 'Helpers/Props';
+import { executeCommand } from 'Store/Actions/commandActions';
 import {
   testAllDownloadClients,
   testAllIndexers,
 } from 'Store/Actions/settingsActions';
 import { fetchHealth } from 'Store/Actions/systemActions';
+import createCommandExecutingSelector from 'Store/Selectors/createCommandExecutingSelector';
 import titleCase from 'Utilities/String/titleCase';
 import translate from 'Utilities/String/translate';
 import createHealthSelector from './createHealthSelector';
@@ -55,6 +58,9 @@ function Health() {
   const isTestingAllIndexers = useSelector(
     (state: AppState) => state.settings.indexers.isTestingAll
   );
+  const isCleaningEpisodeFileLinks = useSelector(
+    createCommandExecutingSelector(commandNames.CLEAN_EPISODE_FILE_LINKS)
+  );
 
   const healthIssues = !!items.length;
 
@@ -64,6 +70,10 @@ function Health() {
 
   const handleTestAllIndexersPress = useCallback(() => {
     dispatch(testAllIndexers());
+  }, [dispatch]);
+
+  const handleCleanEpisodeFileLinksPress = useCallback(() => {
+    dispatch(executeCommand({ name: commandNames.CLEAN_EPISODE_FILE_LINKS }));
   }, [dispatch]);
 
   useEffect(() => {
@@ -139,6 +149,17 @@ function Health() {
                           title={translate('TestAll')}
                           isSpinning={isTestingAllIndexers}
                           onPress={handleTestAllIndexersPress}
+                        />
+                      ) : null}
+
+                      {source === 'EpisodeFileLinkCheck' ? (
+                        // A repair rather than a link: the fix is to drop links pointing at files that
+                        // are not there, which needs no decision from anybody and no page to visit.
+                        <SpinnerIconButton
+                          name={icons.CLEAR}
+                          title={translate('CleanEpisodeFileLinks')}
+                          isSpinning={isCleaningEpisodeFileLinks}
+                          onPress={handleCleanEpisodeFileLinksPress}
                         />
                       ) : null}
 
