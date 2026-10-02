@@ -57,7 +57,25 @@ const deleteEpisodeFileHelper = createRemoveItemHandler(section, '/episodeFile')
 // Action Handlers
 
 export const actionHandlers = handleThunks({
-  [FETCH_EPISODE_FILE]: createFetchHandler(section, '/episodeFile'),
+  // One file, fetched on its own rather than with the rest of a series. It writes the file into the
+  // same section the series page fills, but must not write that section's error or populated state:
+  // an extra part or version can be missing without the page that asked for it being broken, and
+  // taking the shared handler here once blanked an entire series over a single stale link.
+  [FETCH_EPISODE_FILE]: function(getState, payload, dispatch) {
+    const { request } = createAjaxRequest({
+      url: `/episodeFile/${payload.id}`
+    });
+
+    request.done((data) => {
+      dispatch(updateItem({ section, ...data }));
+    });
+
+    request.fail((xhr) => {
+      // Nothing to add: the row that asked for this renders nothing without it, which is the right
+      // outcome whether the file is missing or the request simply failed.
+      console.debug(`Unable to load episode file ${payload.id}`, xhr.status);
+    });
+  },
 
   // Same as the series list: the API returns one file per episode unless asked otherwise, and this
   // is the view that has to show the parts as well.
