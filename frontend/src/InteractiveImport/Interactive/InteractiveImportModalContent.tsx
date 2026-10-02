@@ -739,6 +739,11 @@ function InteractiveImportModalContent(
               excludedCustomFormats,
               indexerFlags,
               releaseType,
+
+              // Carried with the rest. Without them a marker set on a row in this screen was shown,
+              // then dropped on Import, because this edit was the only thing sent for the file.
+              multipleType,
+              multipleNumber,
             });
 
             return;
@@ -862,21 +867,45 @@ function InteractiveImportModalContent(
   // already carrying a marker keeps nothing of it: the whole group is renumbered from one.
   const onMarkAsMultipleSelect = useCallback(
     (multipleType: MultipleType) => {
+      const existingFiles: Partial<EpisodeFile>[] = [];
+
       multipleGroups.forEach((ids) => {
         ids.forEach((id, index) => {
+          const multipleNumber = multipleType === 'none' ? 0 : index + 1;
+
           dispatch(
             updateInteractiveImportItem({
               id,
               multipleType,
-              multipleNumber: multipleType === 'none' ? 0 : index + 1,
+              multipleNumber,
             })
           );
+
+          const episodeFileId = items.find(
+            (item) => item.id === id
+          )?.episodeFileId;
+
+          if (episodeFileId) {
+            existingFiles.push({
+              id: episodeFileId,
+              multipleType,
+              multipleNumber,
+            });
+          }
         });
       });
 
+      // A file already in the library is not waiting to be imported, so the marker is saved against
+      // the file here, the way marking a single row does. Left to the Import button it was lost: a row
+      // whose episodes have not changed is saved as an edit rather than imported again, and the edit
+      // did not carry the marker.
+      if (existingFiles.length) {
+        dispatch(updateEpisodeFiles({ files: existingFiles }));
+      }
+
       setSelectModalOpen(null);
     },
-    [multipleGroups, dispatch, setSelectModalOpen]
+    [multipleGroups, items, dispatch, setSelectModalOpen]
   );
 
   const onSelectModalClose = useCallback(() => {
