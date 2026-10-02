@@ -10,6 +10,7 @@ using NzbDrone.Core.MediaFiles;
 using NzbDrone.Core.MediaFiles.Events;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Parser.Model;
+using NzbDrone.Core.Tv;
 using NzbDrone.Core.Tv.Events;
 
 namespace NzbDrone.Core.History
@@ -258,18 +259,32 @@ namespace NzbDrone.Core.History
 
         public void Handle(EpisodeFileDeletedEvent message)
         {
-            if (message.Reason == DeleteMediaFileReason.NoLinkedEpisodes)
+            // An extra part or version is owned through the link table rather than by Episode.EpisodeFileId,
+            // so the relation below is empty for one and it would leave no history at all. It also has no
+            // other trace to fall back on: an ordinary file that is replaced or cleaned up can be followed
+            // through the import that replaced it, while nothing at all points at this one.
+            var linkedEpisodeIds = message.LinkedEpisodeIds ?? new List<int>();
+            var isAdditionalFile = linkedEpisodeIds.Any();
+
+            if (!isAdditionalFile)
             {
-                _logger.Debug("Removing episode file from DB as part of cleanup routine, not creating history event.");
-                return;
-            }
-            else if (message.Reason == DeleteMediaFileReason.ManualOverride)
-            {
-                _logger.Debug("Removing episode file from DB as part of manual override of existing file, not creating history event.");
-                return;
+                if (message.Reason == DeleteMediaFileReason.NoLinkedEpisodes)
+                {
+                    _logger.Debug("Removing episode file from DB as part of cleanup routine, not creating history event.");
+                    return;
+                }
+                else if (message.Reason == DeleteMediaFileReason.ManualOverride)
+                {
+                    _logger.Debug("Removing episode file from DB as part of manual override of existing file, not creating history event.");
+                    return;
+                }
             }
 
-            foreach (var episode in message.EpisodeFile.Episodes.Value)
+            var episodes = isAdditionalFile
+                ? linkedEpisodeIds.Select(id => new Episode { Id = id, SeriesId = message.EpisodeFile.SeriesId })
+                : message.EpisodeFile.Episodes.Value;
+
+            foreach (var episode in episodes)
             {
                 var history = new EpisodeHistory
                 {

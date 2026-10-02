@@ -112,6 +112,11 @@ namespace NzbDrone.Core.MediaFiles
 
         public void Handle(EpisodeFileDeletedEvent message)
         {
+            if (message.LinkedEpisodeIds.Any())
+            {
+                _logger.Debug("Removing {0} link(s) to file {1}", message.LinkedEpisodeIds.Count, message.EpisodeFile.Id);
+            }
+
             _repository.DeleteByEpisodeFileIds(new List<int> { message.EpisodeFile.Id });
         }
 

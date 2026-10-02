@@ -71,5 +71,76 @@ namespace NzbDrone.Core.Test.HistoryTests
             Mocker.GetMock<IHistoryRepository>()
                 .Verify(v => v.Insert(It.Is<EpisodeHistory>(h => h.SourceTitle == Path.GetFileNameWithoutExtension(localEpisode.Path))));
         }
-    }
+
+        private EpisodeFileDeletedEvent GivenDeleted(DeleteMediaFileReason reason, List<int> linkedEpisodeIds = null)
+        {
+            var episodeFile = new EpisodeFile
+            {
+                Id = 5,
+                SeriesId = 1,
+                Path = @"C:\TV\Seriesile.mkv",
+                Quality = new QualityModel(Quality.WEBDL1080p),
+                Languages = new List<NzbDrone.Core.Languages.Language>()
+            };
+
+            // The relation an ordinary file's episodes arrive through, and the one an extra part or version
+            // is always absent from.
+            episodeFile.Episodes = linkedEpisodeIds == null
+                ? new List<Episode> { new Episode { Id = 9, SeriesId = 1 } }
+                : new List<Episode>();
+
+            return new EpisodeFileDeletedEvent(episodeFile, reason, linkedEpisodeIds);
+        }
+
+        [Test]
+        public void should_record_an_additional_file_being_replaced()
+        {
+            // Replacing an ordinary file is skipped because the import that replaced it is recorded in its
+            // place. An extra version has no such trace, so skipping it leaves its removal invisible - and
+            // that is exactly the hole that made a broken link impossible to explain after the fact.
+            Subject.Handle(GivenDeleted(DeleteMediaFileReason.ManualOverride, new List<int> { 9 }));
+
+            Mocker.GetMock<IHistoryRepository>()
+                  .Verify(v => v.Insert(It.Is<EpisodeHistory>(h => h.EpisodeId == 9 &&
+                                                                   h.EventType == EpisodeHistoryEventType.EpisodeFileDeleted)),
+                          Times.Once());
+        }
+
+        [Test]
+        public void should_record_an_additional_file_removed_by_the_cleanup_routine()
+        {
+            Subject.Handle(GivenDeleted(DeleteMediaFileReason.NoLinkedEpisodes, new List<int> { 9 }));
+
+            Mocker.GetMock<IHistoryRepository>()
+                  .Verify(v => v.Insert(It.IsAny<EpisodeHistory>()), Times.Once());
+        }
+
+        [Test]
+        public void should_still_skip_an_ordinary_file_being_replaced()
+        {
+            // Unchanged from upstream: the import that replaced it is the record.
+            Subject.Handle(GivenDeleted(DeleteMediaFileReason.ManualOverride));
+
+            Mocker.GetMock<IHistoryRepository>()
+                  .Verify(v => v.Insert(It.IsAny<EpisodeHistory>()), Times.Never());
+        }
+
+        [Test]
+        public void should_still_skip_an_ordinary_file_removed_by_the_cleanup_routine()
+        {
+            Subject.Handle(GivenDeleted(DeleteMediaFileReason.NoLinkedEpisodes));
+
+            Mocker.GetMock<IHistoryRepository>()
+                  .Verify(v => v.Insert(It.IsAny<EpisodeHistory>()), Times.Never());
+        }
+
+        [Test]
+        public void should_record_an_additional_file_once_per_episode_that_owned_it()
+        {
+            Subject.Handle(GivenDeleted(DeleteMediaFileReason.Manual, new List<int> { 9, 10 }));
+
+            Mocker.GetMock<IHistoryRepository>()
+                  .Verify(v => v.Insert(It.IsAny<EpisodeHistory>()), Times.Exactly(2));
+        }
+}
 }

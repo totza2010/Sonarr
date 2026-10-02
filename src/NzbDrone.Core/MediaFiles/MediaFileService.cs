@@ -32,11 +32,16 @@ namespace NzbDrone.Core.MediaFiles
     {
         private readonly IEventAggregator _eventAggregator;
         private readonly IMediaFileRepository _mediaFileRepository;
+        private readonly IEpisodeFileLinkRepository _episodeFileLinkRepository;
         private readonly Logger _logger;
 
-        public MediaFileService(IMediaFileRepository mediaFileRepository, IEventAggregator eventAggregator, Logger logger)
+        public MediaFileService(IMediaFileRepository mediaFileRepository,
+                                IEpisodeFileLinkRepository episodeFileLinkRepository,
+                                IEventAggregator eventAggregator,
+                                Logger logger)
         {
             _mediaFileRepository = mediaFileRepository;
+            _episodeFileLinkRepository = episodeFileLinkRepository;
             _eventAggregator = eventAggregator;
             _logger = logger;
         }
@@ -44,7 +49,18 @@ namespace NzbDrone.Core.MediaFiles
         public EpisodeFile Add(EpisodeFile episodeFile, bool isAdditionalFile)
         {
             var addedFile = _mediaFileRepository.Insert(episodeFile);
+
+            // The id it was given, said out loud. Everything afterwards - links, renames, deletions - is
+            // recorded against that number, and without this line there is nothing to tie the number back
+            // to a file anyone can recognise.
+            _logger.Debug("Added episode file {0}{1} for series {2}: {3}",
+                          addedFile.Id,
+                          isAdditionalFile ? " (additional)" : string.Empty,
+                          addedFile.SeriesId,
+                          addedFile.RelativePath);
+
             _eventAggregator.PublishEvent(new EpisodeFileAddedEvent(addedFile, isAdditionalFile));
+
             return addedFile;
         }
 
@@ -64,8 +80,22 @@ namespace NzbDrone.Core.MediaFiles
             episodeFile.Episodes.LazyLoad();
             episodeFile.Path = Path.Combine(episodeFile.Series.Value.Path, episodeFile.RelativePath);
 
+            // Read before the row goes, since the links are deleted along with it and a handler asking
+            // afterwards would find nothing. An extra part or version is owned this way and no other, so
+            // without this its removal is invisible to everything downstream.
+            var linkedEpisodeIds = _episodeFileLinkRepository.GetByEpisodeFileIds(new List<int> { episodeFile.Id })
+                                                             .Select(l => l.EpisodeId)
+                                                             .Distinct()
+                                                             .ToList();
+
+            _logger.Debug("Deleting episode file {0}{1} ({2}): {3}",
+                          episodeFile.Id,
+                          linkedEpisodeIds.Any() ? " (additional)" : string.Empty,
+                          reason,
+                          episodeFile.Path);
+
             _mediaFileRepository.Delete(episodeFile);
-            _eventAggregator.PublishEvent(new EpisodeFileDeletedEvent(episodeFile, reason));
+            _eventAggregator.PublishEvent(new EpisodeFileDeletedEvent(episodeFile, reason, linkedEpisodeIds));
         }
 
         public List<EpisodeFile> GetAllFiles()
