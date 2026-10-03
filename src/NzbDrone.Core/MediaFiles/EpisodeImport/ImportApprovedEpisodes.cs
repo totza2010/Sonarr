@@ -215,6 +215,14 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport
                         }
                     }
 
+                    // The file this one joins may have lost its marker in the database while keeping it in
+                    // its name. The import was let through on that name, so the marker is recorded now -
+                    // otherwise the set would hold a second part beside a first that does not know it is one.
+                    if (localEpisode.IsAdditionalFile)
+                    {
+                        RecordNamedMarkers(localEpisode);
+                    }
+
                     episodeFile = _mediaFileService.Add(episodeFile, localEpisode.IsAdditionalFile);
 
                     // Adding the file leaves Episodes.EpisodeFileId pointing at the file the episode
@@ -282,6 +290,45 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport
                                             .Select(d => new ImportResult(d, d.Rejections.Select(r => r.Message).ToArray())));
 
             return importResults;
+        }
+
+        /// <summary>
+        /// Writes onto the episode's existing, unmarked files the marker their names already carry, when it
+        /// is an earlier one of the kind being imported. Only what the name says is recorded, and only for
+        /// a file the import was allowed past on that strength.
+        /// </summary>
+        private void RecordNamedMarkers(LocalEpisode localEpisode)
+        {
+            var existing = localEpisode.Episodes
+                                       .Where(e => e.EpisodeFileId > 0)
+                                       .Select(e => e.EpisodeFile?.Value)
+                                       .Where(f => f != null && f.MultipleType == EpisodeFileMultipleType.None)
+                                       .GroupBy(f => f.Id)
+                                       .Select(g => g.First())
+                                       .ToList();
+
+            foreach (var file in existing)
+            {
+                var marker = MultipleFileMarkerReader.Read(Path.GetFileNameWithoutExtension(file.RelativePath ?? string.Empty),
+                                                           localEpisode.Series,
+                                                           localEpisode.Episodes);
+
+                if (marker == null || marker.Type != localEpisode.MultipleType || marker.Number >= localEpisode.MultipleNumber)
+                {
+                    continue;
+                }
+
+                _logger.Debug("Recording {0} {1} on episode file {2} from its name: {3}",
+                              marker.Type,
+                              marker.Number,
+                              file.Id,
+                              file.RelativePath);
+
+                file.MultipleType = marker.Type;
+                file.MultipleNumber = marker.Number;
+
+                _mediaFileService.Update(file);
+            }
         }
 
         private string GetOriginalFilePath(DownloadClientItem downloadClientItem, LocalEpisode localEpisode)

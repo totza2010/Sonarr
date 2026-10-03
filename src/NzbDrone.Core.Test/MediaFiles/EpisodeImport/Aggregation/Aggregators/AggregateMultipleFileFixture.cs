@@ -324,5 +324,38 @@ namespace NzbDrone.Core.Test.MediaFiles.EpisodeImport.Aggregation.Aggregators
 
             result.MultipleType.Should().Be(EpisodeFileMultipleType.None);
         }
+
+        [Test]
+        public void should_read_a_set_named_by_hand()
+        {
+            // Files split by whoever downloaded them, before Sonarr ever named them.
+            GivenSiblings("S01E01 - Episode 1 - [WEBDL-1080p][VIU]-part1-AudioTHSubEN.mkv",
+                          "S01E01 - Episode 1 - [WEBDL-1080p][VIU]-part2-AudioTHSubEN.mkv",
+                          "S01E01 - Episode 1 - [WEBDL-1080p][VIU]-part3-AudioTHSubEN.mkv");
+
+            var result = AggregateFor("S01E01 - Episode 1 - [WEBDL-1080p][VIU]-part4-AudioTHSubEN.mkv");
+
+            result.MultipleType.Should().Be(EpisodeFileMultipleType.Part);
+            result.MultipleNumber.Should().Be(4);
+        }
+
+        [Test]
+        public void should_count_a_library_file_whose_name_still_carries_its_marker()
+        {
+            // The database lost the marker, the name kept it: the earlier member is still there.
+            _localEpisode.Episodes[0].EpisodeFileId = 10;
+
+            Mocker.GetMock<IMediaFileService>()
+                  .Setup(v => v.GetFiles(It.IsAny<IEnumerable<int>>()))
+                  .Returns(new List<EpisodeFile>
+                  {
+                      new EpisodeFile { Id = 10, RelativePath = "Season 01/Series.Title.S01E01.V1.WEBDL-1080P.mkv" }
+                  });
+
+            var result = AggregateFor("Series Title - S01E01 - v2 WEBDL-1080p.mkv");
+
+            result.MultipleType.Should().Be(EpisodeFileMultipleType.Version);
+            result.MultipleNumber.Should().Be(2);
+        }
 }
 }

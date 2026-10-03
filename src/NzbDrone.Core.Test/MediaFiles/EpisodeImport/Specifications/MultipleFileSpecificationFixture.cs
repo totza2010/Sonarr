@@ -41,7 +41,7 @@ namespace NzbDrone.Core.Test.MediaFiles.EpisodeImport.Specifications
                   .Returns(false);
         }
 
-        private void GivenExistingFile(EpisodeFileMultipleType multipleType, int multipleNumber)
+        private void GivenExistingFile(EpisodeFileMultipleType multipleType, int multipleNumber, string relativePath = "Season 01/Series.Title.S01E01.WEBDL-1080P.mkv")
         {
             _localEpisode.Episodes = Builder<Episode>.CreateListOfSize(1)
                                                      .All()
@@ -50,7 +50,8 @@ namespace NzbDrone.Core.Test.MediaFiles.EpisodeImport.Specifications
                                                                                 {
                                                                                     Id = 1,
                                                                                     MultipleType = multipleType,
-                                                                                    MultipleNumber = multipleNumber
+                                                                                    MultipleNumber = multipleNumber,
+                                                                                    RelativePath = relativePath
                                                                                 })
                                                      .Build()
                                                      .ToList();
@@ -147,5 +148,39 @@ namespace NzbDrone.Core.Test.MediaFiles.EpisodeImport.Specifications
 
             Subject.IsSatisfiedBy(_localEpisode, null).Accepted.Should().BeTrue();
         }
-    }
+
+        private void GivenImporting(EpisodeFileMultipleType multipleType, int multipleNumber)
+        {
+            _localEpisode.MultipleType = multipleType;
+            _localEpisode.MultipleNumber = multipleNumber;
+        }
+
+        [Test]
+        public void should_accept_a_later_version_when_the_existing_file_is_named_as_an_earlier_one()
+        {
+            // Its name says version 1; only the database lost track of it.
+            GivenExistingFile(EpisodeFileMultipleType.None, 0, "Season 19/Kamen.Rider.1971.S19E30.Rider.War.Prologue.V1.BLURAY-1080P.mkv");
+            GivenImporting(EpisodeFileMultipleType.Version, 2);
+
+            Subject.IsSatisfiedBy(_localEpisode, null).Accepted.Should().BeTrue();
+        }
+
+        [Test]
+        public void should_still_reject_when_the_existing_file_is_named_as_another_kind()
+        {
+            GivenExistingFile(EpisodeFileMultipleType.None, 0, "Season 01/Series.Title.S01E01.PT1.WEBDL-1080P.mkv");
+            GivenImporting(EpisodeFileMultipleType.Version, 2);
+
+            Subject.IsSatisfiedBy(_localEpisode, null).Accepted.Should().BeFalse();
+        }
+
+        [Test]
+        public void should_still_reject_when_the_existing_file_is_named_as_the_same_or_a_later_member()
+        {
+            GivenExistingFile(EpisodeFileMultipleType.None, 0, "Season 01/Series.Title.S01E01.V2.WEBDL-1080P.mkv");
+            GivenImporting(EpisodeFileMultipleType.Version, 2);
+
+            Subject.IsSatisfiedBy(_localEpisode, null).Accepted.Should().BeFalse();
+        }
+}
 }

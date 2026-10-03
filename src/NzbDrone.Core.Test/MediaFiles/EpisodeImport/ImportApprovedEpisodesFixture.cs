@@ -488,5 +488,59 @@ namespace NzbDrone.Core.Test.MediaFiles.EpisodeImport
                   .Verify(s => s.ApplyManualCustomFormats(It.IsAny<List<CustomFormat>>(), It.IsAny<List<int>>(), It.IsAny<List<int>>()),
                       Times.Never());
         }
-    }
+
+        private EpisodeFile GivenEpisodeAlreadyHasFile(string relativePath, EpisodeFileMultipleType multipleType = EpisodeFileMultipleType.None)
+        {
+            var existing = new EpisodeFile { Id = 77, RelativePath = relativePath, MultipleType = multipleType, MultipleNumber = multipleType == EpisodeFileMultipleType.None ? 0 : 1 };
+            var episode = _approvedDecisions.First().LocalEpisode.Episodes.First();
+
+            episode.EpisodeFileId = existing.Id;
+            episode.EpisodeFile = existing;
+
+            return existing;
+        }
+
+        [Test]
+        public void should_record_the_marker_an_existing_file_carries_in_its_name()
+        {
+            GivenExistingFileOnDisk();
+            GivenFileAdded();
+
+            var existing = GivenEpisodeAlreadyHasFile("Season 01/30.Rock.S01E01.Pilot.V1.BLURAY-720P.avi");
+
+            Subject.Import(GivenFilesForOneEpisode(EpisodeFileMultipleType.Version, 2), false);
+
+            Mocker.GetMock<IMediaFileService>()
+                  .Verify(v => v.Update(It.Is<EpisodeFile>(f => f.Id == existing.Id &&
+                                                                f.MultipleType == EpisodeFileMultipleType.Version &&
+                                                                f.MultipleNumber == 1)),
+                          Times.Once());
+        }
+
+        [Test]
+        public void should_not_touch_an_existing_file_whose_name_carries_no_marker()
+        {
+            GivenExistingFileOnDisk();
+            GivenFileAdded();
+
+            GivenEpisodeAlreadyHasFile("Season 01/30.Rock.S01E01.Pilot.BLURAY-720P.avi");
+
+            Subject.Import(GivenFilesForOneEpisode(EpisodeFileMultipleType.Version, 2), false);
+
+            Mocker.GetMock<IMediaFileService>().Verify(v => v.Update(It.IsAny<EpisodeFile>()), Times.Never());
+        }
+
+        [Test]
+        public void should_not_touch_an_existing_file_that_is_already_marked()
+        {
+            GivenExistingFileOnDisk();
+            GivenFileAdded();
+
+            GivenEpisodeAlreadyHasFile("Season 01/30.Rock.S01E01.Pilot.V1.BLURAY-720P.avi", EpisodeFileMultipleType.Version);
+
+            Subject.Import(GivenFilesForOneEpisode(EpisodeFileMultipleType.Version, 2), false);
+
+            Mocker.GetMock<IMediaFileService>().Verify(v => v.Update(It.IsAny<EpisodeFile>()), Times.Never());
+        }
+}
 }

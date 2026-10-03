@@ -1,8 +1,6 @@
-using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text.RegularExpressions;
 using NzbDrone.Common.Disk;
 using NzbDrone.Common.Extensions;
 using NzbDrone.Core.Download;
@@ -20,12 +18,6 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Aggregation.Aggregators
     /// </summary>
     public class AggregateMultipleFile : IAggregateLocalEpisode
     {
-        // Only the pt1 and v1 forms the {Multiple} token itself writes, never the words "part" or
-        // "version". Plenty of episodes are genuinely titled "Part 2", and treating those as a part would
-        // turn an ordinary file into an additional one and stop it ever being upgraded.
-        private static readonly Regex MultipleRegex = new Regex(@"(?<![a-z0-9])(?<kind>pt|v)(?<number>\d{1,2})(?![a-z0-9])",
-                                                                RegexOptions.Compiled | RegexOptions.IgnoreCase);
-
         private readonly IBuildFileNames _fileNameBuilder;
         private readonly IDiskProvider _diskProvider;
         private readonly IMediaFileService _mediaFileService;
@@ -61,15 +53,17 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Aggregation.Aggregators
                 return localEpisode;
             }
 
-            var match = FindMarker(Path.GetFileNameWithoutExtension(localEpisode.Path) ?? string.Empty, localEpisode);
+            var marker = MultipleFileMarkerReader.Read(Path.GetFileNameWithoutExtension(localEpisode.Path),
+                                                       localEpisode.Series,
+                                                       localEpisode.Episodes);
 
-            if (match == null)
+            if (marker == null)
             {
                 return localEpisode;
             }
 
-            var number = int.Parse(match.Groups["number"].Value);
-            var isVersion = match.Groups["kind"].Value.Equals("v", StringComparison.InvariantCultureIgnoreCase);
+            var number = marker.Number;
+            var isVersion = marker.Type == EpisodeFileMultipleType.Version;
 
             // "v2" is already how scene and anime releases mark a repack, and Sonarr reads it into the
             // quality revision. Claiming it here as well would turn an upgrade into a second file kept
@@ -79,7 +73,7 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Aggregation.Aggregators
                 return localEpisode;
             }
 
-            var multipleType = isVersion ? EpisodeFileMultipleType.Version : EpisodeFileMultipleType.Part;
+            var multipleType = marker.Type;
 
             // A third version is only a version if there were a first and a second. Without them the
             // marker is more likely something that happens to look like one, and calling it a version
@@ -120,6 +114,21 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Aggregation.Aggregators
                     if (file.MultipleType == multipleType)
                     {
                         held.Add(file.MultipleNumber);
+                        continue;
+                    }
+
+                    // A file the database has lost the marker for still carries it in its name, which is
+                    // where {Multiple} wrote it. The name is evidence enough to count it here.
+                    if (file.MultipleType == EpisodeFileMultipleType.None)
+                    {
+                        var named = MultipleFileMarkerReader.Read(Path.GetFileNameWithoutExtension(file.RelativePath ?? string.Empty),
+                                                                  localEpisode.Series,
+                                                                  episodes);
+
+                        if (named?.Type == multipleType)
+                        {
+                            held.Add(named.Number);
+                        }
                     }
                 }
             }
@@ -147,69 +156,18 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Aggregation.Aggregators
                         continue;
                     }
 
-                    var marker = FindMarker(Path.GetFileNameWithoutExtension(sibling), localEpisode);
+                    var siblingMarker = MultipleFileMarkerReader.Read(Path.GetFileNameWithoutExtension(sibling),
+                                                                      localEpisode.Series,
+                                                                      episodes);
 
-                    if (marker != null && IsKind(marker, multipleType))
+                    if (siblingMarker?.Type == multipleType)
                     {
-                        held.Add(int.Parse(marker.Groups["number"].Value));
+                        held.Add(siblingMarker.Number);
                     }
                 }
             }
 
             return Enumerable.Range(1, number - 1).All(held.Contains);
-        }
-
-        private static bool IsKind(Match match, EpisodeFileMultipleType multipleType)
-        {
-            var isVersion = match.Groups["kind"].Value.Equals("v", StringComparison.InvariantCultureIgnoreCase);
-
-            return isVersion == (multipleType == EpisodeFileMultipleType.Version);
-        }
-
-        /// <summary>
-        /// The first marker the titles do not account for. A title can carry one of its own - Kamen Rider
-        /// V3 is a series whose episodes are called things like "His Name is V3!" - and a name holds its
-        /// titles, so a "V3" there says nothing about versions. Counted rather than simply skipped, so a
-        /// real marker on such an episode is still found: the name then holds one more than its titles.
-        ///
-        /// Titles are measured both as written and as the naming format cleans them, and the larger count
-        /// wins. Missing a genuine marker costs a row set by hand; inventing one turns an ordinary file
-        /// into an extra copy that is never upgraded.
-        /// </summary>
-        private static Match FindMarker(string fileName, LocalEpisode localEpisode)
-        {
-            var matches = MultipleRegex.Matches(fileName).Cast<Match>().ToList();
-
-            if (matches.Empty())
-            {
-                return null;
-            }
-
-            var titles = new List<string> { localEpisode.Series?.Title };
-            titles.AddRange((localEpisode.Episodes ?? new List<Episode>()).Select(e => e.Title));
-
-            foreach (var group in matches.GroupBy(Token))
-            {
-                var inTitles = titles.Where(t => !string.IsNullOrWhiteSpace(t))
-                                     .Sum(t => Math.Max(CountToken(t, group.Key), CountToken(FileNameBuilder.CleanTitle(t), group.Key)));
-
-                if (group.Count() > inTitles)
-                {
-                    return group.Last();
-                }
-            }
-
-            return null;
-        }
-
-        private static string Token(Match match)
-        {
-            return match.Groups["kind"].Value.ToLowerInvariant() + int.Parse(match.Groups["number"].Value);
-        }
-
-        private static int CountToken(string text, string token)
-        {
-            return MultipleRegex.Matches(text).Count(m => Token(m) == token);
         }
     }
 }
