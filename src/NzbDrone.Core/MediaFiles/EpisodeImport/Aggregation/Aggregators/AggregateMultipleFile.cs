@@ -1,9 +1,14 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
+using NzbDrone.Common.Disk;
+using NzbDrone.Common.Extensions;
 using NzbDrone.Core.Download;
 using NzbDrone.Core.Organizer;
 using NzbDrone.Core.Parser.Model;
+using NzbDrone.Core.Tv;
 
 namespace NzbDrone.Core.MediaFiles.EpisodeImport.Aggregation.Aggregators
 {
@@ -22,10 +27,19 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Aggregation.Aggregators
                                                                 RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         private readonly IBuildFileNames _fileNameBuilder;
+        private readonly IDiskProvider _diskProvider;
+        private readonly IMediaFileService _mediaFileService;
+        private readonly IEpisodeFileLinkService _episodeFileLinkService;
 
-        public AggregateMultipleFile(IBuildFileNames fileNameBuilder)
+        public AggregateMultipleFile(IBuildFileNames fileNameBuilder,
+                                     IDiskProvider diskProvider,
+                                     IMediaFileService mediaFileService,
+                                     IEpisodeFileLinkService episodeFileLinkService)
         {
             _fileNameBuilder = fileNameBuilder;
+            _diskProvider = diskProvider;
+            _mediaFileService = mediaFileService;
+            _episodeFileLinkService = episodeFileLinkService;
         }
 
         // After AggregateQuality, which is what decides whether a "v2" in the name was a repack marker.
@@ -47,9 +61,9 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Aggregation.Aggregators
                 return localEpisode;
             }
 
-            var match = MultipleRegex.Match(Path.GetFileNameWithoutExtension(localEpisode.Path) ?? string.Empty);
+            var match = FindMarker(Path.GetFileNameWithoutExtension(localEpisode.Path) ?? string.Empty, localEpisode);
 
-            if (!match.Success)
+            if (match == null)
             {
                 return localEpisode;
             }
@@ -65,10 +79,137 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Aggregation.Aggregators
                 return localEpisode;
             }
 
-            localEpisode.MultipleType = isVersion ? EpisodeFileMultipleType.Version : EpisodeFileMultipleType.Part;
+            var multipleType = isVersion ? EpisodeFileMultipleType.Version : EpisodeFileMultipleType.Part;
+
+            // A third version is only a version if there were a first and a second. Without them the
+            // marker is more likely something that happens to look like one, and calling it a version
+            // would make an ordinary file an extra copy of its episode that is never upgraded.
+            if (!HasEarlierMembers(localEpisode, multipleType, number))
+            {
+                return localEpisode;
+            }
+
+            localEpisode.MultipleType = multipleType;
             localEpisode.MultipleNumber = number;
 
             return localEpisode;
+        }
+
+        /// <summary>
+        /// Whether every lower number of the same kind exists for this episode, looking in the two places
+        /// the rest of a set can be: the library, and the folder this file is being imported from.
+        /// </summary>
+        private bool HasEarlierMembers(LocalEpisode localEpisode, EpisodeFileMultipleType multipleType, int number)
+        {
+            if (number <= 1)
+            {
+                return true;
+            }
+
+            var held = new HashSet<int>();
+            var episodes = localEpisode.Episodes ?? new List<Episode>();
+
+            // Already in the library: the file each episode points at, and any it owns through a link.
+            var fileIds = episodes.Select(e => e.EpisodeFileId).Where(id => id > 0).ToList();
+            fileIds.AddRange(_episodeFileLinkService.GetLinkedFileIds(episodes.Select(e => e.Id).ToList()) ?? new List<int>());
+
+            if (fileIds.Any())
+            {
+                foreach (var file in _mediaFileService.GetFiles(fileIds.Distinct()) ?? new List<EpisodeFile>())
+                {
+                    if (file.MultipleType == multipleType)
+                    {
+                        held.Add(file.MultipleNumber);
+                    }
+                }
+            }
+
+            // Arriving with it: the other files in the same folder that name the same episode.
+            var folder = Path.GetDirectoryName(localEpisode.Path);
+            var episodeNumbers = episodes.Select(e => (e.SeasonNumber, e.EpisodeNumber)).ToHashSet();
+
+            if (folder.IsNotNullOrWhiteSpace() && episodeNumbers.Any() && _diskProvider.FolderExists(folder))
+            {
+                foreach (var sibling in _diskProvider.GetFiles(folder, false))
+                {
+                    if (sibling.PathEquals(localEpisode.Path) ||
+                        !MediaFileExtensions.Extensions.Contains(Path.GetExtension(sibling)))
+                    {
+                        continue;
+                    }
+
+                    var parsed = Parser.Parser.ParsePath(sibling);
+
+                    if (parsed == null ||
+                        !parsed.EpisodeNumbers.Any() ||
+                        !parsed.EpisodeNumbers.All(n => episodeNumbers.Contains((parsed.SeasonNumber, n))))
+                    {
+                        continue;
+                    }
+
+                    var marker = FindMarker(Path.GetFileNameWithoutExtension(sibling), localEpisode);
+
+                    if (marker != null && IsKind(marker, multipleType))
+                    {
+                        held.Add(int.Parse(marker.Groups["number"].Value));
+                    }
+                }
+            }
+
+            return Enumerable.Range(1, number - 1).All(held.Contains);
+        }
+
+        private static bool IsKind(Match match, EpisodeFileMultipleType multipleType)
+        {
+            var isVersion = match.Groups["kind"].Value.Equals("v", StringComparison.InvariantCultureIgnoreCase);
+
+            return isVersion == (multipleType == EpisodeFileMultipleType.Version);
+        }
+
+        /// <summary>
+        /// The first marker the titles do not account for. A title can carry one of its own - Kamen Rider
+        /// V3 is a series whose episodes are called things like "His Name is V3!" - and a name holds its
+        /// titles, so a "V3" there says nothing about versions. Counted rather than simply skipped, so a
+        /// real marker on such an episode is still found: the name then holds one more than its titles.
+        ///
+        /// Titles are measured both as written and as the naming format cleans them, and the larger count
+        /// wins. Missing a genuine marker costs a row set by hand; inventing one turns an ordinary file
+        /// into an extra copy that is never upgraded.
+        /// </summary>
+        private static Match FindMarker(string fileName, LocalEpisode localEpisode)
+        {
+            var matches = MultipleRegex.Matches(fileName).Cast<Match>().ToList();
+
+            if (matches.Empty())
+            {
+                return null;
+            }
+
+            var titles = new List<string> { localEpisode.Series?.Title };
+            titles.AddRange((localEpisode.Episodes ?? new List<Episode>()).Select(e => e.Title));
+
+            foreach (var group in matches.GroupBy(Token))
+            {
+                var inTitles = titles.Where(t => !string.IsNullOrWhiteSpace(t))
+                                     .Sum(t => Math.Max(CountToken(t, group.Key), CountToken(FileNameBuilder.CleanTitle(t), group.Key)));
+
+                if (group.Count() > inTitles)
+                {
+                    return group.Last();
+                }
+            }
+
+            return null;
+        }
+
+        private static string Token(Match match)
+        {
+            return match.Groups["kind"].Value.ToLowerInvariant() + int.Parse(match.Groups["number"].Value);
+        }
+
+        private static int CountToken(string text, string token)
+        {
+            return MultipleRegex.Matches(text).Count(m => Token(m) == token);
         }
     }
 }
