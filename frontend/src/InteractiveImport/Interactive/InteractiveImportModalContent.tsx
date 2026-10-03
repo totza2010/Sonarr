@@ -407,6 +407,20 @@ function InteractiveImportModalContent(
     return [...groups.values()].filter((ids) => ids.length > 1);
   }, [items, selectedIds]);
 
+  // Selected rows already carrying a part or version. Taking a marker off needs no group - a file that
+  // was wrongly read as a version is usually the only file of its episode - so these are offered the
+  // action on their own.
+  const markedSelectedIds = useMemo(() => {
+    return items
+      .filter(
+        (item) =>
+          selectedIds.includes(item.id) &&
+          !!item.multipleType &&
+          item.multipleType !== 'none'
+      )
+      .map((item) => item.id);
+  }, [items, selectedIds]);
+
   // Editions belong to one series, so the bulk action only means anything when everything selected is
   // the same series. Offering it across a mixed selection would ask one question of several answers.
   const commonSeries = useMemo(() => {
@@ -869,7 +883,16 @@ function InteractiveImportModalContent(
     (multipleType: MultipleType) => {
       const existingFiles: Partial<EpisodeFile>[] = [];
 
-      multipleGroups.forEach((ids) => {
+      // Numbering only means something within a group, but clearing does not: 'none' reaches every
+      // selected row that has a marker, grouped or not.
+      const targets =
+        multipleType === 'none'
+          ? [...new Set([...multipleGroups.flat(), ...markedSelectedIds])].map(
+              (id) => [id]
+            )
+          : multipleGroups;
+
+      targets.forEach((ids) => {
         ids.forEach((id, index) => {
           const multipleNumber = multipleType === 'none' ? 0 : index + 1;
 
@@ -905,7 +928,7 @@ function InteractiveImportModalContent(
 
       setSelectModalOpen(null);
     },
-    [multipleGroups, items, dispatch, setSelectModalOpen]
+    [multipleGroups, markedSelectedIds, items, dispatch, setSelectModalOpen]
   );
 
   const onSelectModalClose = useCallback(() => {
@@ -1298,9 +1321,10 @@ function InteractiveImportModalContent(
 
           {/* Sits with the rest even though it acts on whole groups rather than on each selected row,
               since a lone worded button beside a row of icons reads as something left over. It appears
-              only when the selection divides evenly into groups and the naming format can tell the
-              files apart. */}
-          {isMultipleEnabled && multipleGroups.length ? (
+              when the naming format can tell the files apart and the selection either falls into groups
+              or holds files that already carry a marker to take off. */}
+          {isMultipleEnabled &&
+          (multipleGroups.length || markedSelectedIds.length) ? (
             <Button
               className={styles.bulkAction}
               title={translate('MarkAsMultiple')}
@@ -1428,7 +1452,8 @@ function InteractiveImportModalContent(
 
       <SelectMultipleModal
         isOpen={selectModalOpen === 'multiple'}
-        multipleType="part"
+        // With nothing to group, the only thing the action can do is take markers off.
+        multipleType={multipleGroups.length ? 'part' : 'none'}
         multipleNumber={0}
         autoNumber={true}
         modalTitle={modalTitle}
