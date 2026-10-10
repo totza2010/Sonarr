@@ -26,12 +26,15 @@ function createMapStateToProps() {
 
 function createMapDispatchToProps(dispatch, props) {
   return {
-    onSeriesLookup(name, path, relativePath) {
+    onSeriesLookup(name, path, relativePath, folderEditionName) {
       dispatch(queueLookupSeries({
         name,
         path,
         relativePath,
-        term: name
+        folderEditionName,
+
+        // The edition is not part of the title, and searching for it finds nothing.
+        term: name.replace(/ *\{edition-[^{}]+\}/ig, '').trim()
       }));
     },
 

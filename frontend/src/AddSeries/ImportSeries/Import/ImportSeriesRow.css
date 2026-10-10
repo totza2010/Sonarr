@@ -43,3 +43,10 @@
   flex: 0 1 400px;
   min-width: 300px;
 }
+
+.edition {
+  composes: cell from '~Components/Table/Cells/VirtualTableRowCell.css';
+
+  flex: 0 1 240px;
+  min-width: 200px;
+}

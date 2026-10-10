@@ -1,6 +1,8 @@
 import _ from 'lodash';
 import { createAction } from 'redux-actions';
 import { batchActions } from 'redux-batched-actions';
+import getImportSeriesEdition, { isSameEdition } from 'AddSeries/ImportSeries/Import/getImportSeriesEdition';
+import * as commandNames from 'Commands/commandNames';
 import { createThunk, handleThunks } from 'Store/thunks';
 import createAjaxRequest from 'Utilities/createAjaxRequest';
 import getNewSeries from 'Utilities/Series/getNewSeries';
@@ -8,6 +10,7 @@ import * as seriesTypes from 'Utilities/Series/seriesTypes';
 import getSectionState from 'Utilities/State/getSectionState';
 import updateSectionState from 'Utilities/State/updateSectionState';
 import { removeItem, set, updateItem } from './baseActions';
+import { executeCommand } from './commandActions';
 import createHandleActions from './Creators/createHandleActions';
 import { fetchRootFolders } from './rootFolderActions';
 
@@ -68,6 +71,7 @@ export const actionHandlers = handleThunks({
       name,
       path,
       relativePath,
+      folderEditionName,
       term,
       topOfQueue = false
     } = payload;
@@ -78,6 +82,7 @@ export const actionHandlers = handleThunks({
       term,
       path,
       relativePath,
+      folderEditionName,
       isFetching: false,
       isPopulated: false,
       error: null
@@ -220,16 +225,45 @@ export const actionHandlers = handleThunks({
 
     const ids = payload.ids;
     const items = getState().importSeries.items;
+    const allSeries = getState().series.items;
     const addedIds = [];
+
+    // Folders pointed at an edition that is already in the library. Nothing is added for these: the
+    // series keeps its id, and with it its history and settings, and only where it lives changes.
+    const replacements = [];
 
     const allNewSeries = ids.reduce((acc, id) => {
       const item = items.find((i) => i.id === id);
-      const selectedSeries = item.selectedSeries;
 
-      // Make sure we have a selected series and
-      // the same series hasn't been added yet.
-      if (selectedSeries && !acc.some((a) => a.tvdbId === selectedSeries.tvdbId)) {
-        const newSeries = getNewSeries(_.cloneDeep(selectedSeries), item);
+      // A row that has already been imported can still be ticked: the list is rebuilt after an import
+      // and the tick outlives the row it was on. There is nothing left to import for it.
+      if (!item) {
+        return acc;
+      }
+
+      const selectedSeries = item.selectedSeries;
+      const edition = getImportSeriesEdition(item, allSeries);
+
+      if (!selectedSeries || !edition.isImportable) {
+        return acc;
+      }
+
+      if (edition.replaceSeries) {
+        // One folder per edition; a second row asking for the same one is left where it is.
+        if (!replacements.some((r) => r.series.id === edition.replaceSeries.id)) {
+          replacements.push({ id, series: edition.replaceSeries, path: item.path });
+        }
+
+        return acc;
+      }
+
+      // Make sure the same edition of the same series hasn't been added yet.
+      if (!acc.some((a) => a.tvdbId === selectedSeries.tvdbId && isSameEdition(a.editionName, edition.editionName))) {
+        const newSeries = getNewSeries(_.cloneDeep(selectedSeries), {
+          ...item,
+          editionName: edition.editionName
+        });
+
         newSeries.path = item.path;
 
         addedIds.push(id);
@@ -239,14 +273,37 @@ export const actionHandlers = handleThunks({
       return acc;
     }, []);
 
-    const promise = createAjaxRequest({
-      url: '/series/import',
-      method: 'POST',
-      contentType: 'application/json',
-      data: JSON.stringify(allNewSeries)
-    }).request;
+    const requests = [];
 
-    promise.done((data) => {
+    if (allNewSeries.length) {
+      requests.push(createAjaxRequest({
+        url: '/series/import',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(allNewSeries)
+      }).request);
+    }
+
+    // The same request the path field of the edit screen makes, without moving anything: the files are
+    // already where the series is being told to look.
+    replacements.forEach(({ series, path }) => {
+      requests.push(createAjaxRequest({
+        url: `/series/${series.id}`,
+        method: 'PUT',
+        contentType: 'application/json',
+        data: JSON.stringify({ ...series, path, rootFolderPath: undefined })
+      }).request.then(() => [{ ...series, path }]));
+    });
+
+    // Nothing left to send - every ticked row was one of the above. Said, rather than left spinning.
+    if (!requests.length) {
+      dispatch(set({ section, isImporting: false }));
+      return;
+    }
+
+    const promise = Promise.all(requests).then((results) => _.flatten(results));
+
+    promise.then((data) => {
       dispatch(batchActions([
         set({
           section,
@@ -257,13 +314,22 @@ export const actionHandlers = handleThunks({
 
         ...data.map((series) => updateItem({ section: 'series', ...series })),
 
-        ...addedIds.map((id) => removeItem({ section, id }))
+        ...addedIds.map((id) => removeItem({ section, id })),
+
+        ...replacements.map(({ id }) => removeItem({ section, id }))
       ]));
 
-      dispatch(fetchRootFolders());
-    });
+      // What the series holds is whatever is in the folder it now points at, which nothing knows
+      // until it is looked at.
+      if (replacements.length) {
+        dispatch(executeCommand({
+          name: commandNames.REFRESH_SERIES,
+          seriesIds: replacements.map((r) => r.series.id)
+        }));
+      }
 
-    promise.fail((xhr) => {
+      dispatch(fetchRootFolders());
+    }, (xhr) => {
       dispatch(batchActions([
         set({
           section,

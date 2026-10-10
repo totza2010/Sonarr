@@ -171,7 +171,8 @@ namespace NzbDrone.Core.RootFolders
                 {
                     Name = di.Name,
                     Path = di.FullName,
-                    RelativePath = path.GetRelativePath(di.FullName)
+                    RelativePath = path.GetRelativePath(di.FullName),
+                    EditionName = SeriesEditions.ReadEditionFromFolder(di.Name)
                 });
             }
 

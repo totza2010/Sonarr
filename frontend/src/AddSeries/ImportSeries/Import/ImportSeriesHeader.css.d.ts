@@ -2,6 +2,7 @@
 // Please do not change this file!
 interface CssExports {
   'detailsIcon': string;
+  'edition': string;
   'folder': string;
   'monitor': string;
   'qualityProfile': string;

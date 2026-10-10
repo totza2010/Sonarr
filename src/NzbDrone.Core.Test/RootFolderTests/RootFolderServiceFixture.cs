@@ -191,5 +191,35 @@ namespace NzbDrone.Core.Test.RootFolderTests
 
             unmappedFolders.Count.Should().Be(3);
         }
-    }
+
+        [Test]
+        public void should_say_which_edition_an_unmapped_folder_names()
+        {
+            var rootFolderPath = @"C:\Test\TV".AsOsAgnostic();
+            var rootFolder = Builder<RootFolder>.CreateNew()
+                .With(r => r.Path = rootFolderPath)
+                .Build();
+
+            var folders = new[] { "Series (2020) {tvdb-1}", "Series (2020) {tvdb-1} {edition-Remastered}" }
+                .Select(f => Path.Combine(rootFolderPath, f))
+                .ToArray();
+
+            Mocker.GetMock<IRootFolderRepository>()
+                .Setup(s => s.Get(It.IsAny<int>()))
+                .Returns(rootFolder);
+
+            Mocker.GetMock<ISeriesRepository>()
+                .Setup(s => s.AllSeriesPaths())
+                .Returns(new Dictionary<int, string>());
+
+            Mocker.GetMock<IDiskProvider>()
+                .Setup(s => s.GetDirectories(rootFolder.Path))
+                .Returns(folders);
+
+            var unmappedFolders = Subject.Get(rootFolder.Id, false).UnmappedFolders;
+
+            unmappedFolders.Single(u => u.Name.EndsWith("{tvdb-1}")).EditionName.Should().BeNull();
+            unmappedFolders.Single(u => u.Name.Contains("edition-")).EditionName.Should().Be("Remastered");
+        }
+}
 }

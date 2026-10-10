@@ -91,6 +91,12 @@ function ImportSeriesHeader(props) {
       >
         {translate('Series')}
       </VirtualTableHeaderCell>
+      <VirtualTableHeaderCell
+        className={styles.edition}
+        name="edition"
+      >
+        {translate('Edition')}
+      </VirtualTableHeaderCell>
     </VirtualTableHeader>
   );
 }

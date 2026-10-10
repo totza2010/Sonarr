@@ -5,6 +5,7 @@ import { connect } from 'react-redux';
 import { createSelector } from 'reselect';
 import { setImportSeriesValue } from 'Store/Actions/importSeriesActions';
 import createAllSeriesSelector from 'Store/Selectors/createAllSeriesSelector';
+import getImportSeriesEdition, { SKIP } from './getImportSeriesEdition';
 import ImportSeriesRow from './ImportSeriesRow';
 
 function createImportSeriesItemSelector() {
@@ -22,12 +23,15 @@ function createMapStateToProps() {
     createImportSeriesItemSelector(),
     createAllSeriesSelector(),
     (item, series) => {
-      const selectedSeries = item && item.selectedSeries;
-      const isExistingSeries = !!selectedSeries && _.some(series, { tvdbId: selectedSeries.tvdbId });
+      const edition = getImportSeriesEdition(item, series);
 
       return {
         ...item,
-        isExistingSeries
+        isExistingSeries: edition.isExistingSeries,
+        isImportable: edition.isImportable,
+        editions: edition.editions,
+        editionAction: edition.action,
+        editionName: edition.editionName
       };
     }
   );
@@ -47,6 +51,23 @@ class ImportSeriesRowConnector extends Component {
       id: this.props.id,
       [name]: value
     });
+  };
+
+  // Saying what a folder is to be imported as is the same act as choosing to import it, so the row is
+  // ticked with it - and unticked when it goes back to being skipped.
+  onEditionChange = ({ action, editionName }) => {
+    const {
+      id,
+      onSelectedChange
+    } = this.props;
+
+    this.props.setImportSeriesValue({
+      id,
+      editionAction: action,
+      editionName
+    });
+
+    onSelectedChange({ id, value: action !== SKIP });
   };
 
   //
@@ -70,6 +91,7 @@ class ImportSeriesRowConnector extends Component {
       <ImportSeriesRow
         {...this.props}
         onInputChange={this.onInputChange}
+        onEditionChange={this.onEditionChange}
         onSeriesSelect={this.onSeriesSelect}
       />
     );
@@ -83,6 +105,7 @@ ImportSeriesRowConnector.propTypes = {
   seriesType: PropTypes.string,
   seasonFolder: PropTypes.bool,
   items: PropTypes.arrayOf(PropTypes.object),
+  onSelectedChange: PropTypes.func.isRequired,
   setImportSeriesValue: PropTypes.func.isRequired
 };
 

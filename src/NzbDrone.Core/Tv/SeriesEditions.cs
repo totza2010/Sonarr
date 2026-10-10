@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using NzbDrone.Common.Extensions;
 
 namespace NzbDrone.Core.Tv
@@ -22,6 +23,29 @@ namespace NzbDrone.Core.Tv
     public static class SeriesEditions
     {
         public const string MainEdition = "";
+
+        // The token GetSeriesFolder appends, which is also the one Plex reads. The last one wins, since it
+        // is appended after everything the folder format itself produced.
+        private static readonly Regex EditionFolderRegex = new Regex(@"\{edition-(?<edition>[^{}]+)\}",
+                                                                    RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.RightToLeft);
+
+        /// <summary>
+        /// The edition a folder name carries, or null when it carries none. The name is written by
+        /// GetSeriesFolder, so a folder that has dropped out of the library still says which edition it
+        /// was - without this it is indistinguishable from a stray second copy of the main one.
+        /// </summary>
+        public static string ReadEditionFromFolder(string folderName)
+        {
+            if (folderName.IsNullOrWhiteSpace())
+            {
+                return null;
+            }
+
+            var match = EditionFolderRegex.Match(folderName);
+            var edition = match.Success ? match.Groups["edition"].Value.Trim() : null;
+
+            return edition.IsNullOrWhiteSpace() ? null : edition;
+        }
 
         /// <summary>
         /// Whether a file is headed for an edition nobody has chosen. Editions of a series share a title,

@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import React, { Component } from 'react';
 import VirtualTable from 'Components/Table/VirtualTable';
 import VirtualTableRow from 'Components/Table/VirtualTableRow';
+import getImportSeriesEdition from './getImportSeriesEdition';
 import ImportSeriesHeader from './ImportSeriesHeader';
 import ImportSeriesRowConnector from './ImportSeriesRowConnector';
 
@@ -32,7 +33,7 @@ class ImportSeriesTable extends Component {
     unmappedFolders.forEach((unmappedFolder) => {
       const id = unmappedFolder.name;
 
-      onSeriesLookup(id, unmappedFolder.path, unmappedFolder.relativePath);
+      onSeriesLookup(id, unmappedFolder.path, unmappedFolder.relativePath, unmappedFolder.editionName);
 
       onSetImportSeriesValue({
         id,
@@ -68,8 +69,10 @@ class ImportSeriesTable extends Component {
       const selectedSeries = item.selectedSeries;
       const isSelected = selectedState[id];
 
-      const isExistingSeries = !!selectedSeries &&
-        _.some(prevProps.allSeries, { tvdbId: selectedSeries.tvdbId });
+      // An existing series used to be the whole test. It is now only a reason to leave a folder
+      // alone when nothing has been said about which edition it is.
+      const isExistingSeries = !getImportSeriesEdition(item, prevProps.allSeries).isImportable &&
+        !!selectedSeries;
 
       // Props doesn't have a selected series or
       // the selected series is an existing series.

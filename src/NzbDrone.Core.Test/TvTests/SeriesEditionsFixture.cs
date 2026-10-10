@@ -52,5 +52,42 @@ namespace NzbDrone.Core.Test.TvTests
         {
             SeriesEditions.ApplyEditionToSlug("spider-noir", "!!!").Should().Be("spider-noir");
         }
-    }
+
+        [TestCase("Dragon Ball Z (1989) {tvdb-81472} {edition-Remastered}", "Remastered")]
+        [TestCase("Attack on Titan (2013) {tvdb-267440} {edition-AI Upscale}", "AI Upscale")]
+        [TestCase("Series {EDITION-Dubbed}", "Dubbed")]
+        [TestCase("Series {edition- Bluray }", "Bluray")]
+        public void should_read_the_edition_a_folder_name_carries(string folderName, string expected)
+        {
+            SeriesEditions.ReadEditionFromFolder(folderName).Should().Be(expected);
+        }
+
+        [TestCase("Dragon Ball Z (1989) {tvdb-81472}")]
+        [TestCase("Special Edition Show (2020)")]
+        [TestCase("Series {edition-}")]
+        [TestCase("")]
+        [TestCase(null)]
+        public void should_read_no_edition_from_a_folder_that_names_none(string folderName)
+        {
+            // Every folder of a library without editions, which has to come back exactly as it always did.
+            SeriesEditions.ReadEditionFromFolder(folderName).Should().BeNull();
+        }
+
+        [Test]
+        public void should_read_the_last_edition_token_in_a_folder_name()
+        {
+            // GetSeriesFolder appends its token after whatever the folder format produced.
+            SeriesEditions.ReadEditionFromFolder("Series {edition-Old} {edition-New}").Should().Be("New");
+        }
+
+        [Test]
+        public void should_read_back_the_edition_the_folder_was_built_with()
+        {
+            // What is written and what is read have to agree, or a folder that drops out of the library
+            // comes back as a different edition than it left as.
+            var folder = $"Series (2020) {{edition-{SeriesEditions.NormalizeEditionName(" Director's Cut ")}}}";
+
+            SeriesEditions.ReadEditionFromFolder(folder).Should().Be("Director's Cut");
+        }
+}
 }
