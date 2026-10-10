@@ -114,5 +114,28 @@ namespace NzbDrone.Core.Test.Housekeeping.Housekeepers
             AllStoredModels.Select(f => f.Id).Should().NotContain(orphan.Id);
             AllStoredModels.Should().HaveCount(2);
         }
+
+        [Test]
+        public void should_not_delete_an_extra_version_shared_by_two_episodes()
+        {
+            var primary = GivenFile();
+            var extra = GivenFile();
+
+            var episodes = Builder<Episode>.CreateListOfSize(2)
+                .All()
+                .With(e => e.EpisodeFileId = primary.Id)
+                .BuildListOfNew();
+
+            Db.InsertMany(episodes);
+
+            foreach (var episode in Db.All<Episode>())
+            {
+                Db.Insert(new EpisodeFileLink { EpisodeId = episode.Id, EpisodeFileId = extra.Id });
+            }
+
+            Subject.Clean();
+
+            AllStoredModels.Select(f => f.Id).Should().BeEquivalentTo(new[] { primary.Id, extra.Id });
+        }
 }
 }

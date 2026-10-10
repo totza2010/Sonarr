@@ -357,5 +357,44 @@ namespace NzbDrone.Core.Test.MediaFiles.EpisodeImport.Aggregation.Aggregators
             result.MultipleType.Should().Be(EpisodeFileMultipleType.Version);
             result.MultipleNumber.Should().Be(2);
         }
+
+        private void GivenTwoEpisodes()
+        {
+            _localEpisode.Series = new Series { Title = "Kamen Rider" };
+            _localEpisode.Episodes = new List<Episode>
+            {
+                new Episode { Id = 4, Title = "Kamen Rider V3", SeasonNumber = 0, EpisodeNumber = 4 },
+                new Episode { Id = 5, Title = "Kamen Rider V3 vs. Destron", SeasonNumber = 0, EpisodeNumber = 5 }
+            };
+        }
+
+        [Test]
+        public void should_read_a_later_version_of_a_multi_episode_file()
+        {
+            GivenTwoEpisodes();
+            GivenSiblings("Kamen.Rider.1971.S00E04-E05.Kamen.Rider.V3.and.Kamen.Rider.V3.vs.Destron.V1.BLURAY-1080P.AVC.FLAC-[mxn].mkv");
+
+            var result = AggregateFor("Kamen.Rider.1971.S00E04-E05.Kamen.Rider.V3.and.Kamen.Rider.V3.vs.Destron.V2.BLURAY-1080P.X264.AC3-[mxn].mp4");
+
+            result.MultipleType.Should().Be(EpisodeFileMultipleType.Version);
+            result.MultipleNumber.Should().Be(2);
+        }
+
+        [Test]
+        public void should_count_the_first_version_of_a_multi_episode_file_held_in_the_library()
+        {
+            // Both episodes point at the one first version; it is counted once, and it is enough.
+            GivenTwoEpisodes();
+            _localEpisode.Episodes.ForEach(e => e.EpisodeFileId = 20);
+
+            Mocker.GetMock<IMediaFileService>()
+                  .Setup(v => v.GetFiles(It.IsAny<IEnumerable<int>>()))
+                  .Returns(new List<EpisodeFile> { new EpisodeFile { Id = 20, MultipleType = EpisodeFileMultipleType.Version, MultipleNumber = 1 } });
+
+            var result = AggregateFor("Kamen.Rider.1971.S00E04-E05.Kamen.Rider.V3.and.Kamen.Rider.V3.vs.Destron.V2.BLURAY-1080P.X264.AC3-[mxn].mp4");
+
+            result.MultipleType.Should().Be(EpisodeFileMultipleType.Version);
+            result.MultipleNumber.Should().Be(2);
+        }
 }
 }

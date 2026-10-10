@@ -73,5 +73,21 @@ namespace NzbDrone.Core.Test.MediaFiles
         {
             Read(fileName).Should().BeNull();
         }
-    }
+
+        [Test]
+        public void should_read_the_marker_on_a_multi_episode_file_whose_titles_hold_the_same_letters()
+        {
+            // S00E04-E05 of Kamen Rider: both titles carry V3, the name carries them and a version.
+            var marker = MultipleFileMarkerReader.Read("Kamen.Rider.1971.S00E04-E05.Kamen.Rider.V3.and.Kamen.Rider.V3.vs.Destron.V2.BLURAY-1080P.X264.AC3-[mxn]",
+                                                       new Series { Title = "Kamen Rider" },
+                                                       new List<Episode>
+                                                       {
+                                                           new Episode { Title = "Kamen Rider V3" },
+                                                           new Episode { Title = "Kamen Rider V3 vs. Destron" }
+                                                       });
+
+            marker.Type.Should().Be(EpisodeFileMultipleType.Version);
+            marker.Number.Should().Be(2);
+        }
+}
 }

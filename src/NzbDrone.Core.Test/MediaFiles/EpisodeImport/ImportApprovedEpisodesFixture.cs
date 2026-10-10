@@ -542,5 +542,28 @@ namespace NzbDrone.Core.Test.MediaFiles.EpisodeImport
 
             Mocker.GetMock<IMediaFileService>().Verify(v => v.Update(It.IsAny<EpisodeFile>()), Times.Never());
         }
+
+        [Test]
+        public void should_link_an_extra_version_of_a_multi_episode_file_to_every_episode()
+        {
+            GivenExistingFileOnDisk();
+            GivenFileAdded();
+
+            var decision = GivenFilesForOneEpisode(EpisodeFileMultipleType.Version, 2).Single();
+            var first = decision.LocalEpisode.Episodes.First();
+
+            // The second episode of the pair points at the same first version, as both do in a multi-episode file.
+            var second = new Episode { Id = first.Id + 100, SeasonNumber = first.SeasonNumber, EpisodeNumber = first.EpisodeNumber + 1, EpisodeFileId = first.EpisodeFileId };
+
+            decision.LocalEpisode.Episodes.Add(second);
+
+            Subject.Import(new List<ImportDecision> { decision }, false);
+
+            foreach (var episode in decision.LocalEpisode.Episodes)
+            {
+                Mocker.GetMock<IEpisodeFileLinkService>()
+                      .Verify(v => v.Link(episode.Id, It.IsAny<int>()), Times.Once());
+            }
+        }
 }
 }
