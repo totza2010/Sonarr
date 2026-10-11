@@ -8,7 +8,9 @@ import InteractiveImportAppState from 'App/State/InteractiveImportAppState';
 import * as commandNames from 'Commands/commandNames';
 import SelectInput from 'Components/Form/SelectInput';
 import Icon from 'Components/Icon';
+import Label from 'Components/Label';
 import Button from 'Components/Link/Button';
+import Link from 'Components/Link/Link';
 import SpinnerButton from 'Components/Link/SpinnerButton';
 import LoadingIndicator from 'Components/Loading/LoadingIndicator';
 import Menu from 'Components/Menu/Menu';
@@ -37,6 +39,9 @@ import InteractiveImport, {
   InteractiveImportCommandOptions,
 } from 'InteractiveImport/InteractiveImport';
 import SelectLanguageModal from 'InteractiveImport/Language/SelectLanguageModal';
+import getMultipleStates, {
+  MultipleState,
+} from 'InteractiveImport/Multiple/getMultipleStates';
 import SelectMultipleModal from 'InteractiveImport/Multiple/SelectMultipleModal';
 import MultipleType from 'InteractiveImport/MultipleType';
 import SelectNamingLanguagesModal from 'InteractiveImport/NamingLanguages/SelectNamingLanguagesModal';
@@ -122,6 +127,58 @@ function BulkActionButton({ action, onPress }: BulkActionButtonProps) {
     >
       <Icon name={action.icon} />
     </Button>
+  );
+}
+
+const MULTIPLE_FILTERS: {
+  state: MultipleState;
+  label: string;
+  kind: 'danger' | 'warning' | 'success';
+}[] = [
+  { state: 'undecided', label: 'MultipleFilterUndecided', kind: kinds.DANGER },
+  { state: 'pending', label: 'MultipleFilterPending', kind: kinds.WARNING },
+  { state: 'saved', label: 'MultipleFilterSaved', kind: kinds.SUCCESS },
+];
+
+interface MultipleFilterButtonProps {
+  state: MultipleState | null;
+  label: string;
+  kind?: 'danger' | 'warning' | 'success';
+  count?: number;
+  isActive?: boolean;
+  onPress(state: MultipleState | null): void;
+}
+
+// A count that is also the way to the rows it counts. Nothing to press when it counts nothing.
+function MultipleFilterButton({
+  state,
+  label,
+  kind,
+  count,
+  isActive = false,
+  onPress,
+}: MultipleFilterButtonProps) {
+  const handlePress = useCallback(() => {
+    onPress(state);
+  }, [state, onPress]);
+
+  return (
+    <Link
+      className={isActive ? styles.multipleFilterActive : styles.multipleFilter}
+      isDisabled={count === 0}
+      onPress={handlePress}
+    >
+      {label}
+
+      {count == null ? null : (
+        <Label
+          className={styles.multipleFilterCount}
+          kind={count ? kind : kinds.DISABLED}
+        >
+          {count}
+        </Label>
+      )}
+    </Link>
   );
 }
 
@@ -346,6 +403,9 @@ function InteractiveImportModalContent(
   const [isConfirmDeleteModalOpen, setIsConfirmDeleteModalOpen] =
     useState(false);
   const [filterExistingFiles, setFilterExistingFiles] = useState(false);
+  const [multipleFilter, setMultipleFilter] = useState<MultipleState | null>(
+    null
+  );
   const [interactiveImportErrorMessage, setInteractiveImportErrorMessage] =
     useState<string | null>(null);
   const [selectState, setSelectState] = useSelectState();
@@ -384,6 +444,41 @@ function InteractiveImportModalContent(
   const selectedIds: number[] = useMemo(() => {
     return getSelectedIds(selectedState);
   }, [selectedState]);
+
+  // In a season of a few hundred files the handful that are parts or versions are otherwise found by
+  // scrolling, and nothing says which of them are stored and which are only read off the name.
+  const multipleStates = useMemo(() => getMultipleStates(items), [items]);
+
+  // Falls back to everything once nothing is left to show, so the last file of a kind being dealt
+  // with does not leave an empty table with the way back hidden.
+  const activeMultipleFilter =
+    multipleFilter && multipleStates[multipleFilter] > 0
+      ? multipleFilter
+      : null;
+
+  // The files of an episode are shown together, whatever the table is sorted by: a file that says
+  // nothing about itself is only a question beside the one it shares the episode with, so that one
+  // comes along even when it has its own marker.
+  const visibleItems = useMemo(() => {
+    if (!activeMultipleFilter) {
+      return items;
+    }
+
+    const { byId, groupById } = multipleStates;
+    const groups = new Set(
+      items
+        .filter((item) => byId[item.id] === activeMultipleFilter)
+        .map((item) => groupById[item.id])
+    );
+
+    return items
+      .filter((item) => groups.has(groupById[item.id]))
+      .sort((a, b) =>
+        groupById[a.id].localeCompare(groupById[b.id], undefined, {
+          numeric: true,
+        })
+      );
+  }, [items, activeMultipleFilter, multipleStates]);
 
   // Rows whose episodes were worked out from the file name can land on the same episode more than
   // once, which is what a split episode looks like before anyone says so. Grouped here so the action
@@ -600,16 +695,19 @@ function InteractiveImportModalContent(
 
   const onSelectAllChange = useCallback(
     ({ value }: SelectStateInputProps) => {
-      setSelectState({ type: value ? 'selectAll' : 'unselectAll', items });
+      setSelectState({
+        type: value ? 'selectAll' : 'unselectAll',
+        items: visibleItems,
+      });
     },
-    [items, setSelectState]
+    [visibleItems, setSelectState]
   );
 
   const onSelectedChange = useCallback<OnSelectedChangeCallback>(
     ({ id, value, hasEpisodeFileId, shiftKey = false }) => {
       setSelectState({
         type: 'toggleSelected',
-        items,
+        items: visibleItems,
         id,
         isSelected: value,
         shiftKey,
@@ -622,10 +720,29 @@ function InteractiveImportModalContent(
       );
     },
     [
-      items,
+      visibleItems,
       withoutEpisodeFileIdRowsSelected,
       setSelectState,
       setWithoutEpisodeFileIdRowsSelected,
+    ]
+  );
+
+  // The selection is dropped with the rows: the bar along the bottom acts on everything ticked, and a
+  // tick on a row that can no longer be seen would be acted on without anyone knowing it was there.
+  const onMultipleFilterPress = useCallback(
+    (state: MultipleState | null) => {
+      setSelectState({ type: 'unselectAll', items });
+      setWithoutEpisodeFileIdRowsSelected([]);
+      setInvalidRowsSelected([]);
+      setMultipleFilter(state === activeMultipleFilter ? null : state);
+    },
+    [
+      items,
+      activeMultipleFilter,
+      setSelectState,
+      setWithoutEpisodeFileIdRowsSelected,
+      setInvalidRowsSelected,
+      setMultipleFilter,
     ]
   );
 
@@ -1195,39 +1312,67 @@ function InteractiveImportModalContent(
       </ModalHeader>
 
       <ModalBody scrollDirection={scrollDirections.BOTH}>
-        {showFilterExistingFiles && (
+        {showFilterExistingFiles || multipleStates.total ? (
           <div className={styles.filterContainer}>
-            <Menu alignMenu={align.RIGHT}>
-              <MenuButton>
-                <Icon name={icons.FILTER} size={22} />
+            {multipleStates.total ? (
+              <div className={styles.multipleSummary}>
+                {MULTIPLE_FILTERS.map(({ state, label, kind }) => {
+                  return (
+                    <MultipleFilterButton
+                      key={state}
+                      state={state}
+                      label={translate(label)}
+                      kind={kind}
+                      count={multipleStates[state]}
+                      isActive={activeMultipleFilter === state}
+                      onPress={onMultipleFilterPress}
+                    />
+                  );
+                })}
 
-                <div className={styles.filterText}>
-                  {filterExistingFiles
-                    ? translate('UnmappedFilesOnly')
-                    : translate('AllFiles')}
-                </div>
-              </MenuButton>
+                {activeMultipleFilter ? (
+                  <MultipleFilterButton
+                    state={null}
+                    label={translate('MultipleShowAll')}
+                    onPress={onMultipleFilterPress}
+                  />
+                ) : null}
+              </div>
+            ) : null}
 
-              <MenuContent>
-                <SelectedMenuItem
-                  name="all"
-                  isSelected={!filterExistingFiles}
-                  onPress={onFilterExistingFilesChange}
-                >
-                  {translate('AllFiles')}
-                </SelectedMenuItem>
+            {showFilterExistingFiles ? (
+              <Menu alignMenu={align.RIGHT}>
+                <MenuButton>
+                  <Icon name={icons.FILTER} size={22} />
 
-                <SelectedMenuItem
-                  name="new"
-                  isSelected={filterExistingFiles}
-                  onPress={onFilterExistingFilesChange}
-                >
-                  {translate('UnmappedFilesOnly')}
-                </SelectedMenuItem>
-              </MenuContent>
-            </Menu>
+                  <div className={styles.filterText}>
+                    {filterExistingFiles
+                      ? translate('UnmappedFilesOnly')
+                      : translate('AllFiles')}
+                  </div>
+                </MenuButton>
+
+                <MenuContent>
+                  <SelectedMenuItem
+                    name="all"
+                    isSelected={!filterExistingFiles}
+                    onPress={onFilterExistingFilesChange}
+                  >
+                    {translate('AllFiles')}
+                  </SelectedMenuItem>
+
+                  <SelectedMenuItem
+                    name="new"
+                    isSelected={filterExistingFiles}
+                    onPress={onFilterExistingFilesChange}
+                  >
+                    {translate('UnmappedFilesOnly')}
+                  </SelectedMenuItem>
+                </MenuContent>
+              </Menu>
+            ) : null}
           </div>
-        )}
+        ) : null}
 
         {isFetching ? <LoadingIndicator /> : null}
 
@@ -1246,12 +1391,13 @@ function InteractiveImportModalContent(
             onSelectAllChange={onSelectAllChange}
           >
             <TableBody>
-              {items.map((item) => {
+              {visibleItems.map((item) => {
                 return (
                   <InteractiveImportRow
                     key={item.id}
                     isSelected={selectedState[item.id]}
                     {...item}
+                    multipleState={multipleStates.byId[item.id]}
                     allowSeriesChange={allowSeriesChange}
                     columns={columns}
                     modalTitle={modalTitle}

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import AppState from 'App/State/AppState';
 import Icon from 'Components/Icon';
+import Label from 'Components/Label';
 import LoadingIndicator from 'Components/Loading/LoadingIndicator';
 import TableRowCell from 'Components/Table/Cells/TableRowCell';
 import TableRowCellButton from 'Components/Table/Cells/TableRowCellButton';
@@ -24,6 +25,7 @@ import { SelectedEpisode } from 'InteractiveImport/Episode/SelectEpisodeModalCon
 import SelectIndexerFlagsModal from 'InteractiveImport/IndexerFlags/SelectIndexerFlagsModal';
 import SelectLanguageModal from 'InteractiveImport/Language/SelectLanguageModal';
 import getMultipleMarker from 'InteractiveImport/Multiple/getMultipleMarker';
+import { MultipleState } from 'InteractiveImport/Multiple/getMultipleStates';
 import SelectMultipleModal from 'InteractiveImport/Multiple/SelectMultipleModal';
 import MultipleType from 'InteractiveImport/MultipleType';
 import SelectNamingLanguagesModal from 'InteractiveImport/NamingLanguages/SelectNamingLanguagesModal';
@@ -53,6 +55,21 @@ import formatCustomFormatScore from 'Utilities/Number/formatCustomFormatScore';
 import translate from 'Utilities/String/translate';
 import InteractiveImportRowCellPlaceholder from './InteractiveImportRowCellPlaceholder';
 import styles from './InteractiveImportRow.css';
+
+const MULTIPLE_STATE_KINDS: Record<
+  MultipleState,
+  'success' | 'warning' | 'danger'
+> = {
+  saved: kinds.SUCCESS,
+  pending: kinds.WARNING,
+  undecided: kinds.DANGER,
+};
+
+const MULTIPLE_STATE_TITLES: Record<MultipleState, string> = {
+  saved: 'MultipleStateSaved',
+  pending: 'MultipleStatePending',
+  undecided: 'MultipleStateUndecided',
+};
 
 type SelectType =
   | 'series'
@@ -91,6 +108,7 @@ interface InteractiveImportRowProps {
   releaseType: ReleaseType;
   multipleType: MultipleType;
   multipleNumber: number;
+  multipleState?: MultipleState;
   customFormats?: CustomFormat[];
   manualCustomFormats?: number[];
   excludedCustomFormats?: number[];
@@ -126,6 +144,7 @@ function InteractiveImportRow(props: InteractiveImportRowProps) {
     releaseType,
     multipleType,
     multipleNumber,
+    multipleState,
     customFormats = [],
     manualCustomFormats,
     excludedCustomFormats,
@@ -516,6 +535,17 @@ function InteractiveImportRow(props: InteractiveImportRowProps) {
   );
 
   const multipleMarker = getMultipleMarker(multipleType, multipleNumber);
+
+  // Stored, waiting for Import, or nothing said while another row is for the same episode - the three
+  // look the same as plain text, and telling them apart is the reason to open this list.
+  const multipleLabel = multipleState ? (
+    <Label
+      kind={MULTIPLE_STATE_KINDS[multipleState]}
+      title={translate(MULTIPLE_STATE_TITLES[multipleState])}
+    >
+      {multipleMarker || '?'}
+    </Label>
+  ) : null;
   const isMultipleEnabled = useSelector(createMultipleFilesEnabledSelector());
 
   const onSelectMultiplePress = useCallback(() => {
@@ -791,16 +821,12 @@ function InteractiveImportRow(props: InteractiveImportRowProps) {
           title={translate('ClickToChangeMultiple')}
           onPress={onSelectMultiplePress}
         >
-          {multipleMarker ? (
-            multipleMarker
-          ) : (
+          {multipleLabel ?? (
             <InteractiveImportRowCellPlaceholder isOptional={true} />
           )}
         </TableRowCellButton>
       ) : (
-        <TableRowCell className={styles.multiple}>
-          {multipleMarker}
-        </TableRowCell>
+        <TableRowCell className={styles.multiple}>{multipleLabel}</TableRowCell>
       )}
 
       <TableRowCellButton

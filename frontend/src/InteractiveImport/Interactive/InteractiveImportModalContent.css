@@ -8,6 +8,36 @@
   margin-left: 5px;
 }
 
+.multipleSummary {
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+
+  margin-right: 20px;
+}
+
+.multipleFilter {
+  composes: link from '~Components/Link/Link.css';
+
+  padding-bottom: 2px;
+  border-bottom: 2px solid transparent;
+}
+
+.multipleFilterActive {
+  composes: multipleFilter;
+
+  border-bottom-color: var(--linkColor);
+  font-weight: bold;
+}
+
+.multipleFilterCount {
+  composes: label from '~Components/Label.css';
+
+  margin-left: 6px;
+}
+
 .footer {
   composes: modalFooter from '~Components/Modal/ModalFooter.css';
 

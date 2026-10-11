@@ -10,6 +10,10 @@ interface CssExports {
   'footer': string;
   'importMode': string;
   'leftButtons': string;
+  'multipleFilter': string;
+  'multipleFilterActive': string;
+  'multipleFilterCount': string;
+  'multipleSummary': string;
   'rightButtons': string;
 }
 export const cssExports: CssExports;
