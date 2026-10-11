@@ -4,23 +4,42 @@ using NUnit.Framework;
 using NzbDrone.Common.Extensions;
 using NzbDrone.Core.Test.Framework;
 using NzbDrone.Core.Update;
+using NzbDrone.Test.Common;
 
 namespace NzbDrone.Core.Test.UpdateTests
 {
     public class UpdatePackageProviderFixture : CoreTest<UpdatePackageProvider>
     {
+        // These read the fork's releases from GitHub without signing in, which GitHub allows sixty times an
+        // hour for each address. The build machines share theirs with everyone else's builds, so the
+        // allowance is often spent before a test asks. Being refused says nothing about the code, and the
+        // provider answers a refusal with "no updates" by design, so the answer cannot be told apart from a
+        // real one without looking at what was logged on the way.
+        private void GivenGitHubAnswered()
+        {
+            ExceptionVerification.MarkInconclusive("api.github.com");
+        }
+
         [Test]
         public void no_update_when_version_higher()
         {
             UseRealHttp();
-            Subject.GetLatestUpdate("main", new Version(10, 0)).Should().BeNull();
+            var update = Subject.GetLatestUpdate("main", new Version(10, 0));
+
+            GivenGitHubAnswered();
+
+            update.Should().BeNull();
         }
 
         [Test]
         public void finds_update_when_version_lower()
         {
             UseRealHttp();
-            Subject.GetLatestUpdate("main", new Version(3, 0)).Should().NotBeNull();
+            var update = Subject.GetLatestUpdate("main", new Version(3, 0));
+
+            GivenGitHubAnswered();
+
+            update.Should().NotBeNull();
         }
 
         [Test]
@@ -29,7 +48,11 @@ namespace NzbDrone.Core.Test.UpdateTests
             // Assets are named after the branch they were built from, so there is nothing to offer rather
             // than something from a branch nobody asked for.
             UseRealHttp();
-            Subject.GetLatestUpdate("invalid_branch", new Version(3, 0)).Should().BeNull();
+            var update = Subject.GetLatestUpdate("invalid_branch", new Version(3, 0));
+
+            GivenGitHubAnswered();
+
+            update.Should().BeNull();
         }
 
         [Test]
@@ -38,6 +61,8 @@ namespace NzbDrone.Core.Test.UpdateTests
             const string branch = "main";
             UseRealHttp();
             var recent = Subject.GetRecentUpdates(branch, new Version(4, 0), null);
+
+            GivenGitHubAnswered();
 
             recent.Should().NotBeEmpty();
             recent.Should().OnlyContain(c => c.FileName.Contains($"Sonarr.{c.Branch}.4."));
@@ -53,6 +78,8 @@ namespace NzbDrone.Core.Test.UpdateTests
         {
             UseRealHttp();
             var recent = Subject.GetRecentUpdates("main", new Version(4, 0), null);
+
+            GivenGitHubAnswered();
 
             recent.Should().BeInDescendingOrder(c => c.Version);
         }
