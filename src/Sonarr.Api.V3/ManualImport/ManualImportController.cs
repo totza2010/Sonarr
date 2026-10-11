@@ -4,6 +4,7 @@ using System.Linq;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Common.Extensions;
 using NzbDrone.Core.Languages;
+using NzbDrone.Core.MediaFiles;
 using NzbDrone.Core.MediaFiles.EpisodeImport.Manual;
 using NzbDrone.Core.Qualities;
 using Sonarr.Api.V3.CustomFormats;
@@ -61,6 +62,15 @@ namespace Sonarr.Api.V3.ManualImport
                 item.CustomFormatScore = processedItem.CustomFormatScore;
                 item.DetectedAudioLanguages = processedItem.DetectedAudioLanguages;
                 item.DetectedSubtitleLanguages = processedItem.DetectedSubtitleLanguages;
+
+                // A part or version chosen by hand stays as chosen. When nothing was chosen, what the file's
+                // name says is handed back, the same as a scan of the folder would have read it - otherwise a
+                // file named part2 comes back from being given its episode still looking like a whole episode.
+                if (item.MultipleType == EpisodeFileMultipleType.None && processedItem.MultipleType != EpisodeFileMultipleType.None)
+                {
+                    item.MultipleType = processedItem.MultipleType;
+                    item.MultipleNumber = processedItem.MultipleNumber;
+                }
 
                 // Only set the language/quality if they're unknown and languages were returned.
                 // Languages won't be returned when reprocessing if the season/episode isn't filled in yet and we don't want to return no languages to the client.
