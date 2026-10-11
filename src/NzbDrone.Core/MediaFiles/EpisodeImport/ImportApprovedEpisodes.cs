@@ -75,6 +75,11 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport
 
             var importResults = new List<ImportResult>();
 
+            // Which file each episode has come to point at during this run. Every decision carries its own
+            // copy of the episode, read before anything was imported, so the second part of an episode
+            // that had no file still sees it as having none.
+            var filesImportedForEpisodes = new Dictionary<int, int>();
+
             foreach (var importDecision in qualifiedImports.OrderBy(e => e.LocalEpisode.Episodes.Select(episode => episode.EpisodeNumber).MinOrDefault())
                                                            .ThenByDescending(e => e.LocalEpisode.Size))
             {
@@ -220,10 +225,30 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport
                     // otherwise the set would hold a second part beside a first that does not know it is one.
                     if (localEpisode.IsAdditionalFile)
                     {
+                        // Without this each part of a set imported together takes the episode for itself,
+                        // the last one keeps it, and the others are left belonging to nothing.
+                        foreach (var episode in localEpisode.Episodes)
+                        {
+                            if (filesImportedForEpisodes.TryGetValue(episode.Id, out var importedFileId))
+                            {
+                                episode.EpisodeFileId = importedFileId;
+                            }
+                        }
+
                         RecordNamedMarkers(localEpisode);
                     }
 
+                    var episodesWithoutFile = localEpisode.Episodes.Where(e => e.EpisodeFileId == 0).Select(e => e.Id).ToList();
+
                     episodeFile = _mediaFileService.Add(episodeFile, localEpisode.IsAdditionalFile);
+
+                    foreach (var episode in localEpisode.Episodes)
+                    {
+                        if (episodeFile != null && (!localEpisode.IsAdditionalFile || episodesWithoutFile.Contains(episode.Id)))
+                        {
+                            filesImportedForEpisodes[episode.Id] = episodeFile.Id;
+                        }
+                    }
 
                     // Adding the file leaves Episodes.EpisodeFileId pointing at the file the episode
                     // already had, so the extra one is recorded here instead.

@@ -565,5 +565,76 @@ namespace NzbDrone.Core.Test.MediaFiles.EpisodeImport
                       .Verify(v => v.Link(episode.Id, It.IsAny<int>()), Times.Once());
             }
         }
-}
+
+        // A scan that finds part 1, 2 and 3 of an episode with no file yet. Each decision holds its own
+        // copy of the episode, as they do when read from disk, and adding a file moves the episode onto
+        // it only when it is not an extra one for an episode that already has a file - which is what the
+        // real handler does.
+        private List<ImportDecision> GivenPartsOfAnEpisodeWithoutFile(params int[] numbers)
+        {
+            var nextId = 500;
+
+            Mocker.GetMock<IMediaFileService>()
+                  .Setup(s => s.Add(It.IsAny<EpisodeFile>(), It.IsAny<bool>()))
+                  .Returns<EpisodeFile, bool>((file, additional) =>
+                  {
+                      file.Id = nextId++;
+
+                      foreach (var episode in file.Episodes.Value.Where(e => !additional || e.EpisodeFileId == 0))
+                      {
+                          episode.EpisodeFileId = file.Id;
+                      }
+
+                      return file;
+                  });
+
+            var decisions = GivenFilesForOneEpisode(EpisodeFileMultipleType.Part, numbers);
+            var original = decisions.First().LocalEpisode.Episodes.First();
+
+            foreach (var decision in decisions)
+            {
+                decision.LocalEpisode.Episodes = new List<Episode>
+                {
+                    new Episode { Id = original.Id, SeasonNumber = original.SeasonNumber, EpisodeNumber = original.EpisodeNumber, EpisodeFileId = 0 }
+                };
+            }
+
+            return decisions;
+        }
+
+        [Test]
+        public void should_keep_the_first_part_as_the_file_of_an_episode_when_parts_are_imported_together()
+        {
+            GivenExistingFileOnDisk();
+
+            var decisions = GivenPartsOfAnEpisodeWithoutFile(1, 2, 3);
+            var episodeId = decisions.First().LocalEpisode.Episodes.First().Id;
+
+            Subject.Import(decisions, false);
+
+            // Every copy of the episode agrees on the first file imported.
+            decisions.SelectMany(d => d.LocalEpisode.Episodes).Select(e => e.EpisodeFileId).Should().OnlyContain(id => id == 500);
+
+            Mocker.GetMock<IEpisodeFileLinkService>().Verify(v => v.Link(episodeId, 500), Times.Never());
+            Mocker.GetMock<IEpisodeFileLinkService>().Verify(v => v.Link(episodeId, 501), Times.Once());
+            Mocker.GetMock<IEpisodeFileLinkService>().Verify(v => v.Link(episodeId, 502), Times.Once());
+        }
+
+        [Test]
+        public void should_not_carry_the_file_of_one_episode_over_to_parts_of_another()
+        {
+            GivenExistingFileOnDisk();
+
+            var decisions = GivenPartsOfAnEpisodeWithoutFile(1, 2);
+            var other = new Episode { Id = 9000, SeasonNumber = 1, EpisodeNumber = 9, EpisodeFileId = 0 };
+
+            decisions.Last().LocalEpisode.Episodes = new List<Episode> { other };
+
+            Subject.Import(decisions, false);
+
+            other.EpisodeFileId.Should().Be(501);
+
+            Mocker.GetMock<IEpisodeFileLinkService>().Verify(v => v.Link(It.IsAny<int>(), It.IsAny<int>()), Times.Never());
+        }
+    }
 }
