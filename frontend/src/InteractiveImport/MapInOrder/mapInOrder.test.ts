@@ -7,6 +7,7 @@ import mapInOrder, {
   MapSetting,
   naturalCompare,
   readNameNumber,
+  selectRange,
 } from './mapInOrder';
 
 // Two seasons of three, ids 11-13 and 21-23, and two specials, ids 1-2. Only the fields the mapping
@@ -261,5 +262,50 @@ describe('findShifts', () => {
 
     assert.deepEqual(found.shiftRows, []);
     assert.equal(found.byId[2].number, undefined);
+  });
+});
+
+describe('selectRange', () => {
+  const order = [5, 3, 8, 1, 9];
+
+  test('ticks every row between the last clicked and this one', () => {
+    assert.deepEqual(
+      [...selectRange(order, new Set([3]), 3, 9, true)].sort((a, b) => a - b),
+      [1, 3, 8, 9]
+    );
+  });
+
+  test('works upwards as well', () => {
+    assert.deepEqual(
+      [...selectRange(order, new Set(), 1, 5, true)].sort((a, b) => a - b),
+      [1, 3, 5, 8]
+    );
+  });
+
+  test('unticks a range the same way', () => {
+    assert.deepEqual(
+      [...selectRange(order, new Set(order), 3, 1, false)].sort(
+        (a, b) => a - b
+      ),
+      [5, 9]
+    );
+  });
+
+  test('changes only this row with nothing clicked before', () => {
+    assert.deepEqual(
+      [...selectRange(order, new Set(), undefined, 8, true)],
+      [8]
+    );
+  });
+
+  test('changes only this row when the last clicked one is gone', () => {
+    assert.deepEqual([...selectRange(order, new Set(), 42, 8, true)], [8]);
+  });
+
+  test('leaves ticks outside the range alone', () => {
+    assert.deepEqual(
+      [...selectRange(order, new Set([5]), 8, 1, true)].sort((a, b) => a - b),
+      [1, 5, 8]
+    );
   });
 });

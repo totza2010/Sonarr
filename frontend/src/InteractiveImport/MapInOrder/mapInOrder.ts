@@ -253,3 +253,33 @@ export function findShifts(
 
   return { byId, shiftRows };
 }
+
+/**
+ * Ticks or unticks every row from the one last clicked to this one, the way Shift+click works in a
+ * file list. With nothing clicked before, or the last one gone from the list, only this row changes.
+ */
+export function selectRange(
+  order: number[],
+  selected: Set<number>,
+  anchorId: number | undefined,
+  id: number,
+  value: boolean
+) {
+  const next = new Set(selected);
+  const from = anchorId == null ? -1 : order.indexOf(anchorId);
+  const to = order.indexOf(id);
+  const ids =
+    from < 0 || to < 0
+      ? [id]
+      : order.slice(Math.min(from, to), Math.max(from, to) + 1);
+
+  ids.forEach((rowId) => {
+    if (value) {
+      next.add(rowId);
+    } else {
+      next.delete(rowId);
+    }
+  });
+
+  return next;
+}

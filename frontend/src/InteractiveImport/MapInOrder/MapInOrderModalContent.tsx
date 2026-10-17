@@ -28,7 +28,11 @@ import getSeriesEditions from 'Series/getSeriesEditions';
 import Series from 'Series/Series';
 import seriesEditionTitle from 'Series/seriesEditionTitle';
 import createAllSeriesSelector from 'Store/Selectors/createAllSeriesSelector';
-import { FileInputChanged, InputChanged } from 'typings/inputs';
+import {
+  CheckInputChanged,
+  FileInputChanged,
+  InputChanged,
+} from 'typings/inputs';
 import createAjaxRequest from 'Utilities/createAjaxRequest';
 import translate from 'Utilities/String/translate';
 import mapInOrder, {
@@ -39,6 +43,7 @@ import mapInOrder, {
   MapSetting,
   NameNumber,
   naturalCompare,
+  selectRange,
 } from './mapInOrder';
 import styles from './MapInOrderModalContent.css';
 
@@ -150,7 +155,7 @@ interface RowData {
   dropIndex: number | null;
   specialOptions: { key: string; value: string }[];
   onSettingChange(id: number, change: Partial<MapSetting>): void;
-  onSelectedChange(id: number, value: boolean): void;
+  onSelectedChange(id: number, value: boolean, shiftKey: boolean): void;
   onDragStart(id: number): void;
   onDragOver(index: number): void;
   onDrop(): void;
@@ -218,8 +223,8 @@ function MapInOrderRow({
   );
 
   const handleSelectedChange = useCallback(
-    ({ value }: InputChanged<boolean>) => {
-      onSelectedChange(id, value);
+    ({ value, shiftKey = false }: CheckInputChanged) => {
+      onSelectedChange(id, value, shiftKey);
     },
     [id, onSelectedChange]
   );
@@ -704,19 +709,26 @@ function MapInOrderModalContent(props: MapInOrderModalContentProps) {
     [episodeByCode, onSettingChange]
   );
 
-  const onSelectedChange = useCallback((id: number, value: boolean) => {
-    setSelected((current) => {
-      const next = new Set(current);
+  // The row last ticked or unticked, which Shift+click counts a range from.
+  const anchorId = useRef<number | undefined>(undefined);
 
-      if (value) {
-        next.add(id);
-      } else {
-        next.delete(id);
-      }
+  const onSelectedChange = useCallback(
+    (id: number, value: boolean, shiftKey: boolean) => {
+      const anchor = shiftKey ? anchorId.current : undefined;
 
-      return next;
-    });
-  }, []);
+      setSelected((current) => selectRange(order, current, anchor, id, value));
+      anchorId.current = id;
+    },
+    [order]
+  );
+
+  const onSelectAllChange = useCallback(
+    ({ value }: CheckInputChanged) => {
+      setSelected(value ? new Set(order) : new Set());
+      anchorId.current = undefined;
+    },
+    [order]
+  );
 
   const moveTo = useCallback((ids: number[], index: number) => {
     setOrder((current) => {
@@ -1014,7 +1026,18 @@ function MapInOrderModalContent(props: MapInOrderModalContentProps) {
             </div>
 
             <div className={styles.header}>
-              <div />
+              <div className={styles.select}>
+                <CheckInput
+                  name="selectAll"
+                  // Neither true nor false draws the box as partly ticked.
+                  value={
+                    selected.size > 0 && selected.size < order.length
+                      ? 'some'
+                      : order.length > 0 && selected.size === order.length
+                  }
+                  onChange={onSelectAllChange}
+                />
+              </div>
               <div />
               <div>#</div>
               <div>{translate('MapInOrderFile')}</div>
