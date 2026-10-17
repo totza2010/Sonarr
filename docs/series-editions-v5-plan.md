@@ -1,5 +1,8 @@
 # Series editions: porting the 4.0 work to v5
 
+> Written in July 2026. The migration numbers and the "v5 line" column below are out of date; the
+> current map of the edition work, with the code it lives in, is [fork/editions.md](fork/editions.md).
+
 Editions were built on the 4.0 line first, because that is what runs in production here. v5 has the
 same feature but stops at an earlier point. This is what is missing and why, so the rest can be
 picked up in one go once v5 becomes the main line.
