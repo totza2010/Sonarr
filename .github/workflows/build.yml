@@ -123,6 +123,9 @@ jobs:
       - name: Stylelint
         run: yarn stylelint -f github
 
+      - name: Test
+        run: yarn test
+
       - name: Build
         run: yarn build --env production
 

@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "../_temp/uitests",
+    "rootDir": "src",
+    "module": "commonjs",
+    "target": "es2020",
+    "plugins": []
+  },
+  "include": ["./src/**/*.test.ts"]
+}
