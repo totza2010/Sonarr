@@ -44,6 +44,24 @@ work below; its migration numbers and "v5 line" column are out of date) and
 | `src/NzbDrone.Core/MediaFiles/EpisodeImport/Manual/ManualImportService.cs` | Manual import picks the edition from the path (`FindEditionForPath`) and flags `EditionUnconfirmed` when it could not |
 | `src/NzbDrone.Core/RootFolders/RootFolderService.cs`, `UnmappedFolder.cs` | Library Import reads `{edition-X}` off each unmapped folder (`UnmappedFolder.EditionName`) |
 
+## Renaming an edition, and changing which one is main
+
+- **Rename** (`SeriesService.ApplyEditionRename`, reached from any `PUT /series/{id}`): the name is
+  stored cleaned, the slug follows at once (built from the main edition's slug, or from the edition's
+  own when there is no main), and a name another edition has is refused as a validation error on
+  `EditionName`. The main edition cannot be given a name, nor an edition have its name taken away -
+  both are a swap. The Edit Series dialog has the field for non-main editions and rewrites
+  `{edition-Old}` in the path as the name is typed (`frontend/src/Series/replaceEditionInPath.ts`,
+  tested with `yarn test`), so the usual "move files?" question follows on save. The series page
+  follows the slug when it changes (`SeriesDetailsPageConnector`).
+- **Swap** (`SwapMainEditionCommand`, `SeriesEditionSwapService`): the chosen edition becomes main and
+  the main one takes its name. Each row keeps its files, episodes and settings. The folders trade
+  places through `<main path>.edition-swap`, and are put back if a move fails; the database is only
+  written once the folders are where they belong, through a temporary name, slug and path so no
+  unique index is ever crossed. A left-over `.edition-swap` folder stops the next swap. With no main
+  edition at all, the edition is simply promoted and its folder left where it is. "Make Main Edition"
+  on the series page, beside the list of editions (`Series/Details/SeriesEditionLinks.tsx`).
+
 ## API (`Sonarr.Api.V3`)
 
 - `SeriesResource.EditionName` — empty for the main edition.
@@ -75,7 +93,7 @@ work below; its migration numbers and "v5 line" column are out of date) and
 
 ## Tests
 
-`SeriesEditionsFixture`, `SeriesRepositoryFixture`, `SeriesApplyChangesFixture`, `AddSeriesFixture`,
+`SeriesEditionsFixture`, `SeriesEditionChangesFixture`, `SeriesEditionSwapServiceFixture`, `SeriesRepositoryFixture`, `SeriesApplyChangesFixture`, `AddSeriesFixture`,
 `SeriesEditionFolderFixture`, `EditionSpecificationFixture`, `TrackedDownloadServiceFixture`,
 `ManualImportServiceFixture`, `RootFolderServiceFixture`, `9001_add_series_editionFixture`.
 
@@ -83,10 +101,8 @@ work below; its migration numbers and "v5 line" column are out of date) and
 
 - Only the main edition is automated; other editions are filled by manual import.
 - The unique key ignores the root folder, so one instance cannot hold the same edition twice.
-- Renaming an edition and swapping which edition is the main one are designed but not built
-  ([series-identity-migration-plan.md](../series-identity-migration-plan.md) §2–3). The open question
-  is what deleting the main edition does while others exist: refuse until another is swapped in, or
-  promote one automatically.
+- A main edition cannot be deleted while other editions remain (`SeriesService.DeleteSeries`, HTTP 409;
+  the delete dialog says so and disables the button). Deleting all of them together is allowed.
 
 ## Against v5
 

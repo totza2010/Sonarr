@@ -89,5 +89,23 @@ namespace NzbDrone.Core.Test.TvTests
 
             SeriesEditions.ReadEditionFromFolder(folder).Should().Be("Director's Cut");
         }
-}
+
+        [Test]
+        public void should_take_the_edition_back_off_a_slug()
+        {
+            SeriesEditions.RemoveEditionFromSlug("spider-noir-black-and-white", "Black and White").Should().Be("spider-noir");
+        }
+
+        [Test]
+        public void should_leave_a_slug_alone_when_it_does_not_end_with_the_edition()
+        {
+            SeriesEditions.RemoveEditionFromSlug("spider-noir", "Black and White").Should().Be("spider-noir");
+        }
+
+        [Test]
+        public void should_leave_the_main_editions_slug_alone()
+        {
+            SeriesEditions.RemoveEditionFromSlug("spider-noir", "").Should().Be("spider-noir");
+        }
+    }
 }

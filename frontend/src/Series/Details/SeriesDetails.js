@@ -41,6 +41,7 @@ import toggleSelected from 'Utilities/Table/toggleSelected';
 import SeriesAlternateTitles from './SeriesAlternateTitles';
 import SeriesDetailsLinks from './SeriesDetailsLinks';
 import SeriesDetailsSeasonConnector from './SeriesDetailsSeasonConnector';
+import SeriesEditionLinks from './SeriesEditionLinks';
 import SeriesTagsConnector from './SeriesTagsConnector';
 import styles from './SeriesDetails.css';
 
@@ -415,6 +416,11 @@ class SeriesDetails extends Component {
                     />
                   </div>
                 </div>
+
+                <SeriesEditionLinks
+                  seriesId={id}
+                  tvdbId={tvdbId}
+                />
 
                 <div className={styles.details}>
                   <div>

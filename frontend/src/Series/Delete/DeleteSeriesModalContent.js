@@ -1,5 +1,6 @@
 import PropTypes from 'prop-types';
 import React, { Component } from 'react';
+import Alert from 'Components/Alert';
 import FormGroup from 'Components/Form/FormGroup';
 import FormInputGroup from 'Components/Form/FormInputGroup';
 import FormLabel from 'Components/Form/FormLabel';
@@ -52,6 +53,7 @@ class DeleteSeriesModalContent extends Component {
       path,
       statistics = {},
       deleteOptions,
+      otherEditionCount,
       onModalClose,
       onDeleteOptionChange
     } = this.props;
@@ -73,6 +75,14 @@ class DeleteSeriesModalContent extends Component {
         </ModalHeader>
 
         <ModalBody>
+          {
+            otherEditionCount ?
+              <Alert kind={kinds.WARNING}>
+                {translate('DeleteSeriesMainEditionBlocked', { count: otherEditionCount })}
+              </Alert> :
+              null
+          }
+
           <div className={styles.pathContainer}>
             <Icon
               className={styles.pathIcon}
@@ -131,6 +141,7 @@ class DeleteSeriesModalContent extends Component {
 
           <Button
             kind={kinds.DANGER}
+            isDisabled={!!otherEditionCount}
             onPress={this.onDeleteSeriesConfirmed}
           >
             {translate('Delete')}
@@ -146,6 +157,7 @@ DeleteSeriesModalContent.propTypes = {
   path: PropTypes.string.isRequired,
   statistics: PropTypes.object.isRequired,
   deleteOptions: PropTypes.object.isRequired,
+  otherEditionCount: PropTypes.number,
   onDeleteOptionChange: PropTypes.func.isRequired,
   onDeletePress: PropTypes.func.isRequired,
   onModalClose: PropTypes.func.isRequired

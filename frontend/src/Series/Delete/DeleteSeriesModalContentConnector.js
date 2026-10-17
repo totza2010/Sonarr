@@ -1,6 +1,8 @@
 import { connect } from 'react-redux';
 import { createSelector } from 'reselect';
+import getSeriesEditions from 'Series/getSeriesEditions';
 import { deleteSeries, setDeleteOption } from 'Store/Actions/seriesActions';
+import createAllSeriesSelector from 'Store/Selectors/createAllSeriesSelector';
 import createSeriesSelector from 'Store/Selectors/createSeriesSelector';
 import DeleteSeriesModalContent from './DeleteSeriesModalContent';
 
@@ -8,9 +10,17 @@ function createMapStateToProps() {
   return createSelector(
     (state) => state.series.deleteOptions,
     createSeriesSelector(),
-    (deleteOptions, series) => {
+    createAllSeriesSelector(),
+    (deleteOptions, series, allSeries) => {
+      // The main edition cannot go while other editions stay; the server refuses it, so the dialog
+      // says so up front rather than failing after the button is pressed.
+      const otherEditionCount = series && !series.editionName ?
+        getSeriesEditions(allSeries, series).length - 1 :
+        0;
+
       return {
         ...series,
+        otherEditionCount,
         deleteOptions
       };
     }

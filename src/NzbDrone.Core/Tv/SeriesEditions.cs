@@ -116,5 +116,22 @@ namespace NzbDrone.Core.Tv
 
             return $"{titleSlug}-{suffix}";
         }
+
+        /// <summary>
+        /// The slug an edition's own was built from, for when the main edition is not there to ask.
+        /// </summary>
+        public static string RemoveEditionFromSlug(string titleSlug, string editionName)
+        {
+            if (IsMainEdition(editionName) || titleSlug.IsNullOrWhiteSpace())
+            {
+                return titleSlug;
+            }
+
+            var suffix = $"-{NormalizeEditionName(editionName).ToUrlSlug()}";
+
+            return titleSlug.EndsWith(suffix, StringComparison.Ordinal)
+                ? titleSlug.Substring(0, titleSlug.Length - suffix.Length)
+                : titleSlug;
+        }
     }
 }

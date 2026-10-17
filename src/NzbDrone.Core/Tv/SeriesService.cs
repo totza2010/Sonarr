@@ -1,9 +1,14 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
+using FluentValidation;
+using FluentValidation.Results;
 using NLog;
 using NzbDrone.Common.Extensions;
 using NzbDrone.Core.AutoTagging;
+using NzbDrone.Core.Exceptions;
 using NzbDrone.Core.Messaging.Events;
+using NzbDrone.Core.Organizer;
 using NzbDrone.Core.Parser;
 using NzbDrone.Core.Tv.Events;
 
@@ -180,6 +185,26 @@ namespace NzbDrone.Core.Tv
         public void DeleteSeries(List<int> seriesIds, bool deleteFiles, bool addImportListExclusion)
         {
             var series = _seriesRepository.Get(seriesIds).ToList();
+
+            // The main edition is the one everything outside this instance sees and the only one that is
+            // automated. Deleting it while others stay would leave them with no main edition and nobody
+            // told, so another one has to be made the main edition first. Deleting all of them together
+            // is fine.
+            foreach (var main in series.Where(s => SeriesEditions.IsMainEdition(s.EditionName)))
+            {
+                var remaining = (FindAllByTvdbId(main.TvdbId) ?? new List<Series>())
+                    .Where(s => !seriesIds.Contains(s.Id))
+                    .ToList();
+
+                if (remaining.Any())
+                {
+                    throw new NzbDroneClientException(HttpStatusCode.Conflict,
+                        "{0} is the main edition of a series that has {1} other edition(s). Make one of them the main edition before deleting it.",
+                        main.Title,
+                        remaining.Count);
+                }
+            }
+
             _seriesRepository.DeleteMany(seriesIds);
             _eventAggregator.PublishEvent(new SeriesDeletedEvent(series, deleteFiles, addImportListExclusion));
         }
@@ -202,6 +227,59 @@ namespace NzbDrone.Core.Tv
         public Dictionary<int, List<string>> AllSeriesEditions()
         {
             return _seriesRepository.AllSeriesEditions();
+        }
+
+        /// <summary>
+        /// Renaming an edition. The name is stored cleaned for a folder, as it is when the edition is
+        /// added, and the slug follows it straight away rather than at the next refresh - it is unique
+        /// and the series page is found by it. Moving the folder is the caller's, the same as for any
+        /// change of path.
+        ///
+        /// Which edition is the main one is not changed here. The main edition has no name to rename,
+        /// and taking an edition's name away would make a second main edition; both are a swap.
+        /// </summary>
+        private void ApplyEditionRename(Series storedSeries, Series series)
+        {
+            var editionName = SeriesEditions.NormalizeEditionName(series.EditionName);
+
+            if (editionName == SeriesEditions.NormalizeEditionName(storedSeries.EditionName))
+            {
+                return;
+            }
+
+            if (SeriesEditions.IsMainEdition(storedSeries.EditionName))
+            {
+                throw EditionFailure("The main edition has no name to change. Make another edition the main one instead.");
+            }
+
+            if (SeriesEditions.IsMainEdition(editionName))
+            {
+                throw EditionFailure("An edition needs a name. To make it the main edition, swap it with the main one.");
+            }
+
+            editionName = FileNameBuilder.CleanFileName(editionName);
+
+            var others = (FindAllByTvdbId(series.TvdbId) ?? new List<Series>())
+                .Where(s => s.Id != series.Id)
+                .ToList();
+
+            if (others.Any(s => SeriesEditions.SameEdition(s.EditionName, editionName)))
+            {
+                throw EditionFailure("This series already has an edition with this name");
+            }
+
+            var main = others.FirstOrDefault(s => SeriesEditions.IsMainEdition(s.EditionName));
+            var slug = main?.TitleSlug ?? SeriesEditions.RemoveEditionFromSlug(storedSeries.TitleSlug, storedSeries.EditionName);
+
+            _logger.Info("Renaming edition {0} of {1} to {2}", storedSeries.EditionName, series.Title, editionName);
+
+            series.EditionName = editionName;
+            series.TitleSlug = SeriesEditions.ApplyEditionToSlug(slug, editionName);
+        }
+
+        private static ValidationException EditionFailure(string message)
+        {
+            return new ValidationException(new List<ValidationFailure> { new ValidationFailure("EditionName", message) });
         }
 
         public Dictionary<int, string> GetAllSeriesPaths()
@@ -244,6 +322,7 @@ namespace NzbDrone.Core.Tv
 
             // Never update AddOptions when updating a series, keep it the same as the existing stored series.
             series.AddOptions = storedSeries.AddOptions;
+            ApplyEditionRename(storedSeries, series);
             UpdateTags(series);
 
             var updatedSeries = _seriesRepository.Update(series);

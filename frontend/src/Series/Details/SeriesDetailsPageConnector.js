@@ -19,11 +19,16 @@ function createMapStateToProps() {
 
       if (seriesIndex > -1) {
         return {
-          titleSlug
+          titleSlug,
+          seriesId: allSeries[seriesIndex].id
         };
       }
 
-      return {};
+      // Renaming an edition changes its slug under the page that shows it. The series is still here,
+      // so the page follows it rather than giving up.
+      return {
+        allSeries
+      };
     }
   );
 }
@@ -39,7 +44,14 @@ class SeriesDetailsPageConnector extends Component {
 
   componentDidUpdate(prevProps) {
     if (!this.props.titleSlug) {
-      this.props.push(`${window.Sonarr.urlBase}/`);
+      const moved = prevProps.seriesId ?
+        (this.props.allSeries || []).find((s) => s.id === prevProps.seriesId) :
+        null;
+
+      this.props.push(moved ?
+        `${window.Sonarr.urlBase}/series/${moved.titleSlug}` :
+        `${window.Sonarr.urlBase}/`);
+
       return;
     }
   }
@@ -70,6 +82,8 @@ class SeriesDetailsPageConnector extends Component {
 
 SeriesDetailsPageConnector.propTypes = {
   titleSlug: PropTypes.string,
+  seriesId: PropTypes.number,
+  allSeries: PropTypes.arrayOf(PropTypes.object),
   match: PropTypes.shape({ params: PropTypes.shape({ titleSlug: PropTypes.string.isRequired }).isRequired }).isRequired,
   push: PropTypes.func.isRequired
 };

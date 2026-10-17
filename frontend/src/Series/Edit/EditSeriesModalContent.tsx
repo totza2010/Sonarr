@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import SeriesMonitorNewItemsOptionsPopoverContent from 'AddSeries/SeriesMonitorNewItemsOptionsPopoverContent';
 import AppState from 'App/State/AppState';
@@ -23,6 +23,8 @@ import {
   tooltipPositions,
 } from 'Helpers/Props';
 import MoveSeriesModal from 'Series/MoveSeries/MoveSeriesModal';
+import replaceEditionInPath from 'Series/replaceEditionInPath';
+import seriesEditionSuggestions from 'Series/seriesEditionSuggestions';
 import useSeries from 'Series/useSeries';
 import { saveSeries, setSeriesValue } from 'Store/Actions/seriesActions';
 import selectSettings from 'Store/Selectors/selectSettings';
@@ -53,6 +55,7 @@ function EditSeriesModalContent({
     namingLanguage,
     path,
     tags,
+    editionName,
     rootFolderPath: initialRootFolderPath,
   } = useSeries(seriesId)!;
 
@@ -82,6 +85,7 @@ function EditSeriesModalContent({
         namingLanguage: namingLanguage ?? { id: 0, name: 'Unknown' },
         path,
         tags,
+        editionName,
       },
       pendingChanges,
       saveError
@@ -95,6 +99,7 @@ function EditSeriesModalContent({
     namingLanguage,
     path,
     tags,
+    editionName,
     pendingChanges,
     saveError,
   ]);
@@ -105,6 +110,39 @@ function EditSeriesModalContent({
       dispatch(setSeriesValue({ name, value }));
     },
     [dispatch]
+  );
+
+  // The path the edition name last wrote, so a path somebody then typed by hand is not overwritten by
+  // the next keystroke in the name.
+  const autoPath = useRef<string | undefined>(undefined);
+
+  // Renaming an edition renames its {edition-...} token with it; the move is offered on save the same
+  // way as for any other change of path.
+  const handleEditionNameChange = useCallback(
+    ({ name, value }: InputChanged) => {
+      handleInputChange({ name, value });
+
+      const currentPath = pendingChanges.path ?? path;
+
+      if (
+        pendingChanges.path != null &&
+        pendingChanges.path !== autoPath.current
+      ) {
+        return;
+      }
+
+      const newPath = replaceEditionInPath(
+        path,
+        editionName,
+        String(value ?? '')
+      );
+
+      if (newPath !== currentPath) {
+        autoPath.current = newPath;
+        handleInputChange({ name: 'path', value: newPath });
+      }
+    },
+    [handleInputChange, pendingChanges.path, path, editionName]
   );
 
   const handleRootFolderPress = useCallback(() => {
@@ -242,6 +280,22 @@ function EditSeriesModalContent({
               onChange={handleInputChange}
             />
           </FormGroup>
+
+          {/* The main edition has no name to change; that is a swap, offered on the series page. */}
+          {editionName ? (
+            <FormGroup size={sizes.MEDIUM}>
+              <FormLabel>{translate('Edition')}</FormLabel>
+
+              <FormInputGroup
+                type={inputTypes.AUTO_COMPLETE}
+                name="editionName"
+                values={seriesEditionSuggestions}
+                {...settings.editionName}
+                helpText={translate('SeriesEditionRenameHelpText')}
+                onChange={handleEditionNameChange}
+              />
+            </FormGroup>
+          ) : null}
 
           <FormGroup size={sizes.MEDIUM}>
             <FormLabel>{translate('Path')}</FormLabel>
