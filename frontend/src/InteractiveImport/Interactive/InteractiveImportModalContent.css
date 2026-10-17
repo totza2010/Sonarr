@@ -32,6 +32,10 @@
   font-weight: bold;
 }
 
+.importBlocked {
+  color: var(--dangerColor);
+}
+
 .multipleFilterCount {
   composes: label from '~Components/Label.css';
 

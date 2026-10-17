@@ -42,6 +42,7 @@ import InteractiveImport, {
 import SelectLanguageModal from 'InteractiveImport/Language/SelectLanguageModal';
 import MapInOrderModal from 'InteractiveImport/MapInOrder/MapInOrderModal';
 import { MappedFile } from 'InteractiveImport/MapInOrder/MapInOrderModalContent';
+import findUnmarkedSharedFiles from 'InteractiveImport/Multiple/findUnmarkedSharedFiles';
 import getMultipleStates, {
   MultipleState,
 } from 'InteractiveImport/Multiple/getMultipleStates';
@@ -409,6 +410,7 @@ function InteractiveImportModalContent(
   const [selectModalOpen, setSelectModalOpen] = useState<SelectType | null>(
     null
   );
+  const [isConfirmImportModeOpen, setIsConfirmImportModeOpen] = useState(false);
   const [isConfirmDeleteModalOpen, setIsConfirmDeleteModalOpen] =
     useState(false);
   const [filterExistingFiles, setFilterExistingFiles] = useState(false);
@@ -544,6 +546,13 @@ function InteractiveImportModalContent(
 
     return ids.size === 1 ? selected[0].series : undefined;
   }, [items, selectedIds]);
+
+  // Importing these would have one replace the other. Refused up front rather than found out
+  // afterwards, with the red count in the bar above as the way to them.
+  const unmarkedSharedIds = useMemo(
+    () => findUnmarkedSharedFiles(items, selectedIds),
+    [items, selectedIds]
+  );
 
   const mapItems = useMemo(
     () => items.filter((item) => selectedIds.includes(item.id)),
@@ -772,18 +781,17 @@ function InteractiveImportModalContent(
         shiftKey,
       });
 
-      setWithoutEpisodeFileIdRowsSelected(
-        hasEpisodeFileId || !value
-          ? without(withoutEpisodeFileIdRowsSelected, id)
-          : [...withoutEpisodeFileIdRowsSelected, id]
-      );
+      // From the latest list rather than the one this callback was made with: many rows report in
+      // the same render, and each would otherwise undo the one before.
+      setWithoutEpisodeFileIdRowsSelected((current) => {
+        if (hasEpisodeFileId || !value) {
+          return current.includes(id) ? without(current, id) : current;
+        }
+
+        return current.includes(id) ? current : [...current, id];
+      });
     },
-    [
-      visibleItems,
-      withoutEpisodeFileIdRowsSelected,
-      setSelectState,
-      setWithoutEpisodeFileIdRowsSelected,
-    ]
+    [visibleItems, setSelectState, setWithoutEpisodeFileIdRowsSelected]
   );
 
   // The selection is dropped with the rows: the bar along the bottom acts on everything ticked, and a
@@ -805,15 +813,21 @@ function InteractiveImportModalContent(
     ]
   );
 
+  // Rows report here from an effect, so a change to many rows at once - Map in Order, or any bulk
+  // edit - has them all report in the same render. Each works from the latest list: working from the
+  // one the callback was made with, every report undid the one before it, rows that had become valid
+  // stayed counted as invalid, and Import stayed disabled with nothing to show why.
   const onValidRowChange = useCallback(
     (id: number, isValid: boolean) => {
-      if (isValid && invalidRowsSelected.includes(id)) {
-        setInvalidRowsSelected(without(invalidRowsSelected, id));
-      } else if (!isValid && !invalidRowsSelected.includes(id)) {
-        setInvalidRowsSelected([...invalidRowsSelected, id]);
-      }
+      setInvalidRowsSelected((current) => {
+        if (isValid) {
+          return current.includes(id) ? without(current, id) : current;
+        }
+
+        return current.includes(id) ? current : [...current, id];
+      });
     },
-    [invalidRowsSelected, setInvalidRowsSelected]
+    [setInvalidRowsSelected]
   );
 
   const onDeleteSelectedPress = useCallback(() => {
@@ -1006,6 +1020,34 @@ function InteractiveImportModalContent(
     onModalClose,
     dispatch,
   ]);
+
+  // Picking a folder from Wanted has nothing to say whether a torrent is still seeding the files, and
+  // the mode is remembered from last time. Moving them out from under a torrent breaks it, so the
+  // mode is said back before anything is imported. Imports from the queue choose for themselves and
+  // are not asked.
+  const isImportModeChosenByHand =
+    showImportMode && !downloadId && !downloadIds?.length;
+
+  const onImportPress = useCallback(() => {
+    if (
+      isImportModeChosenByHand &&
+      (importMode === 'move' || importMode === 'copy')
+    ) {
+      setIsConfirmImportModeOpen(true);
+      return;
+    }
+
+    onImportSelectedPress();
+  }, [isImportModeChosenByHand, importMode, onImportSelectedPress]);
+
+  const onConfirmImportMode = useCallback(() => {
+    setIsConfirmImportModeOpen(false);
+    onImportSelectedPress();
+  }, [onImportSelectedPress]);
+
+  const onConfirmImportModeClose = useCallback(() => {
+    setIsConfirmImportModeOpen(false);
+  }, []);
 
   const onSortPress = useCallback<SortCallback>(
     (sortKey, sortDirection) => {
@@ -1425,6 +1467,13 @@ function InteractiveImportModalContent(
                   );
                 })}
 
+                {/* Beside the count that leads to them, rather than in the footer, which has no room. */}
+                {unmarkedSharedIds.length ? (
+                  <span className={styles.importBlocked}>
+                    {translate('InteractiveImportBlockedUnmarked')}
+                  </span>
+                ) : null}
+
                 {activeMultipleFilter ? (
                   <MultipleFilterButton
                     state={null}
@@ -1594,8 +1643,19 @@ function InteractiveImportModalContent(
 
           <Button
             kind={kinds.SUCCESS}
-            isDisabled={!selectedIds.length || !!invalidRowsSelected.length}
-            onPress={onImportSelectedPress}
+            isDisabled={
+              !selectedIds.length ||
+              !!invalidRowsSelected.length ||
+              !!unmarkedSharedIds.length
+            }
+            title={
+              unmarkedSharedIds.length
+                ? translate('InteractiveImportUnmarkedShared', {
+                    count: unmarkedSharedIds.length,
+                  })
+                : undefined
+            }
+            onPress={onImportPress}
           >
             {translate('Import')}
           </Button>
@@ -1715,6 +1775,33 @@ function InteractiveImportModalContent(
         modalTitle={modalTitle}
         onMultipleSelect={onMarkAsMultipleSelect}
         onModalClose={onSelectModalClose}
+      />
+
+      <ConfirmModal
+        isOpen={isConfirmImportModeOpen}
+        kind={importMode === 'move' ? kinds.DANGER : kinds.PRIMARY}
+        title={
+          importMode === 'move'
+            ? translate('ConfirmImportMoveTitle')
+            : translate('ConfirmImportCopyTitle')
+        }
+        message={
+          importMode === 'move'
+            ? translate('ConfirmImportMoveMessage', {
+                count: selectedIds.length,
+              })
+            : translate('ConfirmImportCopyMessage', {
+                count: selectedIds.length,
+              })
+        }
+        confirmLabel={
+          importMode === 'move'
+            ? translate('MoveFiles')
+            : translate('HardlinkCopyFiles')
+        }
+        cancelLabel={translate('ConfirmImportChangeMode')}
+        onConfirm={onConfirmImportMode}
+        onCancel={onConfirmImportModeClose}
       />
 
       <ConfirmModal

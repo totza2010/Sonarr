@@ -9,6 +9,7 @@ interface CssExports {
   'filterContainer': string;
   'filterText': string;
   'footer': string;
+  'importBlocked': string;
   'importMode': string;
   'leftButtons': string;
   'multipleFilter': string;
