@@ -16,6 +16,8 @@ interface InteractiveImportAppState extends AppSectionState<InteractiveImport> {
   importMode: ImportMode;
   favoriteFolders: FavoriteFolder[];
   recentFolders: RecentFolder[];
+  // Set while selected rows are being read again a batch at a time.
+  checkProgress: { done: number; total: number } | null;
 }
 
 export default InteractiveImportAppState;

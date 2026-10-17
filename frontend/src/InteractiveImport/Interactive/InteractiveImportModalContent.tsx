@@ -2,6 +2,7 @@ import { IconDefinition } from '@fortawesome/fontawesome-svg-core';
 import { cloneDeep, without } from 'lodash';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { batchActions } from 'redux-batched-actions';
 import { createSelector } from 'reselect';
 import AppState from 'App/State/AppState';
 import InteractiveImportAppState from 'App/State/InteractiveImportAppState';
@@ -39,6 +40,8 @@ import InteractiveImport, {
   InteractiveImportCommandOptions,
 } from 'InteractiveImport/InteractiveImport';
 import SelectLanguageModal from 'InteractiveImport/Language/SelectLanguageModal';
+import MapInOrderModal from 'InteractiveImport/MapInOrder/MapInOrderModal';
+import { MappedFile } from 'InteractiveImport/MapInOrder/MapInOrderModalContent';
 import getMultipleStates, {
   MultipleState,
 } from 'InteractiveImport/Multiple/getMultipleStates';
@@ -60,6 +63,8 @@ import {
   updateEpisodeFiles,
 } from 'Store/Actions/episodeFileActions';
 import {
+  cancelCheckInteractiveImportItems,
+  checkInteractiveImportItems,
   clearInteractiveImport,
   fetchInteractiveImportItems,
   reprocessInteractiveImportItems,
@@ -97,7 +102,10 @@ type SelectType =
   | 'releaseType'
   // Reached from its own button rather than the Select... list, so it is deliberately absent from
   // bulkSelectOptions below.
-  | 'multiple';
+  | 'multiple'
+  | 'mapInOrder'
+  // Not a modal: it starts reading the selected rows again, a batch at a time.
+  | 'check';
 
 type FilterExistingFiles = 'all' | 'new';
 
@@ -384,6 +392,7 @@ function InteractiveImportModalContent(
     originalItems,
     sortKey,
     sortDirection,
+    checkProgress,
   }: InteractiveImportAppState = useSelector(
     createClientSideCollectionSelector('interactiveImport')
   );
@@ -525,6 +534,22 @@ function InteractiveImportModalContent(
     return tvdbIds.size === 1 ? selected[0]?.series : undefined;
   }, [items, selectedIds]);
 
+  // The one series the selection is for, counting only the rows that have one. Map in Order hands
+  // every file a series along with its episode, so rows the name told nothing about can come along.
+  const mapSeries = useMemo(() => {
+    const selected = items.filter(
+      (item) => selectedIds.includes(item.id) && item.series
+    );
+    const ids = new Set(selected.map((item) => item.series?.tvdbId));
+
+    return ids.size === 1 ? selected[0].series : undefined;
+  }, [items, selectedIds]);
+
+  const mapItems = useMemo(
+    () => items.filter((item) => selectedIds.includes(item.id)),
+    [items, selectedIds]
+  );
+
   // Shown only while they can be used, the way Mark as Multiple already behaves. A greyed row of
   // twelve costs the width whether or not any of them can do anything, and this bar has to share its
   // line with the import mode and the Import button.
@@ -613,6 +638,17 @@ function InteractiveImportModalContent(
         label: translate('SelectReleaseType'),
         icon: icons.TAGS,
       },
+      {
+        key: 'check',
+        label: translate('CheckSelectedFiles'),
+        icon: icons.REFRESH,
+      },
+      {
+        key: 'mapInOrder',
+        label: translate('MapInOrder'),
+        icon: icons.SORT,
+        isDisabled: !mapSeries || selectedIds.length < 2,
+      },
     ];
 
     if (allowSeriesChange) {
@@ -624,7 +660,14 @@ function InteractiveImportModalContent(
     }
 
     return actions.filter((a) => !a.isDisabled);
-  }, [allowSeriesChange, allSeries, commonSeries, items, selectedIds]);
+  }, [
+    allowSeriesChange,
+    allSeries,
+    commonSeries,
+    mapSeries,
+    items,
+    selectedIds,
+  ]);
 
   // The menu wants the same actions as a list, with a heading of its own that the buttons do not need.
   const bulkSelectOptions = useMemo(() => {
@@ -641,13 +684,29 @@ function InteractiveImportModalContent(
     ];
   }, [bulkActions]);
 
+  const onBulkActionPress = useCallback(
+    (key: SelectType) => {
+      if (key === 'check') {
+        dispatch(checkInteractiveImportItems({ ids: selectedIds }));
+        return;
+      }
+
+      setSelectModalOpen(key);
+    },
+    [selectedIds, dispatch]
+  );
+
+  const onCancelCheckPress = useCallback(() => {
+    dispatch(cancelCheckInteractiveImportItems());
+  }, [dispatch]);
+
   const onSelectModalSelect = useCallback<
     ({ value }: { value: SelectType }) => void
   >(
     ({ value }) => {
-      setSelectModalOpen(value);
+      onBulkActionPress(value);
     },
-    [setSelectModalOpen]
+    [onBulkActionPress]
   );
   useEffect(
     () => {
@@ -816,6 +875,7 @@ function InteractiveImportModalContent(
           releaseType,
           multipleType,
           multipleNumber,
+          multipleFromName,
         } = item;
 
         if (!series) {
@@ -897,6 +957,7 @@ function InteractiveImportModalContent(
           releaseType,
           multipleType,
           multipleNumber,
+          multipleFromName,
 
           // The row's own download, not the screen's: opened from the queue for several at once there
           // is no single one, and without it the import is treated as though nobody downloaded the
@@ -1114,6 +1175,40 @@ function InteractiveImportModalContent(
       setSelectModalOpen(null);
     },
     [selectedIds, setSelectModalOpen, dispatch]
+  );
+
+  // Written onto the rows in one go and not reprocessed: a thousand files read again over a slow mount
+  // takes most of an hour, and the import checks every file itself anyway. What reprocessing would
+  // have filled in for a row the name told nothing about - the series' language - is filled in here.
+  const onMapInOrderApply = useCallback(
+    (series: Series, files: MappedFile[]) => {
+      dispatch(
+        batchActions(
+          files.map(({ id, episodes, multipleType, multipleNumber }) => {
+            const item = items.find((i) => i.id === id);
+            const languages = item?.languages ?? [];
+            const knowsLanguage = languages.some((l) => l.id > 0);
+
+            return updateInteractiveImportItem({
+              id,
+              series,
+              editionUnconfirmed: false,
+              seasonNumber: episodes[0]?.seasonNumber,
+              episodes,
+              multipleType,
+              multipleNumber,
+              multipleFromName: false,
+              ...(knowsLanguage || !series.originalLanguage
+                ? {}
+                : { languages: [series.originalLanguage] }),
+            });
+          })
+        )
+      );
+
+      setSelectModalOpen(null);
+    },
+    [items, dispatch]
   );
 
   const onEpisodesSelect = useCallback(
@@ -1450,7 +1545,7 @@ function InteractiveImportModalContent(
                 <BulkActionButton
                   key={action.key}
                   action={action}
-                  onPress={setSelectModalOpen}
+                  onPress={onBulkActionPress}
                 />
               );
             })
@@ -1482,6 +1577,13 @@ function InteractiveImportModalContent(
         </div>
 
         <div className={styles.rightButtons}>
+          {checkProgress ? (
+            <span className={styles.checkProgress}>
+              {translate('CheckingFiles', checkProgress)}{' '}
+              <Link onPress={onCancelCheckPress}>{translate('Cancel')}</Link>
+            </span>
+          ) : null}
+
           <Button onPress={onModalClose}>Cancel</Button>
 
           {interactiveImportErrorMessage && (
@@ -1499,6 +1601,14 @@ function InteractiveImportModalContent(
           </Button>
         </div>
       </ModalFooter>
+
+      <MapInOrderModal
+        isOpen={selectModalOpen === 'mapInOrder'}
+        items={mapItems}
+        series={mapSeries}
+        onApply={onMapInOrderApply}
+        onModalClose={onSelectModalClose}
+      />
 
       <SelectEditionModal
         isOpen={selectModalOpen === 'edition'}

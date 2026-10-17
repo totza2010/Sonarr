@@ -76,6 +76,11 @@
   width: auto;
 }
 
+.checkProgress {
+  align-self: center;
+  margin-right: 10px;
+}
+
 .errorMessage {
   color: var(--dangerColor);
 }

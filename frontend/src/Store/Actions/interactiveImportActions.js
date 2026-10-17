@@ -20,6 +20,33 @@ let currentIds = [];
 
 const MAXIMUM_RECENT_FOLDERS = 10;
 
+// Reading a file again means probing it, which over a cloud mount takes seconds a file. A thousand in
+// one request would hold the connection for most of an hour, so a check goes a handful at a time and
+// the screen can say how far it has got.
+const CHECK_BATCH_SIZE = 50;
+let checkRun = 0;
+
+// What the server needs to read a row again. Everything the row says is sent, so the answer - which
+// is spread over the row - hands back what the person chose rather than resetting it.
+function getReprocessPayload(item) {
+  return {
+    id: item.id,
+    path: item.path,
+    seriesId: item.series ? item.series.id : undefined,
+    seasonNumber: item.seasonNumber,
+    episodeIds: (item.episodes || []).map((e) => e.id),
+    quality: item.quality,
+    languages: item.languages,
+    releaseGroup: item.releaseGroup,
+    indexerFlags: item.indexerFlags,
+    releaseType: item.releaseType,
+    multipleType: item.multipleType,
+    multipleNumber: item.multipleNumber,
+    multipleFromName: item.multipleFromName,
+    downloadId: item.downloadId
+  };
+}
+
 //
 // State
 
@@ -34,6 +61,7 @@ export const defaultState = {
   favoriteFolders: [],
   recentFolders: [],
   importMode: 'chooseImportMode',
+  checkProgress: null,
   sortPredicates: {
     relativePath: function(item, direction) {
       const relativePath = item.relativePath;
@@ -70,6 +98,8 @@ export const persistState = [
 
 export const FETCH_INTERACTIVE_IMPORT_ITEMS = 'interactiveImport/fetchInteractiveImportItems';
 export const REPROCESS_INTERACTIVE_IMPORT_ITEMS = 'interactiveImport/reprocessInteractiveImportItems';
+export const CHECK_INTERACTIVE_IMPORT_ITEMS = 'interactiveImport/checkInteractiveImportItems';
+export const CANCEL_CHECK_INTERACTIVE_IMPORT_ITEMS = 'interactiveImport/cancelCheckInteractiveImportItems';
 export const SET_INTERACTIVE_IMPORT_SORT = 'interactiveImport/setInteractiveImportSort';
 export const UPDATE_INTERACTIVE_IMPORT_ITEM = 'interactiveImport/updateInteractiveImportItem';
 export const UPDATE_INTERACTIVE_IMPORT_ITEMS = 'interactiveImport/updateInteractiveImportItems';
@@ -85,6 +115,8 @@ export const SET_INTERACTIVE_IMPORT_MODE = 'interactiveImport/setInteractiveImpo
 
 export const fetchInteractiveImportItems = createThunk(FETCH_INTERACTIVE_IMPORT_ITEMS);
 export const reprocessInteractiveImportItems = createThunk(REPROCESS_INTERACTIVE_IMPORT_ITEMS);
+export const checkInteractiveImportItems = createThunk(CHECK_INTERACTIVE_IMPORT_ITEMS);
+export const cancelCheckInteractiveImportItems = createThunk(CANCEL_CHECK_INTERACTIVE_IMPORT_ITEMS);
 export const setInteractiveImportSort = createAction(SET_INTERACTIVE_IMPORT_SORT);
 export const updateInteractiveImportItem = createAction(UPDATE_INTERACTIVE_IMPORT_ITEM);
 export const updateInteractiveImportItems = createAction(UPDATE_INTERACTIVE_IMPORT_ITEMS);
@@ -98,6 +130,80 @@ export const setInteractiveImportMode = createAction(SET_INTERACTIVE_IMPORT_MODE
 //
 // Action Handlers
 export const actionHandlers = handleThunks({
+  [CHECK_INTERACTIVE_IMPORT_ITEMS]: function(getState, payload, dispatch) {
+    const run = ++checkRun;
+    const ids = payload.ids;
+    const total = ids.length;
+
+    dispatch(set({ section, checkProgress: { done: 0, total } }));
+
+    function checkFrom(start) {
+      // Cancelled, started again, or the screen was closed and its rows went with it.
+      if (run !== checkRun || !getState()[section].isPopulated) {
+        return;
+      }
+
+      if (start >= total) {
+        dispatch(set({ section, checkProgress: null }));
+        return;
+      }
+
+      const batch = ids.slice(start, start + CHECK_BATCH_SIZE);
+      const items = getState()[section].items;
+      const present = batch.filter((id) => items.some((i) => i.id === id));
+
+      dispatch(batchActions(present.map((id) => updateItem({
+        section,
+        id,
+        isReprocessing: true,
+        updateOnly: true
+      }))));
+
+      const { request } = createAjaxRequest({
+        method: 'POST',
+        url: '/manualimport',
+        contentType: 'application/json',
+        data: JSON.stringify(present.map((id) => getReprocessPayload(items.find((i) => i.id === id))))
+      });
+
+      request.done((data) => {
+        dispatch(batchActions([
+          ...data.map((item) => updateItem({
+            section,
+            ...item,
+            isReprocessing: false,
+            updateOnly: true
+          })),
+          set({ section, checkProgress: { done: Math.min(start + batch.length, total), total } })
+        ]));
+
+        checkFrom(start + CHECK_BATCH_SIZE);
+      });
+
+      request.fail(() => {
+        dispatch(batchActions([
+          ...present.map((id) => updateItem({
+            section,
+            id,
+            isReprocessing: false,
+            updateOnly: true
+          })),
+          set({ section, checkProgress: null })
+        ]));
+      });
+    }
+
+    checkFrom(0);
+  },
+
+  [CANCEL_CHECK_INTERACTIVE_IMPORT_ITEMS]: function(getState, payload, dispatch) {
+    checkRun++;
+
+    // The batch on its way is left to finish; its rows stop spinning when it lands. The rest are
+    // never asked about.
+    dispatch(set({ section, checkProgress: null }));
+  },
+
   [FETCH_INTERACTIVE_IMPORT_ITEMS]: function(getState, payload, dispatch) {
     if (!payload.downloadId && !payload.downloadIds && !payload.folder) {
       dispatch(set({ section, error: { message: '`downloadId`, `downloadIds` or `folder` is required.' } }));
@@ -158,25 +264,7 @@ export const actionHandlers = handleThunks({
     const items = getState()[section].items;
 
     const requestPayload = payload.ids.map((id) => {
-      const item = items.find((i) => i.id === id);
-
-      return {
-        id,
-        path: item.path,
-        seriesId: item.series ? item.series.id : undefined,
-        seasonNumber: item.seasonNumber,
-        episodeIds: (item.episodes || []).map((e) => e.id),
-        quality: item.quality,
-        languages: item.languages,
-        releaseGroup: item.releaseGroup,
-        indexerFlags: item.indexerFlags,
-        releaseType: item.releaseType,
-        // Sent so the response echoes it back: the response is spread over the item, so leaving it
-        // out would reset whatever part the user picked.
-        multipleType: item.multipleType,
-        multipleNumber: item.multipleNumber,
-        downloadId: item.downloadId
-      };
+      return getReprocessPayload(items.find((i) => i.id === id));
     });
 
     const { request, abortRequest } = createAjaxRequest({

@@ -24,6 +24,7 @@ export interface InteractiveImportCommandOptions {
   releaseType: ReleaseType;
   multipleType?: MultipleType;
   multipleNumber?: number;
+  multipleFromName?: boolean;
   downloadId?: string;
   episodeFileId?: number;
 }
@@ -61,6 +62,9 @@ interface InteractiveImport extends ModelBase {
   // it replaces whatever the episode already has; anything else is kept alongside the other files.
   multipleType: MultipleType;
   multipleNumber: number;
+  // False once Map in Order has placed the file: its part or version came from the order, and the
+  // name is not to be read for one.
+  multipleFromName?: boolean;
   rejections: Rejection[];
   episodeFileId?: number;
 }

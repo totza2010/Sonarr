@@ -1,0 +1,135 @@
+.help {
+  margin-bottom: 10px;
+  color: var(--helpTextColor);
+}
+
+.restored {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  margin-bottom: 10px;
+}
+
+.controls {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+  gap: 10px 20px;
+}
+
+.control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  font-weight: normal;
+}
+
+.controlLabel {
+  white-space: nowrap;
+}
+
+.moveInput {
+  composes: input from '~Components/Form/TextInput.css';
+
+  width: 80px;
+}
+
+.summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+  gap: 8px;
+}
+
+.header,
+.row {
+  display: grid;
+  align-items: center;
+  grid-template-columns: 24px 20px 48px minmax(0, 1fr) 80px 190px 80px 150px minmax(0, 1.2fr);
+
+  column-gap: 8px;
+}
+
+.header {
+  padding: 0 4px 6px;
+  border-bottom: 1px solid var(--borderColor);
+  font-weight: bold;
+}
+
+.row {
+  position: relative;
+  padding: 0 4px;
+  border-bottom: 1px solid var(--borderColor);
+}
+
+.dropBefore,
+.dropAfter {
+  position: absolute;
+  right: 0;
+  left: 0;
+  height: 2px;
+  background-color: var(--primaryColor);
+}
+
+.dropBefore {
+  top: 0;
+}
+
+.dropAfter {
+  bottom: 0;
+}
+
+.nameNumber {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.select {
+  display: flex;
+  align-items: center;
+}
+
+.handle {
+  cursor: grab;
+}
+
+.number {
+  color: var(--helpTextColor);
+  text-align: right;
+}
+
+.file,
+.episodes {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.input {
+  composes: input from '~Components/Form/TextInput.css';
+
+  height: 30px;
+}
+
+.result {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  min-width: 0;
+}
+
+.error {
+  color: var(--dangerColor);
+}
+
+.kind,
+.skip,
+.pin {
+  min-width: 0;
+}

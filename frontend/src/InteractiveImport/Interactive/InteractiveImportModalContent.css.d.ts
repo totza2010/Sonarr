@@ -3,6 +3,7 @@
 interface CssExports {
   'bulkAction': string;
   'bulkSelect': string;
+  'checkProgress': string;
   'deleteButton': string;
   'errorMessage': string;
   'filterContainer': string;
