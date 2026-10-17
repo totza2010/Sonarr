@@ -45,6 +45,12 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Aggregation.Aggregators
                 return localEpisode;
             }
 
+            // So does a whole episode, when whoever chose it said the name is not to be read.
+            if (!localEpisode.MultipleFromName)
+            {
+                return localEpisode;
+            }
+
             // Reading these out of names is only safe once the user has opted in by putting {Multiple} in
             // their naming format. Without that the token never wrote anything, so anything matching the
             // pattern came from somewhere else and is not ours to interpret.

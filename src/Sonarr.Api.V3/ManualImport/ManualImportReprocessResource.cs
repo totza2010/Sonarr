@@ -34,6 +34,9 @@ namespace Sonarr.Api.V3.ManualImport
         // file is has no bearing on those. Carried so a reprocess does not discard what the user set.
         public EpisodeFileMultipleType MultipleType { get; set; }
         public int MultipleNumber { get; set; }
+
+        // False from the map-in-order screen: the part or version it set stands, and the name is not read.
+        public bool? MultipleFromName { get; set; }
         public IEnumerable<ImportRejectionResource> Rejections { get; set; }
     }
 }

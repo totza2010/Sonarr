@@ -27,6 +27,9 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Manual
         public ReleaseType ReleaseType { get; set; }
         public EpisodeFileMultipleType MultipleType { get; set; }
         public int MultipleNumber { get; set; }
+
+        // Missing means yes, which is how every client that predates it behaves.
+        public bool? MultipleFromName { get; set; }
         public string DownloadId { get; set; }
 
         public bool Equals(ManualImportFile other)

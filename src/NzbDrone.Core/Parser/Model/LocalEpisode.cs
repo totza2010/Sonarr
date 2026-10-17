@@ -46,6 +46,10 @@ namespace NzbDrone.Core.Parser.Model
         public int MultipleNumber { get; set; }
 
         public bool IsAdditionalFile => MultipleType != EpisodeFileMultipleType.None && MultipleNumber > 0;
+
+        // False when the part or version was decided somewhere that does not trust the file name - the
+        // map-in-order screen, where a file the order says is a whole episode is one, whatever its name.
+        public bool MultipleFromName { get; set; } = true;
         public MediaInfoModel MediaInfo { get; set; }
         public bool ExistingFile { get; set; }
         public bool SceneSource { get; set; }

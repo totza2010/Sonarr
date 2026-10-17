@@ -25,7 +25,7 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Manual
         List<ManualImportItem> GetMediaFiles(int seriesId, int? seasonNumber);
         List<ManualImportItem> GetMediaFiles(string path, string downloadId, int? seriesId, bool filterExistingFiles);
         List<ManualImportItem> GetMediaFiles(List<string> downloadIds, bool filterExistingFiles);
-        ManualImportItem ReprocessItem(string path, string downloadId, int seriesId, int? seasonNumber, List<int> episodeIds, string releaseGroup, QualityModel quality, List<Language> languages, int indexerFlags, ReleaseType releaseType);
+        ManualImportItem ReprocessItem(string path, string downloadId, int seriesId, int? seasonNumber, List<int> episodeIds, string releaseGroup, QualityModel quality, List<Language> languages, int indexerFlags, ReleaseType releaseType, bool multipleFromName = true);
     }
 
     public class ManualImportService : IExecute<ManualImportCommand>, IManualImportService
@@ -160,7 +160,7 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Manual
                               .ToList();
         }
 
-        public ManualImportItem ReprocessItem(string path, string downloadId, int seriesId, int? seasonNumber, List<int> episodeIds, string releaseGroup, QualityModel quality, List<Language> languages, int indexerFlags, ReleaseType releaseType)
+        public ManualImportItem ReprocessItem(string path, string downloadId, int seriesId, int? seasonNumber, List<int> episodeIds, string releaseGroup, QualityModel quality, List<Language> languages, int indexerFlags, ReleaseType releaseType, bool multipleFromName = true)
         {
             var rootFolder = Path.GetDirectoryName(path);
             var series = _seriesService.GetSeries(seriesId);
@@ -201,6 +201,7 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Manual
                 localEpisode.Quality = finalQuality;
                 localEpisode.IndexerFlags = (IndexerFlags)indexerFlags;
                 localEpisode.ReleaseType = releaseType;
+                localEpisode.MultipleFromName = multipleFromName;
 
                 localEpisode.CustomFormats = _formatCalculator.ParseCustomFormat(localEpisode);
                 localEpisode.CustomFormatScore = localEpisode.Series?.QualityProfile?.Value.CalculateCustomFormatScore(localEpisode.CustomFormats) ?? 0;
@@ -633,6 +634,7 @@ namespace NzbDrone.Core.MediaFiles.EpisodeImport.Manual
                     ReleaseType = file.ReleaseType,
                     MultipleType = file.MultipleType,
                     MultipleNumber = file.MultipleNumber,
+                    MultipleFromName = file.MultipleFromName ?? true,
                     Series = series,
                     Size = 0
                 };

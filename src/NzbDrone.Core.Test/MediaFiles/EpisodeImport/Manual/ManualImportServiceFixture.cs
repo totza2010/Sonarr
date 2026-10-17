@@ -6,10 +6,13 @@ using NUnit.Framework;
 using NzbDrone.Common.Disk;
 using NzbDrone.Core.Download;
 using NzbDrone.Core.Download.TrackedDownloads;
+using NzbDrone.Core.Languages;
 using NzbDrone.Core.MediaFiles.EpisodeImport;
+using NzbDrone.Core.MediaFiles.EpisodeImport.Aggregation;
 using NzbDrone.Core.MediaFiles.EpisodeImport.Manual;
 using NzbDrone.Core.Parser;
 using NzbDrone.Core.Parser.Model;
+using NzbDrone.Core.Qualities;
 using NzbDrone.Core.Test.Framework;
 using NzbDrone.Core.Tv;
 using NzbDrone.Test.Common;
@@ -196,6 +199,61 @@ namespace NzbDrone.Core.Test.MediaFiles.EpisodeImport.Manual
 
             Subject.GetMediaFiles(path, null, null, false)
                    .Should().OnlyContain(i => !i.EditionUnconfirmed);
+        }
+
+        // One file through the import command, handing back what reached the aggregators - which is where
+        // the name would be read for a part or version.
+        private LocalEpisode GivenImported(bool? multipleFromName)
+        {
+            LocalEpisode augmented = null;
+
+            Mocker.GetMock<ISeriesService>()
+                  .Setup(s => s.GetSeries(1))
+                  .Returns(new Series { Id = 1, Path = @"C:\Test\TV\Series".AsOsAgnostic() });
+
+            Mocker.GetMock<IEpisodeService>()
+                  .Setup(s => s.GetEpisodes(It.IsAny<IEnumerable<int>>()))
+                  .Returns(new List<Episode> { new Episode { Id = 5, SeasonNumber = 1, EpisodeNumber = 1 } });
+
+            Mocker.GetMock<IAggregationService>()
+                  .Setup(s => s.Augment(It.IsAny<LocalEpisode>(), It.IsAny<DownloadClientItem>()))
+                  .Callback<LocalEpisode, DownloadClientItem>((l, d) => augmented = l)
+                  .Returns<LocalEpisode, DownloadClientItem>((l, d) => l);
+
+            Mocker.GetMock<IImportApprovedEpisodes>()
+                  .Setup(s => s.Import(It.IsAny<List<ImportDecision>>(), It.IsAny<bool>(), It.IsAny<DownloadClientItem>(), It.IsAny<ImportMode>()))
+                  .Returns(new List<ImportResult>());
+
+            Subject.Execute(new ManualImportCommand
+            {
+                ImportMode = ImportMode.Auto,
+                Files = new List<ManualImportFile>
+                {
+                    new ManualImportFile
+                    {
+                        Path = @"C:\Test\Downloads\Series.S01E01.pt2.mkv".AsOsAgnostic(),
+                        SeriesId = 1,
+                        EpisodeIds = new List<int> { 5 },
+                        Quality = new QualityModel(Quality.HDTV720p),
+                        Languages = new List<Language>(),
+                        MultipleFromName = multipleFromName
+                    }
+                }
+            });
+
+            return augmented;
+        }
+
+        [Test]
+        public void should_read_the_part_from_the_name_when_a_client_says_nothing()
+        {
+            GivenImported(null).MultipleFromName.Should().BeTrue();
+        }
+
+        [Test]
+        public void should_not_read_the_part_from_the_name_when_the_order_decided_it()
+        {
+            GivenImported(false).MultipleFromName.Should().BeFalse();
         }
     }
 }

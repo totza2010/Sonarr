@@ -122,6 +122,31 @@ namespace NzbDrone.Core.Test.MediaFiles.EpisodeImport.Aggregation.Aggregators
         }
 
         [Test]
+        public void should_not_read_the_name_when_told_not_to()
+        {
+            GivenSiblings("Series Title - S01E01 - pt1 WEBDL-1080p.mkv");
+            _localEpisode.MultipleFromName = false;
+
+            var result = AggregateFor("Series Title - S01E01 - pt2 WEBDL-1080p.mkv");
+
+            result.MultipleType.Should().Be(EpisodeFileMultipleType.None);
+            result.MultipleNumber.Should().Be(0);
+        }
+
+        [Test]
+        public void should_keep_a_part_chosen_by_hand_when_told_not_to_read_the_name()
+        {
+            _localEpisode.MultipleFromName = false;
+            _localEpisode.MultipleType = EpisodeFileMultipleType.Version;
+            _localEpisode.MultipleNumber = 3;
+
+            var result = AggregateFor("Series Title - S01E01 - pt2 WEBDL-1080p.mkv");
+
+            result.MultipleType.Should().Be(EpisodeFileMultipleType.Version);
+            result.MultipleNumber.Should().Be(3);
+        }
+
+        [Test]
         public void should_not_claim_a_v2_that_is_a_repack()
         {
             // Scene and anime releases mark a repack with v2 and Sonarr reads it into the quality

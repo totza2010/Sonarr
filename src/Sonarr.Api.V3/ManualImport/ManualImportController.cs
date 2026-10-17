@@ -51,7 +51,7 @@ namespace Sonarr.Api.V3.ManualImport
         {
             foreach (var item in items)
             {
-                var processedItem = _manualImportService.ReprocessItem(item.Path, item.DownloadId, item.SeriesId, item.SeasonNumber, item.EpisodeIds ?? new List<int>(), item.ReleaseGroup, item.Quality, item.Languages, item.IndexerFlags, item.ReleaseType);
+                var processedItem = _manualImportService.ReprocessItem(item.Path, item.DownloadId, item.SeriesId, item.SeasonNumber, item.EpisodeIds ?? new List<int>(), item.ReleaseGroup, item.Quality, item.Languages, item.IndexerFlags, item.ReleaseType, item.MultipleFromName ?? true);
 
                 item.SeasonNumber = processedItem.SeasonNumber;
                 item.Episodes = processedItem.Episodes.ToResource();
@@ -66,7 +66,7 @@ namespace Sonarr.Api.V3.ManualImport
                 // A part or version chosen by hand stays as chosen. When nothing was chosen, what the file's
                 // name says is handed back, the same as a scan of the folder would have read it - otherwise a
                 // file named part2 comes back from being given its episode still looking like a whole episode.
-                if (item.MultipleType == EpisodeFileMultipleType.None && processedItem.MultipleType != EpisodeFileMultipleType.None)
+                if (item.MultipleFromName != false && item.MultipleType == EpisodeFileMultipleType.None && processedItem.MultipleType != EpisodeFileMultipleType.None)
                 {
                     item.MultipleType = processedItem.MultipleType;
                     item.MultipleNumber = processedItem.MultipleNumber;
