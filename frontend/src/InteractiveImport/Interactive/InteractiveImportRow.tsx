@@ -664,6 +664,12 @@ function InteractiveImportRow(props: InteractiveImportRowProps) {
     return title;
   }, [showSeriesPlaceholder, editionUnconfirmed, seriesTitle, series]);
 
+  // A file that is not in the library yet, for an episode that already has one, takes that one's
+  // place when imported - unless it says it is a part or version, in which case it sits beside it.
+  // Said on the row, the same as Map in Order does, so it is not found out afterwards.
+  const replacesExisting =
+    !episodeFileId && (!multipleType || multipleType === 'none');
+
   const episodeInfo = episodes.map((episode) => {
     return (
       <div key={episode.id}>
@@ -674,6 +680,16 @@ function InteractiveImportRow(props: InteractiveImportRowProps) {
           : ''}
 
         {` - ${episode.title}`}
+
+        {replacesExisting && episode.hasFile ? (
+          <Label
+            className={styles.replaces}
+            kind={kinds.DEFAULT}
+            title={translate('MapInOrderReplaceHint')}
+          >
+            {translate('MapInOrderReplace')}
+          </Label>
+        ) : null}
       </div>
     );
   });

@@ -50,3 +50,11 @@
   height: auto;
   line-height: 21px;
 }
+
+/* Composed: a class handed to Label takes the place of its own, which leaves the text the colour of
+   the background. */
+.replaces {
+  composes: label from '~Components/Label.css';
+
+  margin-left: 6px;
+}

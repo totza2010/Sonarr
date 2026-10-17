@@ -8,6 +8,7 @@ interface CssExports {
   'multiple': string;
   'quality': string;
   'relativePath': string;
+  'replaces': string;
   'reprocessing': string;
   'unconfirmedEdition': string;
 }
