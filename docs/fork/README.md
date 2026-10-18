@@ -16,6 +16,7 @@ root. When a page and the code disagree, the code wins and the page is out of da
 | [Multiple files per episode](multiple-files.md) | Parts and versions of an episode kept side by side instead of replacing each other |
 | [Rename helper](rename-helper.md) | Naming languages, the `ORIGINAL` language filter, language flags, custom formats chosen by hand |
 | [File name length](file-name-length.md) | Warns before a name or path is too long for what reads the library |
+| [v5 against v4 and this fork](v5-comparison.md) | What v5 adds, where it collides with the fork, what production needs |
 | [Smaller changes](smaller-changes.md) | Thai calendar fixes, Map in Order, several downloads in one import screen, updates from this fork, CI and Docker |
 
 ## Rules every feature follows
