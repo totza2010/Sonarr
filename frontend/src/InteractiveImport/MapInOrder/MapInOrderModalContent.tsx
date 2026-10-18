@@ -38,6 +38,7 @@ import translate from 'Utilities/String/translate';
 import mapInOrder, {
   DEFAULT_SETTING,
   findShifts,
+  mapFromRows,
   MapKind,
   MapResult,
   MapSetting,
@@ -485,6 +486,7 @@ function MapInOrderModalContent(props: MapInOrderModalContentProps) {
   const [pinCodes, setPinCodes] = useState<Record<number, string>>({});
 
   const outerRef = useRef<HTMLDivElement>(null);
+  const isSeeded = useRef(false);
   const listRef = useRef<List<RowData>>(null);
   const scrollTimer = useRef<number | null>(null);
 
@@ -501,6 +503,35 @@ function MapInOrderModalContent(props: MapInOrderModalContentProps) {
 
     request
       .done((data: Episode[]) => {
+        // With no work in progress, start from what the rows already say - after an Apply, or
+        // episodes set some other way - rather than from the top. Only once: later the person's own
+        // changes are what is on screen, and they are kept as a draft.
+        if (!draft && !isSeeded.current) {
+          isSeeded.current = true;
+
+          const byNumber = (a: Episode, b: Episode) =>
+            a.seasonNumber - b.seasonNumber ||
+            a.episodeNumber - b.episodeNumber;
+
+          const state = mapFromRows(
+            items.map((item) => ({
+              id: item.id,
+              name: fileName(item),
+              episodes: item.episodes ?? [],
+              multipleType: item.multipleType,
+              multipleNumber: item.multipleNumber,
+            })),
+            data.filter((e) => e.seasonNumber > 0).sort(byNumber),
+            data.filter((e) => e.seasonNumber === 0).sort(byNumber)
+          );
+
+          if (state) {
+            setOrder(state.order);
+            setSettings(state.settings);
+            setStartEpisodeId(state.startEpisodeId);
+          }
+        }
+
         setEpisodes(data);
         setIsFetching(false);
       })
@@ -512,6 +543,8 @@ function MapInOrderModalContent(props: MapInOrderModalContentProps) {
       });
 
     return abortRequest;
+    // Read once per series; the rows and the draft are what the screen opened with.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seriesId]);
 
   // Editions keep episode rows of their own, so ids carried over from another edition mean nothing

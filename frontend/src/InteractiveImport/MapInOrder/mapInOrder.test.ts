@@ -4,6 +4,7 @@ import type Episode from 'Episode/Episode';
 import mapInOrder, {
   DEFAULT_SETTING,
   findShifts,
+  mapFromRows,
   MapSetting,
   naturalCompare,
   readNameNumber,
@@ -306,6 +307,131 @@ describe('selectRange', () => {
     assert.deepEqual(
       [...selectRange(order, new Set([5]), 8, 1, true)].sort((a, b) => a - b),
       [1, 5, 8]
+    );
+  });
+});
+
+describe('mapFromRows', () => {
+  // What Apply wrote onto the rows, read back.
+  function rowsFrom(
+    settings: Partial<MapSetting>[],
+    names: string[] = settings.map((_, i) => `EP.${i + 1}`)
+  ) {
+    return map(settings).map((r, i) => ({
+      id: r.id,
+      name: names[i],
+      episodes: r.episodes,
+      multipleType: r.multipleType,
+      multipleNumber: r.multipleNumber,
+    }));
+  }
+
+  function roundTrip(
+    settings: Partial<MapSetting>[],
+    names?: string[],
+    shuffle = false
+  ) {
+    const rows = rowsFrom(settings, names);
+    const state = mapFromRows(
+      shuffle ? [...rows].reverse() : rows,
+      regular,
+      specials
+    );
+
+    assert.ok(state);
+
+    const again = mapInOrder(
+      state.order.map((id) => ({ id, setting: state.settings[id] })),
+      regular,
+      regular.findIndex((e) => e.id === state.startEpisodeId),
+      specials
+    );
+
+    const byId = <T extends { id: number }>(results: T[]): T[] =>
+      [...results].sort((a, b) => a.id - b.id);
+
+    assert.deepEqual(
+      byId(again).map((r) => [
+        r.id,
+        codes(r),
+        r.multipleType,
+        r.multipleNumber,
+      ]),
+      byId(rows).map((r) => [r.id, codes(r), r.multipleType, r.multipleNumber])
+    );
+
+    return state;
+  }
+
+  test('gives back the mapping that was applied', () => {
+    roundTrip([{}, {}, {}, {}]);
+  });
+
+  test('gives back a gap as a skip', () => {
+    const state = roundTrip([{}, { skipBefore: 2 }, {}]);
+
+    assert.equal(state.settings[2].skipBefore, 2);
+  });
+
+  test('gives back a set of parts and a double', () => {
+    const state = roundTrip([{}, { kind: 'part' }, { kind: 'double' }, {}]);
+
+    assert.equal(state.settings[2].kind, 'part');
+    assert.equal(state.settings[3].kind, 'double');
+  });
+
+  test('puts the files back in episode order whatever order the rows are in', () => {
+    const state = roundTrip([{}, {}, {}], undefined, true);
+
+    assert.deepEqual(state.order, [1, 2, 3]);
+  });
+
+  test('keeps a special in its place by name', () => {
+    const state = roundTrip(
+      [{}, { kind: 'special', specialEpisodeId: 2 }, {}],
+      ['EP.1', 'EP.1 special', 'EP.2']
+    );
+
+    assert.deepEqual(state.order, [1, 2, 3]);
+    assert.equal(state.settings[2].specialEpisodeId, 2);
+  });
+
+  test('starts from the episode the first file has', () => {
+    const state = roundTrip([{}, {}], undefined, false);
+
+    assert.equal(state.startEpisodeId, 11);
+    assert.equal(
+      mapFromRows(rowsFrom([{ pinEpisodeId: 22 }]), regular, specials)
+        ?.startEpisodeId,
+      22
+    );
+  });
+
+  test('puts files with no episode last', () => {
+    const rows = [
+      { id: 7, name: 'Bonus', episodes: [] },
+      ...rowsFrom([{}, {}]),
+    ];
+
+    assert.deepEqual(mapFromRows(rows, regular, specials)?.order, [1, 2, 7]);
+  });
+
+  test('matches another edition by season and number', () => {
+    const rows = [
+      {
+        id: 1,
+        name: 'a',
+        episodes: [{ id: 999, seasonNumber: 1, episodeNumber: 2 } as Episode],
+      },
+    ];
+
+    assert.equal(mapFromRows(rows, regular, specials)?.startEpisodeId, 12);
+  });
+
+  test('has nothing to give back when no file has an episode', () => {
+    assert.equal(
+      mapFromRows([{ id: 1, name: 'a', episodes: [] }], regular, specials),
+      null
     );
   });
 });

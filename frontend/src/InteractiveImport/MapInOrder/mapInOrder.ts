@@ -283,3 +283,136 @@ export function selectRange(
 
   return next;
 }
+
+export interface MappedRow {
+  id: number;
+  name: string;
+  episodes: Episode[];
+  multipleType?: MultipleType;
+  multipleNumber?: number;
+}
+
+export interface MapState {
+  order: number[];
+  settings: Record<number, MapSetting>;
+  startEpisodeId: number;
+}
+
+function episodeKey(episode: Pick<Episode, 'seasonNumber' | 'episodeNumber'>) {
+  return `${episode.seasonNumber}x${episode.episodeNumber}`;
+}
+
+/**
+ * The settings that would give the rows the episodes they already have - so opening Map in Order
+ * again after applying it, or after setting episodes some other way, starts from what is on the rows
+ * rather than from the top. The order follows the episodes; a special keeps its place by name among
+ * them; files with no episode yet go last. Episodes are matched by season and number, not id, since
+ * the rows may carry another edition's episodes.
+ *
+ * Nothing on the rows says which episodes have no file, so a gap comes back as a skip, and a file
+ * placed on an episode before the one the order has reached comes back as a pin.
+ */
+export function mapFromRows(
+  rows: MappedRow[],
+  regular: Episode[],
+  specials: Episode[]
+): MapState | null {
+  const positions = new Map(regular.map((e, i) => [episodeKey(e), i]));
+  const specialsByKey = new Map(specials.map((e) => [episodeKey(e), e]));
+  const byName = (a: MappedRow, b: MappedRow) => naturalCompare(a.name, b.name);
+
+  const firstPosition = (row: MappedRow) =>
+    row.episodes.length
+      ? positions.get(episodeKey(row.episodes[0]))
+      : undefined;
+
+  const mapped = rows
+    .filter((r) => firstPosition(r) != null)
+    .sort(
+      (a, b) =>
+        (firstPosition(a) as number) - (firstPosition(b) as number) ||
+        (a.multipleNumber ?? 0) - (b.multipleNumber ?? 0) ||
+        byName(a, b)
+    );
+
+  if (!mapped.length) {
+    return null;
+  }
+
+  const specialRows = rows
+    .filter(
+      (r) =>
+        firstPosition(r) == null &&
+        r.episodes.length &&
+        specialsByKey.has(episodeKey(r.episodes[0]))
+    )
+    .sort(byName);
+
+  const ordered = [...mapped];
+
+  specialRows.forEach((special) => {
+    const before = ordered.findIndex((r) => byName(r, special) > 0);
+
+    ordered.splice(before < 0 ? ordered.length : before, 0, special);
+  });
+
+  const rest = rows.filter((r) => !ordered.includes(r)).sort(byName);
+
+  const start = firstPosition(mapped[0]) as number;
+  const settings: Record<number, MapSetting> = {};
+
+  let cursor = start;
+  let headKey = '';
+
+  [...ordered, ...rest].forEach((row) => {
+    const key = row.episodes.map(episodeKey).join('+');
+    const position = firstPosition(row);
+    const isFollower =
+      (row.multipleNumber ?? 0) > 1 &&
+      key === headKey &&
+      (row.multipleType === 'part' || row.multipleType === 'version');
+
+    if (isFollower) {
+      settings[row.id] = {
+        ...DEFAULT_SETTING,
+        kind: row.multipleType as MapKind,
+      };
+
+      return;
+    }
+
+    headKey = key;
+
+    if (position == null) {
+      const special = row.episodes.length
+        ? specialsByKey.get(episodeKey(row.episodes[0]))
+        : undefined;
+
+      settings[row.id] = special
+        ? { ...DEFAULT_SETTING, kind: 'special', specialEpisodeId: special.id }
+        : { ...DEFAULT_SETTING };
+
+      return;
+    }
+
+    const setting: MapSetting = {
+      ...DEFAULT_SETTING,
+      kind: row.episodes.length > 1 ? 'double' : 'episode',
+    };
+
+    if (position > cursor) {
+      setting.skipBefore = position - cursor;
+    } else if (position < cursor) {
+      setting.pinEpisodeId = regular[position].id;
+    }
+
+    settings[row.id] = setting;
+    cursor = position + (setting.kind === 'double' ? 2 : 1);
+  });
+
+  return {
+    order: [...ordered, ...rest].map((r) => r.id),
+    settings,
+    startEpisodeId: regular[start].id,
+  };
+}
