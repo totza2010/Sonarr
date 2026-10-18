@@ -52,6 +52,14 @@ row. Applying writes series, season, episodes and markers onto the rows without 
 (over a slow mount that takes most of an hour for a thousand files); Import is unchanged. The work in
 progress is kept in the browser per set of files.
 
+It opens on a lines view (`MapInOrderLines.tsx`): one line per episode, the files beside the episode
+they start on and a line to each episode they reach, so parts fan in, a file across several episodes
+fans out, and an episode with no file is a dashed gap. A file dropped on an episode is pinned there,
+a file dropped on a file joins its set, a file can be skipped (left out and unticked) and an episode
+skipped; the settings for a file are on its right-click menu, and long names can be wrapped. The
+table it replaced is one click away. What the view does to the order is in `mapLines.ts`, pure and
+tested like `mapInOrder.ts`.
+
 Two helpers sit beside it. The number a file gives itself (after `EP`, `E`, `Episode` or `ตอนที่`) is
 shown next to its place in the order, and the rows where the difference between the two changes are
 flagged with a button to step through them - those are where a double episode, a gap or a special

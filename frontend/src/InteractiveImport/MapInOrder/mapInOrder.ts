@@ -4,11 +4,19 @@ import type MultipleType from 'InteractiveImport/MultipleType';
 
 // What a file is, as far as the order goes:
 //   episode - takes the next episode
-//   double  - takes the next two, a file that runs across both
+//   double  - takes the next few (episodeCount, two unless said), a file that runs across them
 //   part    - is another piece of the file above it, so takes nothing new
 //   version - is the file above it told differently, so takes nothing new
 //   special - is a special picked by hand; specials are not in the order, so it takes nothing either
-export type MapKind = 'episode' | 'double' | 'part' | 'version' | 'special';
+//   skip    - is not imported at all: a sample, a trailer, a file of another show. It takes nothing,
+//             and the files after it carry on as though it were not there
+export type MapKind =
+  | 'episode'
+  | 'double'
+  | 'part'
+  | 'version'
+  | 'special'
+  | 'skip';
 
 export interface MapSetting {
   kind: MapKind;
@@ -17,6 +25,12 @@ export interface MapSetting {
   // Put this file at this episode, and carry on counting from there.
   pinEpisodeId?: number;
   specialEpisodeId?: number;
+  // How many episodes a 'double' file runs across. The name stayed when it stopped meaning two.
+  episodeCount?: number;
+}
+
+export function getEpisodeCount(setting: MapSetting) {
+  return setting.kind === 'double' ? Math.max(2, setting.episodeCount ?? 2) : 1;
 }
 
 export type MapError =
@@ -64,6 +78,19 @@ export default function mapInOrder(
 
   rows.forEach(({ id, setting }) => {
     const { kind } = setting;
+
+    // Left out entirely: it is no file's head, and no part can join it.
+    if (kind === 'skip') {
+      results.push({
+        id,
+        episodes: [],
+        multipleType: 'none',
+        multipleNumber: 0,
+        skipped: [],
+      });
+
+      return;
+    }
 
     if (kind === 'part' || kind === 'version') {
       const result: MapResult = {
@@ -127,7 +154,7 @@ export default function mapInOrder(
         cursor += setting.skipBefore;
       }
 
-      const count = kind === 'double' ? 2 : 1;
+      const count = getEpisodeCount(setting);
       const episodes = regular.slice(cursor, cursor + count);
 
       if (!result.error) {
@@ -400,6 +427,10 @@ export function mapFromRows(
       kind: row.episodes.length > 1 ? 'double' : 'episode',
     };
 
+    if (row.episodes.length > 2) {
+      setting.episodeCount = row.episodes.length;
+    }
+
     if (position > cursor) {
       setting.skipBefore = position - cursor;
     } else if (position < cursor) {
@@ -407,7 +438,7 @@ export function mapFromRows(
     }
 
     settings[row.id] = setting;
-    cursor = position + (setting.kind === 'double' ? 2 : 1);
+    cursor = position + getEpisodeCount(setting);
   });
 
   return {

@@ -105,6 +105,7 @@ import {
   faTh as fasTh,
   faTheaterMasks as fasTheaterMasks,
   faThList as fasThList,
+  faThumbtack as fasThumbtack,
   faTimes as fasTimes,
   faTimesCircle as fasTimesCircle,
   faTrashAlt as fasTrashAlt,
@@ -197,6 +198,7 @@ export const PARENT = fasLevelUpAlt;
 export const PARSE = fasCalculator;
 export const PAUSED = fasPause;
 export const PENDING = farClock;
+export const PIN = fasThumbtack;
 export const PREMIERE = fasCirclePlay;
 export const PROFILE = fasUser;
 export const POSTER = fasTh;

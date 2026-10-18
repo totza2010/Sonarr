@@ -9,7 +9,7 @@ interface MapInOrderModalProps {
   isOpen: boolean;
   items: InteractiveImport[];
   series?: Series;
-  onApply(series: Series, files: MappedFile[]): void;
+  onApply(series: Series, files: MappedFile[], skippedIds: number[]): void;
   onModalClose(): void;
 }
 

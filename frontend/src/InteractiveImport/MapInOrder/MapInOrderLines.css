@@ -1,0 +1,274 @@
+.row {
+  display: grid;
+  align-items: start;
+  grid-template-columns: minmax(0, 1.1fr) 80px minmax(0, 1fr);
+}
+
+.files {
+  display: flex;
+  flex-direction: column;
+  padding: 3px 0;
+  min-width: 0;
+}
+
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  box-sizing: border-box;
+  margin-bottom: 2px;
+  padding: 0 8px;
+  height: 32px;
+  border: 1px solid var(--borderColor);
+  border-radius: 4px;
+  background-color: var(--modalBackgroundColor);
+  cursor: grab;
+}
+
+.multi {
+  border-color: var(--purple);
+}
+
+.bad {
+  border-color: var(--dangerColor);
+}
+
+.over {
+  outline: 2px solid var(--primaryColor);
+}
+
+.check {
+  display: flex;
+  align-items: center;
+}
+
+.name {
+  flex: 1;
+  overflow: hidden;
+  min-width: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tag,
+.shift {
+  padding: 0 5px;
+  border-radius: 3px;
+  font-size: 11px;
+}
+
+.tag {
+  background-color: var(--purple);
+  color: var(--white);
+}
+
+.shift {
+  background-color: var(--warningColor);
+  color: var(--white);
+}
+
+.menu {
+  position: fixed;
+  z-index: 2000;
+  display: flex;
+  align-items: stretch;
+  flex-direction: column;
+  padding: 4px;
+  min-width: 220px;
+  border: 1px solid var(--borderColor);
+  border-radius: 4px;
+  background-color: var(--modalBackgroundColor);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  gap: 2px;
+}
+
+.menuButton {
+  padding: 4px 10px;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+
+  &:hover {
+    background-color: var(--tableRowHoverBackgroundColor, rgba(0, 0, 0, 0.05));
+  }
+}
+
+.menuIndent {
+  padding-left: 18px;
+}
+
+.active {
+  border-color: var(--primaryColor);
+  color: var(--primaryColor);
+}
+
+.counter {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.special {
+  composes: select from '~Components/Form/SelectInput.css';
+
+  margin-top: 2px;
+  padding: 0 6px;
+  width: 100%;
+  height: 28px;
+}
+
+.gap {
+  box-sizing: border-box;
+  height: 32px;
+  border: 1px dashed var(--dangerColor);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--dangerColor);
+  cursor: pointer;
+}
+
+.middle {
+  position: relative;
+  height: 100%;
+}
+
+.lines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: visible;
+  width: 100%;
+  pointer-events: none;
+}
+
+.line,
+.lineMulti,
+.lineBad,
+.lineGap {
+  fill: none;
+  stroke-width: 1.4;
+}
+
+.line {
+  stroke: var(--gray);
+}
+
+.lineMulti {
+  stroke: var(--purple);
+}
+
+.lineBad {
+  stroke: var(--dangerColor);
+}
+
+.lineGap {
+  stroke: var(--dangerColor);
+  stroke-dasharray: 4 3;
+}
+
+.episodes {
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
+  padding: 3px 0;
+  min-width: 0;
+  height: 100%;
+}
+
+.episode {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  box-sizing: border-box;
+  padding: 0 8px;
+  height: 32px;
+  border: 1px solid var(--borderColor);
+  border-radius: 4px;
+}
+
+.missing {
+  border-color: var(--dangerColor);
+}
+
+.code {
+  font-family: $monoSpaceFontFamily;
+}
+
+.replaces {
+  flex: 0 0 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--gray);
+}
+
+.section {
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--borderColor);
+  color: var(--helpTextColor);
+}
+
+.error {
+  align-self: center;
+  color: var(--dangerColor);
+}
+
+.skipEpisode {
+  margin-left: auto;
+  padding: 0 6px;
+  border: 1px solid var(--borderColor);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--helpTextColor);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.middleName {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.head {
+  overflow: hidden;
+  min-width: 0;
+  text-overflow: ellipsis;
+}
+
+.tail {
+  flex: 0 0 auto;
+}
+
+.checkContainer {
+  display: flex;
+  align-items: center;
+}
+
+.checkInput {
+  composes: input from '~Components/Form/CheckInput.css';
+
+  margin-top: 0;
+}
+
+.wrapped {
+  height: 60px;
+}
+
+.wrappedName {
+  flex: 1;
+  overflow: hidden;
+  min-width: 0;
+  max-height: 54px;
+  line-height: 18px;
+}

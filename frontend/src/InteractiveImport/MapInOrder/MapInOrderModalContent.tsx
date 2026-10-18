@@ -6,7 +6,11 @@ import React, {
   useState,
 } from 'react';
 import { useSelector } from 'react-redux';
-import { FixedSizeList as List, ListChildComponentProps } from 'react-window';
+import {
+  FixedSizeList as List,
+  ListChildComponentProps,
+  VariableSizeList,
+} from 'react-window';
 import CheckInput from 'Components/Form/CheckInput';
 import NumberInput from 'Components/Form/NumberInput';
 import SelectInput from 'Components/Form/SelectInput';
@@ -14,6 +18,7 @@ import TextInput from 'Components/Form/TextInput';
 import Icon from 'Components/Icon';
 import Label from 'Components/Label';
 import Button from 'Components/Link/Button';
+import Link from 'Components/Link/Link';
 import LoadingIndicator from 'Components/Loading/LoadingIndicator';
 import ModalBody from 'Components/Modal/ModalBody';
 import ModalContent from 'Components/Modal/ModalContent';
@@ -46,9 +51,23 @@ import mapInOrder, {
   naturalCompare,
   selectRange,
 } from './mapInOrder';
+import MapInOrderLines, { LinesData, measureRows } from './MapInOrderLines';
+import {
+  buildLineRows,
+  closeGap,
+  makePartOf,
+  OrderState,
+  placeAt,
+  skipEpisode,
+} from './mapLines';
 import styles from './MapInOrderModalContent.css';
 
 const ROW_HEIGHT = 44;
+
+// The lines view opens its own menu; the screen has nothing to add.
+function noop() {
+  // Nothing to do.
+}
 const DRAFT_PREFIX = 'sonarr.mapInOrder.';
 
 export interface MappedFile {
@@ -71,6 +90,7 @@ const KIND_OPTIONS = [
   { key: 'part', value: () => translate('MapInOrderKindPart') },
   { key: 'version', value: () => translate('MapInOrderKindVersion') },
   { key: 'special', value: () => translate('MapInOrderKindSpecial') },
+  { key: 'skip', value: () => translate('MapInOrderKindSkip') },
 ];
 
 const ERROR_KEYS = {
@@ -117,6 +137,25 @@ function draftKey(series: Series, items: InteractiveImport[]) {
   }
 
   return `${DRAFT_PREFIX}${series.tvdbId}.${items.length}.${hash}`;
+}
+
+const WRAP_KEY = `${DRAFT_PREFIX}wrapNames`;
+
+// Remembered across sessions: it is a matter of taste, not of the files.
+function readWrap() {
+  try {
+    return window.localStorage.getItem(WRAP_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function writeWrap(value: boolean) {
+  try {
+    window.localStorage.setItem(WRAP_KEY, `${value}`);
+  } catch {
+    // Not remembered, and nothing else.
+  }
 }
 
 function readDraft(key: string): Draft | null {
@@ -193,6 +232,15 @@ function MapInOrderRow({
   const setting = settings[id] ?? DEFAULT_SETTING;
   const result = results[id];
   const takesEpisode = setting.kind === 'episode' || setting.kind === 'double';
+
+  const handleEpisodeCountChange = useCallback(
+    (change: InputChanged<number | null> | FileInputChanged) => {
+      const value = change.value as number | null;
+
+      onSettingChange(id, { episodeCount: Math.max(2, value ?? 2) });
+    },
+    [id, onSettingChange]
+  );
 
   const handleKindChange = useCallback(
     ({ value }: InputChanged<string>) => {
@@ -277,6 +325,8 @@ function MapInOrderRow({
 
       <div className={styles.select}>
         <CheckInput
+          className={styles.checkInput}
+          containerClassName={styles.checkContainer}
           name={`select-${id}`}
           value={selected.has(id)}
           onChange={handleSelectedChange}
@@ -321,6 +371,16 @@ function MapInOrderRow({
           values={KIND_OPTIONS}
           onChange={handleKindChange}
         />
+
+        {setting.kind === 'double' ? (
+          <NumberInput
+            className={styles.countInput}
+            name={`count-${id}`}
+            value={setting.episodeCount ?? 2}
+            min={2}
+            onChange={handleEpisodeCountChange}
+          />
+        ) : null}
       </div>
 
       <div className={styles.skip}>
@@ -411,7 +471,7 @@ function MapInOrderRow({
 interface MapInOrderModalContentProps {
   items: InteractiveImport[];
   series: Series;
-  onApply(series: Series, files: MappedFile[]): void;
+  onApply(series: Series, files: MappedFile[], skippedIds: number[]): void;
   onModalClose(): void;
 }
 
@@ -484,6 +544,11 @@ function MapInOrderModalContent(props: MapInOrderModalContentProps) {
   const [dropIndex, setDropIndex] = useState<number | null>(null);
   const [moveAfter, setMoveAfter] = useState<number | null>(null);
   const [pinCodes, setPinCodes] = useState<Record<number, string>>({});
+
+  // The lines view is the default; the table stays for when a column of settings is easier to scan.
+  const [view, setView] = useState<'lines' | 'table'>('lines');
+  const [wrap, setWrap] = useState(readWrap);
+  const linesRef = useRef<VariableSizeList<LinesData>>(null);
 
   const outerRef = useRef<HTMLDivElement>(null);
   const isSeeded = useRef(false);
@@ -646,21 +711,6 @@ function MapInOrderModalContent(props: MapInOrderModalContentProps) {
     );
   }, [order, itemsById, results, regular]);
 
-  const [shiftCursor, setShiftCursor] = useState(-1);
-
-  const onNextShiftPress = useCallback(() => {
-    const { shiftRows } = nameNumbers;
-
-    if (!shiftRows.length) {
-      return;
-    }
-
-    const next = (shiftCursor + 1) % shiftRows.length;
-
-    setShiftCursor(next);
-    listRef.current?.scrollToItem(shiftRows[next], 'center');
-  }, [nameNumbers, shiftCursor]);
-
   const rowNumberById = useMemo(() => {
     return order.reduce<Record<number, number>>((acc, id, index) => {
       acc[id] = index + 1;
@@ -711,6 +761,28 @@ function MapInOrderModalContent(props: MapInOrderModalContentProps) {
 
     return () => window.clearTimeout(timer);
   }, [key, isFetching, seriesId, startEpisodeId, order, settings, itemsById]);
+
+  const applyState = useCallback(
+    (next: OrderState) => {
+      setOrder(next.order);
+      setSettings(next.settings);
+      setPinCodes(
+        Object.entries(next.settings).reduce<Record<number, string>>(
+          (acc, [id, setting]) => {
+            const episode = regular.find((e) => e.id === setting.pinEpisodeId);
+
+            if (episode) {
+              acc[Number(id)] = episodeCode(episode);
+            }
+
+            return acc;
+          },
+          {}
+        )
+      );
+    },
+    [regular]
+  );
 
   const onSettingChange = useCallback(
     (id: number, change: Partial<MapSetting>) => {
@@ -869,6 +941,149 @@ function MapInOrderModalContent(props: MapInOrderModalContentProps) {
     setIsRestored(false);
   }, [key, items]);
 
+  const lineRows = useMemo(
+    () => buildLineRows(order, results, regular, startIndex),
+    [order, results, regular, startIndex]
+  );
+
+  const lineSizes = useMemo(
+    () => measureRows(lineRows, wrap),
+    [lineRows, wrap]
+  );
+
+  const names = useMemo(() => {
+    return items.reduce<Record<number, string>>((acc, item) => {
+      acc[item.id] = fileName(item);
+      return acc;
+    }, {});
+  }, [items]);
+
+  // Episodes a whole-episode file is put on that already have one: importing replaces it.
+  const replaced = useMemo(() => {
+    return new Set(
+      order
+        .map((id) => results[id])
+        .filter((r) => r && r.multipleType === 'none')
+        .flatMap((r) => r.episodes)
+        .filter((e) => e.hasFile)
+        .map((e) => e.id)
+    );
+  }, [order, results]);
+
+  const onDropOnEpisode = useCallback(
+    (episodeId: number) => {
+      stopScrolling();
+
+      if (dragIds.length) {
+        applyState(
+          placeAt({ order, settings }, dragIds, episodeId, results, regular)
+        );
+      }
+
+      setDragIds([]);
+    },
+    [dragIds, order, settings, results, regular, applyState, stopScrolling]
+  );
+
+  // A file dropped on a file joins its set; several dropped together all join it, in their order.
+  const onDropOnFile = useCallback(
+    (targetId: number) => {
+      stopScrolling();
+
+      const moving = dragIds.filter((id) => id !== targetId);
+
+      if (moving.length) {
+        let next: OrderState = { order, settings };
+        let last = targetId;
+
+        moving.forEach((id) => {
+          next = makePartOf(next, id, last);
+          last = id;
+        });
+
+        applyState(next);
+      }
+
+      setDragIds([]);
+    },
+    [dragIds, order, settings, applyState, stopScrolling]
+  );
+
+  const onSkipEpisode = useCallback(
+    (episodeId: number) => {
+      applyState(skipEpisode({ order, settings }, episodeId, results, regular));
+    },
+    [order, settings, results, regular, applyState]
+  );
+
+  const onCloseGap = useCallback(
+    (episodeId: number) => {
+      applyState(closeGap({ order, settings }, episodeId, results, regular));
+    },
+    [order, settings, results, regular, applyState]
+  );
+
+  const linesData: LinesData = {
+    rows: lineRows,
+    regular,
+    specials,
+    results,
+    settings,
+    names,
+    nameNumbers: nameNumbers.byId,
+    selected,
+    replaced,
+    heights: lineSizes.heights,
+    offsets: lineSizes.offsets,
+    rowByEpisodeIndex: lineSizes.rowByEpisodeIndex,
+    onOpenMenu: noop,
+    onSettingChange,
+    onSelectedChange,
+    onDragStart,
+    onDropOnEpisode,
+    onDropOnFile,
+    onCloseGap,
+    onSkipEpisode,
+    wrap,
+  };
+
+  const [shiftCursor, setShiftCursor] = useState(-1);
+
+  const onNextShiftPress = useCallback(() => {
+    const { shiftRows } = nameNumbers;
+
+    if (!shiftRows.length) {
+      return;
+    }
+
+    const next = (shiftCursor + 1) % shiftRows.length;
+
+    setShiftCursor(next);
+
+    if (view === 'lines') {
+      const id = order[shiftRows[next]];
+      const row = lineRows.findIndex(
+        (r) =>
+          (r.type === 'slot' && r.fileIds.includes(id)) ||
+          (r.type === 'file' && r.fileId === id)
+      );
+
+      if (row >= 0) {
+        linesRef.current?.scrollToItem(row, 'center');
+      }
+    } else {
+      listRef.current?.scrollToItem(shiftRows[next], 'center');
+    }
+  }, [nameNumbers, shiftCursor, view, order, lineRows]);
+
+  const onWrapChange = useCallback(({ value }: CheckInputChanged) => {
+    setWrap(value);
+    writeWrap(value);
+  }, []);
+
+  const onLinesViewPress = useCallback(() => setView('lines'), []);
+  const onTableViewPress = useCallback(() => setView('table'), []);
+
   const canApply =
     !isFetching && !fetchError && summary.problems === 0 && order.length > 0;
 
@@ -879,15 +1094,25 @@ function MapInOrderModalContent(props: MapInOrderModalContentProps) {
 
     writeDraft(key, null);
 
+    const isSkipped = (id: number) =>
+      (settings[id] ?? DEFAULT_SETTING).kind === 'skip';
+
     onApply(
       series,
-      order.map((id) => {
-        const { episodes: mapped, multipleType, multipleNumber } = results[id];
+      order
+        .filter((id) => !isSkipped(id))
+        .map((id) => {
+          const {
+            episodes: mapped,
+            multipleType,
+            multipleNumber,
+          } = results[id];
 
-        return { id, episodes: mapped, multipleType, multipleNumber };
-      })
+          return { id, episodes: mapped, multipleType, multipleNumber };
+        }),
+      order.filter(isSkipped)
     );
-  }, [canApply, key, series, order, results, onApply]);
+  }, [canApply, key, series, order, results, settings, onApply]);
 
   const startOptions = useMemo(
     () =>
@@ -947,30 +1172,33 @@ function MapInOrderModalContent(props: MapInOrderModalContentProps) {
       </ModalHeader>
 
       <ModalBody>
-        <div className={styles.help}>{translate('MapInOrderHelpText')}</div>
-
-        {isRestored ? (
-          <div className={styles.restored}>
-            {translate('MapInOrderRestored')}{' '}
-            <Button onPress={onStartOverPress}>
-              {translate('MapInOrderStartOver')}
+        {/* One row of controls and one of counts; the explanation is on the icon, read once. */}
+        <div className={styles.toolbar}>
+          <span className={styles.segmented}>
+            <Button
+              className={styles.segment}
+              kind={view === 'lines' ? kinds.PRIMARY : kinds.DEFAULT}
+              onPress={onLinesViewPress}
+            >
+              {translate('MapInOrderViewLines')}
             </Button>
-          </div>
-        ) : null}
+            <Button
+              className={styles.segment}
+              kind={view === 'table' ? kinds.PRIMARY : kinds.DEFAULT}
+              onPress={onTableViewPress}
+            >
+              {translate('MapInOrderViewTable')}
+            </Button>
+          </span>
 
-        <div className={styles.controls}>
           {editions.length > 1 ? (
-            <label className={styles.control}>
-              <span className={styles.controlLabel}>
-                {translate('Edition')}
-              </span>
-              <SelectInput
-                name="seriesId"
-                value={seriesId}
-                values={editionOptions}
-                onChange={onSeriesChange}
-              />
-            </label>
+            <SelectInput
+              className={styles.toolbarSelect}
+              name="seriesId"
+              value={seriesId}
+              values={editionOptions}
+              onChange={onSeriesChange}
+            />
           ) : null}
 
           <label className={styles.control}>
@@ -978,6 +1206,7 @@ function MapInOrderModalContent(props: MapInOrderModalContentProps) {
               {translate('MapInOrderStart')}
             </span>
             <SelectInput
+              className={styles.toolbarSelect}
               name="startEpisodeId"
               value={regular[startIndex]?.id ?? ''}
               values={startOptions}
@@ -986,22 +1215,19 @@ function MapInOrderModalContent(props: MapInOrderModalContentProps) {
             />
           </label>
 
-          <label className={styles.control}>
-            <span className={styles.controlLabel}>
-              {translate('MapInOrderMoveAfter', { count: selected.size })}
-            </span>
-            <NumberInput
-              className={styles.moveInput}
-              name="moveAfter"
-              value={moveAfter}
-              min={0}
-              max={order.length}
-              onChange={onMoveAfterChange}
+          {view === 'lines' ? (
+            <CheckInput
+              containerClassName={styles.wrapToggle}
+              name="wrap"
+              value={wrap}
+              helpText={translate('MapInOrderWrapNames')}
+              onChange={onWrapChange}
             />
-            <Button isDisabled={!selected.size} onPress={onMovePress}>
-              {translate('MapInOrderMove')}
-            </Button>
-          </label>
+          ) : null}
+
+          <span className={styles.help} title={translate('MapInOrderHelpText')}>
+            <Icon name={icons.INFO} />
+          </span>
         </div>
 
         {isFetching ? <LoadingIndicator /> : null}
@@ -1013,11 +1239,13 @@ function MapInOrderModalContent(props: MapInOrderModalContentProps) {
         {!isFetching && !fetchError ? (
           <>
             <div className={styles.summary}>
-              {translate('MapInOrderSummary', {
-                files: order.length,
-                first: summary.first ? episodeCode(summary.first) : '-',
-                last: summary.last ? episodeCode(summary.last) : '-',
-              })}
+              <span>
+                {translate('MapInOrderSummary', {
+                  files: order.length,
+                  first: summary.first ? episodeCode(summary.first) : '-',
+                  last: summary.last ? episodeCode(summary.last) : '-',
+                })}
+              </span>
 
               {summary.problems ? (
                 <Label kind={kinds.DANGER}>
@@ -1036,17 +1264,17 @@ function MapInOrderModalContent(props: MapInOrderModalContentProps) {
               ) : null}
 
               {nameNumbers.shiftRows.length ? (
-                <>
-                  <Label kind={kinds.WARNING}>
-                    {translate('MapInOrderShifts', {
-                      count: nameNumbers.shiftRows.length,
-                    })}
-                  </Label>
-
-                  <Button onPress={onNextShiftPress}>
-                    {translate('MapInOrderNextShift')}
-                  </Button>
-                </>
+                <button
+                  type="button"
+                  className={styles.shiftButton}
+                  title={translate('MapInOrderNextShift')}
+                  onClick={onNextShiftPress}
+                >
+                  {translate('MapInOrderShifts', {
+                    count: nameNumbers.shiftRows.length,
+                  })}
+                  <Icon name={icons.CARET_DOWN} size={10} />
+                </button>
               ) : null}
 
               {summary.replaced ? (
@@ -1056,45 +1284,100 @@ function MapInOrderModalContent(props: MapInOrderModalContentProps) {
                   })}
                 </Label>
               ) : null}
+
+              <span className={styles.summaryEnd}>
+                {view === 'table' && selected.size ? (
+                  <span className={styles.control}>
+                    <span className={styles.controlLabel}>
+                      {translate('MapInOrderMoveAfter', {
+                        count: selected.size,
+                      })}
+                    </span>
+                    <NumberInput
+                      className={styles.moveInput}
+                      name="moveAfter"
+                      value={moveAfter}
+                      min={0}
+                      max={order.length}
+                      onChange={onMoveAfterChange}
+                    />
+                    <Button onPress={onMovePress}>
+                      {translate('MapInOrderMove')}
+                    </Button>
+                  </span>
+                ) : null}
+
+                {isRestored ? (
+                  <span className={styles.restored}>
+                    {translate('MapInOrderRestored')}
+                    <Link onPress={onStartOverPress}>
+                      {translate('MapInOrderStartOver')}
+                    </Link>
+                  </span>
+                ) : null}
+              </span>
             </div>
 
-            <div className={styles.header}>
-              <div className={styles.select}>
-                <CheckInput
-                  name="selectAll"
-                  // Neither true nor false draws the box as partly ticked.
-                  value={
-                    selected.size > 0 && selected.size < order.length
-                      ? 'some'
-                      : order.length > 0 && selected.size === order.length
-                  }
-                  onChange={onSelectAllChange}
-                />
-              </div>
-              <div />
-              <div>#</div>
-              <div>{translate('MapInOrderFile')}</div>
-              <div>{translate('MapInOrderNameNumber')}</div>
-              <div>{translate('MapInOrderKind')}</div>
-              <div>{translate('MapInOrderSkip')}</div>
-              <div>{translate('MapInOrderPin')}</div>
-              <div>{translate('MapInOrderResult')}</div>
-            </div>
+            {view === 'lines' ? (
+              <>
+                <div className={styles.linesHeader}>
+                  <span>{translate('MapInOrderFilesInOrder')}</span>
+                  <span />
+                  <span>{translate('Episodes')}</span>
+                </div>
 
-            <div onDragOver={onListDragOver} onDragLeave={stopScrolling}>
-              <List<RowData>
-                ref={listRef}
-                outerRef={outerRef}
-                height={listHeight}
-                width="100%"
-                itemCount={order.length}
-                itemSize={ROW_HEIGHT}
-                itemData={rowData}
-                itemKey={getItemKey}
-              >
-                {MapInOrderRow}
-              </List>
-            </div>
+                <div onDragOver={onListDragOver} onDragLeave={stopScrolling}>
+                  <MapInOrderLines
+                    data={linesData}
+                    height={listHeight}
+                    listRef={linesRef}
+                    outerRef={outerRef}
+                  />
+                </div>
+              </>
+            ) : null}
+
+            {view === 'table' ? (
+              <>
+                <div className={styles.header}>
+                  <div className={styles.select}>
+                    <CheckInput
+                      name="selectAll"
+                      // Neither true nor false draws the box as partly ticked.
+                      value={
+                        selected.size > 0 && selected.size < order.length
+                          ? 'some'
+                          : order.length > 0 && selected.size === order.length
+                      }
+                      onChange={onSelectAllChange}
+                    />
+                  </div>
+                  <div />
+                  <div>#</div>
+                  <div>{translate('MapInOrderFile')}</div>
+                  <div>{translate('MapInOrderNameNumber')}</div>
+                  <div>{translate('MapInOrderKind')}</div>
+                  <div>{translate('MapInOrderSkip')}</div>
+                  <div>{translate('MapInOrderPin')}</div>
+                  <div>{translate('MapInOrderResult')}</div>
+                </div>
+
+                <div onDragOver={onListDragOver} onDragLeave={stopScrolling}>
+                  <List<RowData>
+                    ref={listRef}
+                    outerRef={outerRef}
+                    height={listHeight}
+                    width="100%"
+                    itemCount={order.length}
+                    itemSize={ROW_HEIGHT}
+                    itemData={rowData}
+                    itemKey={getItemKey}
+                  >
+                    {MapInOrderRow}
+                  </List>
+                </div>
+              </>
+            ) : null}
           </>
         ) : null}
       </ModalBody>

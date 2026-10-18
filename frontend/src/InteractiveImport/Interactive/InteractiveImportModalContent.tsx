@@ -1226,7 +1226,7 @@ function InteractiveImportModalContent(
   // takes most of an hour, and the import checks every file itself anyway. What reprocessing would
   // have filled in for a row the name told nothing about - the series' language - is filled in here.
   const onMapInOrderApply = useCallback(
-    (series: Series, files: MappedFile[]) => {
+    (series: Series, files: MappedFile[], skippedIds: number[]) => {
       dispatch(
         batchActions(
           files.map(({ id, episodes, multipleType, multipleNumber }) => {
@@ -1251,9 +1251,22 @@ function InteractiveImportModalContent(
         )
       );
 
+      // Files left out of the order are not to be imported, so they are unticked; their rows are
+      // otherwise left as they were.
+      skippedIds.forEach((id) => {
+        const item = items.find((i) => i.id === id);
+
+        onSelectedChange({
+          id,
+          value: false,
+          hasEpisodeFileId: !!item?.episodeFileId,
+          shiftKey: false,
+        });
+      });
+
       setSelectModalOpen(null);
     },
-    [items, dispatch]
+    [items, dispatch, onSelectedChange]
   );
 
   const onEpisodesSelect = useCallback(

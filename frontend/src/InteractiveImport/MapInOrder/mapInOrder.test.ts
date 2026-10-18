@@ -124,11 +124,45 @@ describe('mapInOrder', () => {
     assert.deepEqual(results.map(codes), ['S1E1+S1E2', 'S1E3']);
   });
 
+  test('gives a file as many episodes as it is said to run across', () => {
+    const results = map([{ kind: 'double', episodeCount: 3 }, {}]);
+
+    assert.deepEqual(results.map(codes), ['S1E1+S1E2+S1E3', 'S2E1']);
+  });
+
+  test('never gives a file running across episodes fewer than two', () => {
+    assert.equal(
+      codes(map([{ kind: 'double', episodeCount: 1 }])[0]),
+      'S1E1+S1E2'
+    );
+  });
+
+  test('refuses a file running past the last episode', () => {
+    assert.equal(
+      map([{ kind: 'double', episodeCount: 4 }], 3)[0].error,
+      'pastEnd'
+    );
+  });
+
   test('gives a part of a double file both episodes as well', () => {
     const results = map([{ kind: 'double' }, { kind: 'part' }]);
 
     assert.equal(codes(results[1]), 'S1E1+S1E2');
     assert.equal(results[1].multipleNumber, 2);
+  });
+
+  test('leaves a skipped file out without moving the files after it', () => {
+    const results = map([{}, { kind: 'skip' }, {}]);
+
+    assert.deepEqual(results.map(codes), ['S1E1', '', 'S1E2']);
+    assert.ok(results.every((r) => !r.error));
+  });
+
+  test('does not let a part join a skipped file', () => {
+    const results = map([{}, { kind: 'skip' }, { kind: 'part' }]);
+
+    assert.equal(codes(results[2]), 'S1E1');
+    assert.equal(results[2].multipleNumber, 2);
   });
 
   test('places a special without moving the files after it', () => {
@@ -378,6 +412,12 @@ describe('mapFromRows', () => {
 
     assert.equal(state.settings[2].kind, 'part');
     assert.equal(state.settings[3].kind, 'double');
+  });
+
+  test('gives back how many episodes a file runs across', () => {
+    const state = roundTrip([{ kind: 'double', episodeCount: 3 }, {}]);
+
+    assert.equal(state.settings[1].episodeCount, 3);
   });
 
   test('puts the files back in episode order whatever order the rows are in', () => {
