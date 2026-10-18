@@ -597,8 +597,11 @@ function InteractiveImportModalContent(
         icon: icons.CLONE,
 
         // Nothing to choose between unless the selection is all one series and that series has more
-        // than the one edition.
-        isDisabled: getSeriesEditions(allSeries, commonSeries).length <= 1,
+        // than the one edition. Choosing the edition is choosing the series, so where the series is
+        // fixed - Manage Episodes, opened from the series itself - it is not offered either.
+        isDisabled:
+          !allowSeriesChange ||
+          getSeriesEditions(allSeries, commonSeries).length <= 1,
       },
       {
         key: 'season',
