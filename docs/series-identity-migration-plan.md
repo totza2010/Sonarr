@@ -9,7 +9,7 @@ What it costs is the history, and that is why they are written down: the cost is
 reason it is avoidable is the same in every case. The fifth is not rare at all and has no good
 workaround, but it belongs here because it is the same screen.
 
-Nothing here is built. This is the analysis, so that whoever picks it up does not have to redo it.
+Nothing here is built except renaming an edition and swapping the main one (§2-3, October 2026). This is the analysis, so that whoever picks it up does not have to redo it.
 
 ## Why the first four are possible at all
 
@@ -129,6 +129,27 @@ What the preview has to cover:
   this fork does not have to, because an episode is allowed more than one file - offer to keep both as
   versions.
 - episodes of A with nowhere to go: say plainly that their files stay where they are, or refuse
+
+### Seen again, October 2026: Peach and Me
+
+*Peach and Me* (tvdb 479669, GMM25) was removed from TheTVDB two months after its four episodes were
+imported. It had become season 2 of *Me and Thee* (tvdb 457160), which was already in the library:
+S01E01-E04 of the one aired on exactly the dates of S02E01-E04 of the other (11 July to 1 August
+2026), and the destination episodes were still titled TBA with no files. It was handled by hand -
+manual import into the destination season, then deleting the source without its files - which keeps
+the files and loses the four history rows. Three things it added to the plan above:
+
+- **Match by air date first.** Here it matched every episode with nothing to set. A season and an
+  offset is the fallback, and the per-episode table the last resort.
+- **Extra files move too.** Subtitles and `.nfo` files are rows of their own (`ExtraFiles`,
+  `SubtitleFiles`, `MetadataFiles`) keyed on the series and the episode file, with a path relative to
+  the series folder. Move the episode files alone and the subtitles are deleted with the source.
+- **`DownloadHistory` as well as `History`.** Both carry the series id, and both are cleared by the
+  source's `SeriesDeletedEvent`.
+
+Proposed when it came up, not yet decided: when a destination episode already has a file, skip it by default
+(replacing it, or keeping both as versions, chosen per episode); a destination not yet in the library
+is added first, not from this screen; and the source is deleted only once nothing is left on it.
 
 ## 5. Numbering a series the way its releases are named
 
