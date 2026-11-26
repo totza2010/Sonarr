@@ -117,6 +117,29 @@ Each of these breaks something if the port carries the fork's code over unchange
 - Every v5 migration is one way. Rehearse on a copy of the production database before switching the
   image, and keep the copy.
 
+## Open upstream work to watch
+
+Pull requests on Sonarr/Sonarr, open on 19 October 2026, that land on top of something the fork does.
+
+| PR | What | Why it matters here |
+| --- | --- | --- |
+| #9072, #9073, #9075 | Multi-season packs: every season shown in the queue, a "Multi-Season Pack" release type, and importing such packs automatically | The queue problem this fork wanted solved: a pack spanning seasons imported only its first. #9075 reverses `f91ebd4c07` (not importing them at all), so read both before deciding what the fork keeps |
+| #9165 | Fixed: series files always moved after changing the path | Inside the `PendingPath` flow the edition rename and swap have to be ported onto |
+| #9162 | Fixed: null reference mapping episodes whose file was deleted | Near the fork's handling of files reached through `EpisodeFileLinks` |
+
+A redesigned episode details dialog has been shown around - a card per file with its path, size,
+quality, video, audio, languages, group, custom formats and score, under Details, History and Search
+tabs - but as of 19 October 2026 it is neither on `develop` nor in a pull request; `develop` still has
+the table of file rows. It suits this fork well, one card for each part or version of an episode with
+its marker and naming languages on it, so wait for it rather than build it on v4.
+
+To look again:
+
+```bash
+gh pr list -R Sonarr/Sonarr --state open --limit 50
+gh search prs --repo Sonarr/Sonarr "redesign" --limit 20
+```
+
 ## Open decisions
 
 - When to start: the backend now, on a branch from `upstream/develop`, with the UI after v5 settles;
