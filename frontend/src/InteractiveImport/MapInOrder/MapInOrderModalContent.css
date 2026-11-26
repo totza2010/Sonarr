@@ -1,5 +1,10 @@
-.help {
+.startOver {
+  composes: button from '~Components/Link/Button.css';
+
   margin-left: auto;
+}
+
+.help {
   color: var(--helpTextColor);
   cursor: help;
 }

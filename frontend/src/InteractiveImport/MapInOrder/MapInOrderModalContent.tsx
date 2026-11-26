@@ -18,8 +18,8 @@ import TextInput from 'Components/Form/TextInput';
 import Icon from 'Components/Icon';
 import Label from 'Components/Label';
 import Button from 'Components/Link/Button';
-import Link from 'Components/Link/Link';
 import LoadingIndicator from 'Components/Loading/LoadingIndicator';
+import ConfirmModal from 'Components/Modal/ConfirmModal';
 import ModalBody from 'Components/Modal/ModalBody';
 import ModalContent from 'Components/Modal/ModalContent';
 import ModalFooter from 'Components/Modal/ModalFooter';
@@ -544,6 +544,7 @@ function MapInOrderModalContent(props: MapInOrderModalContentProps) {
   const [dropIndex, setDropIndex] = useState<number | null>(null);
   const [moveAfter, setMoveAfter] = useState<number | null>(null);
   const [pinCodes, setPinCodes] = useState<Record<number, string>>({});
+  const [isConfirmingStartOver, setIsConfirmingStartOver] = useState(false);
 
   // The lines view is the default; the table stays for when a column of settings is easier to scan.
   const [view, setView] = useState<'lines' | 'table'>('lines');
@@ -931,7 +932,17 @@ function MapInOrderModalContent(props: MapInOrderModalContentProps) {
     setStartEpisodeId(undefined);
   }, []);
 
+  // Back to the files in name order with nothing set, whether the screen opened on a draft or on
+  // the episodes the rows already had. Asked first: a long folder can be hours of work.
   const onStartOverPress = useCallback(() => {
+    setIsConfirmingStartOver(true);
+  }, []);
+
+  const onStartOverCancel = useCallback(() => {
+    setIsConfirmingStartOver(false);
+  }, []);
+
+  const onStartOverConfirm = useCallback(() => {
     writeDraft(key, null);
     setOrder([...items].sort(byName).map((i) => i.id));
     setSettings({});
@@ -939,6 +950,7 @@ function MapInOrderModalContent(props: MapInOrderModalContentProps) {
     setSelected(new Set());
     setStartEpisodeId(undefined);
     setIsRestored(false);
+    setIsConfirmingStartOver(false);
   }, [key, items]);
 
   const lineRows = useMemo(
@@ -1225,6 +1237,14 @@ function MapInOrderModalContent(props: MapInOrderModalContentProps) {
             />
           ) : null}
 
+          <Button
+            className={styles.startOver}
+            isDisabled={isFetching}
+            onPress={onStartOverPress}
+          >
+            {translate('MapInOrderStartOver')}
+          </Button>
+
           <span className={styles.help} title={translate('MapInOrderHelpText')}>
             <Icon name={icons.INFO} />
           </span>
@@ -1310,9 +1330,6 @@ function MapInOrderModalContent(props: MapInOrderModalContentProps) {
                 {isRestored ? (
                   <span className={styles.restored}>
                     {translate('MapInOrderRestored')}
-                    <Link onPress={onStartOverPress}>
-                      {translate('MapInOrderStartOver')}
-                    </Link>
                   </span>
                 ) : null}
               </span>
@@ -1393,6 +1410,16 @@ function MapInOrderModalContent(props: MapInOrderModalContentProps) {
           {translate('MapInOrderApply')}
         </Button>
       </ModalFooter>
+
+      <ConfirmModal
+        isOpen={isConfirmingStartOver}
+        kind={kinds.DANGER}
+        title={translate('MapInOrderStartOver')}
+        message={translate('MapInOrderStartOverMessage')}
+        confirmLabel={translate('MapInOrderStartOver')}
+        onConfirm={onStartOverConfirm}
+        onCancel={onStartOverCancel}
+      />
     </ModalContent>
   );
 }

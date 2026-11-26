@@ -30,6 +30,7 @@ interface CssExports {
   'select': string;
   'shiftButton': string;
   'skip': string;
+  'startOver': string;
   'summary': string;
   'summaryEnd': string;
   'toolbar': string;

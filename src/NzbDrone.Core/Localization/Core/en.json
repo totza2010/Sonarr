@@ -1236,6 +1236,7 @@
   "MapInOrderSkipped": "{count} with no file",
   "MapInOrderStart": "First file is",
   "MapInOrderStartOver": "Start Over",
+  "MapInOrderStartOverMessage": "Put every file back in name order and clear everything set here: kinds, pins, skips and the first episode. Nothing is changed on the import rows until you Apply.",
   "MapInOrderSummary": "{files} files, {first} to {last}",
   "MarkAsMultiple": "Mark as Multiple",
   "MassSearchCancelWarning": "This cannot be cancelled once started without restarting {appName} or disabling all of your indexers.",
